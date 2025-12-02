@@ -31,14 +31,11 @@ jobs:
     - name: Install dependencies with uv
       run: |
         uv sync
-        # Install pylint separately if not listed in pyproject.toml
-        pip install pylint
 
     - name: Lint with pylint
       run: |
-        # Run pylint on all Python files
-        pylint **/*.py || true
+        uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py || true
 
     - name: Test with pytest
       run: |
-        pytest
+        uv run pytest
