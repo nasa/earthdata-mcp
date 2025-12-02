@@ -1,14 +1,6 @@
-import warnings
 from typing import Any
 
-import urllib3
-from urllib3.exceptions import InsecureRequestWarning
-
 from util.natural_language_geocoder import convert_text_to_geom
-
-# Disable the InsecureRequestWarning
-urllib3.disable_warnings(InsecureRequestWarning)
-warnings.simplefilter("ignore", UserWarning)
 
 
 def natural_language_geocode(location: str) -> dict[str, Any]:

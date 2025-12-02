@@ -94,18 +94,6 @@
                     }
                 }
             ]
-        },
-        "start": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "Start date in ISO 8601 format (e.g., '2025-11-20T00:00:00')",
-            "examples": ["2025-11-20T00:00:00", "2025-01-01T12:00:00Z"]
-        },
-        "end": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "End date in ISO 8601 format (e.g., '2025-11-25T00:00:00')",
-            "examples": ["2025-11-25T00:00:00", "2025-12-31T23:59:59Z"]
         }
     }
 }
