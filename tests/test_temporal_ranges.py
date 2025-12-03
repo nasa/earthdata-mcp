@@ -34,32 +34,30 @@ def wrapped_func(mcp):
 
 def test_direct_function_with_dates():
     """Test the function directly with both dates."""
-    result = get_temporal_ranges(
-        DateRange(start=datetime(2025, 11, 20), end=datetime(2025, 11, 25))
-    )
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+    result = get_temporal_ranges("Show me data from November 20 to November 25, 2025")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-20T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-25T23:59:59"
 
 
 def test_direct_function_no_dates():
     """Test with no dates provided."""
-    result = get_temporal_ranges(DateRange())
+    result = get_temporal_ranges("Show me all available data")
     assert result[0]["StartDate"] is None
     assert result[0]["EndDate"] is None
 
 
 def test_direct_function_only_start():
     """Test with only start date."""
-    result = get_temporal_ranges(DateRange(start=datetime(2025, 11, 20)))
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
+    result = get_temporal_ranges("Show me data from November 20, 2025 onwards")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-20T00:00:00"
     assert result[0]["EndDate"] is None
 
 
 def test_direct_function_only_end():
     """Test with only end date."""
-    result = get_temporal_ranges(DateRange(end=datetime(2025, 11, 25)))
+    result = get_temporal_ranges("Show me data until November 25, 2025")
     assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-25T23:59:59"
 
 
 # ===== MCP wrapper tests =====
@@ -69,7 +67,7 @@ def test_direct_function_only_end():
 async def test_via_mcp_wrapper(wrapped_func):
     """Test via the MCP wrapper."""
     result = await wrapped_func(
-        daterange=DateRange(start=datetime(2025, 11, 20), end=datetime(2025, 11, 25))
+        query="Show me data from November 20 to November 25, 2025"
     )
 
     assert result[0]["StartDate"] == datetime(2025, 11, 20)
@@ -81,7 +79,7 @@ async def test_via_call_tool(mcp):
     """Test via MCP call_tool interface."""
     result = await mcp.call_tool(
         "get_temporal_ranges",
-        {"daterange": {"start": "2025-11-20T00:00:00", "end": "2025-11-25T00:00:00"}},
+        {"query": "Show me data from November 20 to November 25, 2025"},
     )
 
     content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
@@ -95,7 +93,9 @@ async def test_via_call_tool(mcp):
 @pytest.mark.asyncio
 async def test_via_call_tool_no_dates(mcp):
     """Test via MCP with no dates."""
-    result = await mcp.call_tool("get_temporal_ranges", {"daterange": {}})
+    result = await mcp.call_tool(
+        "get_temporal_ranges", {"query": "Show me all available data"}
+    )
 
     content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
 
@@ -111,3 +111,38 @@ async def test_tool_is_registered(mcp):
     tools = await mcp.list_tools()
     tool_names = [tool.name for tool in tools]
     assert "get_temporal_ranges" in tool_names
+
+
+def test_spring_four_years_ago():
+    """Test relative date: spring of four years ago."""
+    result = get_temporal_ranges("spring of four years ago")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-03-01T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-05-31T23:59:59"
+
+
+def test_spring_argentina():
+    """Test relative date with location: last spring in Argentina"""
+    result = get_temporal_ranges("this winter in argentina")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-08-31T23:59:59"
+
+
+def test_last_month():
+    """Test relative date: last month."""
+    result = get_temporal_ranges("last month")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-01T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
+
+
+def test_atlantic_hurricane_season():
+    """Test seasonal pattern: Atlantic hurricane season."""
+    result = get_temporal_ranges("Atlantic hurricane season")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
+
+
+def test_indian_monsoon_season():
+    """Test seasonal pattern: Indian monsoon season."""
+    result = get_temporal_ranges("Indian monsoon season")
+    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
+    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-09-30T23:59:59"
