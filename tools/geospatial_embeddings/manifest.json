@@ -4,5 +4,6 @@
   "description": "Searches CMR's geospatial embedding search with natural langugage. Given a text detailing location, return geometry/geojson",
   "version": "1.0.0",
   "tags": ["geospatial", "location", "geometry"],
-  "entry_function": "natural_language_geocode"
+  "entry_function": "natural_language_geocode",
+  "enabled": "false"
 }

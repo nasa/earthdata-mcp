@@ -1,18 +1,19 @@
 {
-    "type" : "object",
-    "properties": {
-        "start": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "Start date in ISO 8601 format (e.g., '2025-11-20T00:00:00')",
-            "examples": ["2025-11-20T00:00:00", "2025-01-01T12:00:00Z"]
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "StartDate": {
+                "description": "Start date as datetime object or ISO 8601 string with timezone",
+                "examples": ["2024-06-01T00:00:00+00:00", null]
+            },
+            "EndDate": {
+                "description": "End date as datetime object or ISO 8601 string with timezone",
+                "examples": ["2024-08-31T23:59:59+00:00", null]
+            }
         },
-        "end": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "End date in ISO 8601 format (e.g., '2025-11-25T00:00:00')",
-            "examples": ["2025-11-25T00:00:00", "2025-12-31T23:59:59Z"]
-        }
+        "required": ["StartDate", "EndDate"],
+        "additionalProperties": false
     }
 }
 
