@@ -1,3 +1,4 @@
+# earthdata-mcp
 # MCP Server — Project Overview
 
 This repository implements a modular MCP (Model Context Protocol) server with support for multiple transport modes (STDIO, HTTP, SSE). Tools are organized under the `tools/` directory, and each tool is self-contained with its own Python implementation and manifest.
@@ -14,6 +15,8 @@ mcp/
 │
 ├── tests/                 # All Pytest test files live here
 │   ├── test_<tool>.py
+│
+├── util/                 # Any utility functions common to all tools.
 │
 ├── loader.py              # Discovers tools, loads manifest, registers functions
 ├── server.py              # Entry point for STDIO / HTTP / SSE server
@@ -57,9 +60,9 @@ PYTHONPATH=.. uv run server.py http
 - `http` tells the server to run in HTTP mode
 - Server runs at `http://127.0.0.1:5001/mcp`
 
-### STDIO Mode (Claude Desktop Integration) (not supported yet)
+### STDIO Mode (Chainlit Integration)
 
-Run the server so Claude Desktop can use your tools:
+Run the server so can use your tools:
 
 1. **Navigate to the mcp/ folder:**
    ```bash
@@ -183,9 +186,14 @@ The MCP Inspector provides a visual interface for testing tools:
    Opens at `http://localhost:6274`
 
 3. **Connect to your MCP server:**
-   - **Transport Type:** Streamable HTTP
-   - **URL:** `http://localhost:5001/mcp`
-   - **Connection Type:** Direct
+   * Streamable HTTP
+    - **Transport Type:** Streamable HTTP
+    - **URL:** `http://localhost:5001/mcp`
+    - **Connection Type:** Direct
+   * STDIO
+    - **Transport Type:** STDIO
+    - **Command:** uv
+    - **Arguments:** run server.py stdio
 
 4. **Test your tools:**
    - Click "List Tools" to see all available tools
@@ -250,6 +258,6 @@ When adding a new tool:
 1. ✅ Follow the folder structure
 2. ✅ Include `manifest.json` and `tool.py`
 3. ✅ Ensure manifest specifies "entry"
-3. ✅ Write pytest files under tests/
-4. ✅ Test with MCP Inspector
-5. ✅ Run pytest before committing
+4. ✅ Write pytest files under tests/
+5. ✅ Test with MCP Inspector
+6. ✅ Run pytest before committing

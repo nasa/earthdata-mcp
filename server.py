@@ -11,6 +11,8 @@ from starlette.middleware.cors import CORSMiddleware
 from loader import load_tools_from_directory
 
 load_dotenv()
+
+# Initialize logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
