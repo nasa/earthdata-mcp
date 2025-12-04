@@ -60,80 +60,12 @@ PYTHONPATH=.. uv run server.py http
 - `http` tells the server to run in HTTP mode
 - Server runs at `http://127.0.0.1:5001/mcp`
 
-### STDIO Mode (Chainlit Integration)
+### STDIO Mode 
+Follow the [fastmcp integrations](https://gofastmcp.com/integrations) to integrate with you AI of choice
 
-Run the server so can use your tools:
-
-1. **Navigate to the mcp/ folder:**
-   ```bash
-   cd mcp
-   ```
-
-2. **Activate your virtual environment:**
-   ```bash
-   source .venv/bin/activate
-   ```
-
-3. **Install the server into Claude Desktop:**
-   ```bash
-   fastmcp install claude-desktop server.py --project .
-   ```
-
-4. **Verify installation:**
-   - Open Claude Desktop
-   - Start a new conversation
-   - Your tools should appear in the tools menu
 
 ### SSE Mode
-
-For Server-Sent Events support:
-```bash
-PYTHONPATH=.. uv run server.py sse
-```
-
-## Adding New Tools
-
-### 1. Create Tool Structure
-
-Create a folder under `tools/`:
-
-```
-tools/
-└── my_new_tool/
-    ├── tool.py
-    ├── manifest.json
-```
-
-### 2. Write manifest.json
-
-This declares the tool and its metadata:
-
-```json
-{
-  "name": "my_new_tool",
-  "description": "Does something interesting",
-  "version": "1.0.0",
-  "tags": ["example", "utility"],
-  "entry": "my_new_tool"   // The function name inside tool.py
-}
-```
-
-
-### 3. Write tool.py
-
-Implement the tool with a `register(mcp)` function:
-
-```python
-from pydantic import BaseModel
-from typing import Any
-
-class MyInput(BaseModel):
-    input_text: str
-    optional_param: int | None = None
-
-async def my_new_tool(params: MyInput) -> Any:
-    return [f"You sent: {params.input_text}"]
-```
+Note: SSE had been deprecated by fastmcp and been replaced with streamable http
 
 ## Testing
 
