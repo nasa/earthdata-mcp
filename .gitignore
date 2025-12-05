@@ -1,2 +1,12 @@
 __pycache__/
 .venv
+
+# Terraform
+*.tfstate
+*.tfstate.*
+terraform.tgz
+*.tfvars
+*.tfplan
+.terraform
+.terraform.lock.hcl
+terraform_backend.tf
