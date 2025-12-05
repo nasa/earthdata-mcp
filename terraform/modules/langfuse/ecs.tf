@@ -120,6 +120,8 @@ resource "aws_ecs_task_definition" "langfuse_web" {
   container_definitions = jsonencode([
     {
       name  = "langfuse-web"
+      # image = "${aws_ecr_repository.langfuse_web.repository_url}:langfuse1"
+      # image = "832706493240.dkr.ecr.us-east-1.amazonaws.com/langfuse-custom:latest"
       image = var.langfuse_web_image
       portMappings = [
         {
@@ -129,6 +131,14 @@ resource "aws_ecs_task_definition" "langfuse_web" {
       ]
       environment = [
         {
+          name  = "DATABASE_URL"
+          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+        },
+        {
+          name  = "REDIS_CONNECTION_STRING"
+          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+        },
+        {
           name  = "CLICKHOUSE_URL"
           value = "http://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:8123"
         },
@@ -137,12 +147,24 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           value = "clickhouse://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:9000"
         },
         {
+          name  = "ENCRYPTION_KEY"
+          value = random_id.encryption_key.hex
+        },
+        {
           name  = "CLICKHOUSE_USER"
           value = "langfuse"
         },
         {
+          name  = "CLICKHOUSE_PASSWORD"
+          value = random_password.clickhouse_password.result
+        },
+        {
           name  = "CLICKHOUSE_CLUSTER_ENABLED"
           value = "false"
+        },
+        {
+          name  = "NEXTAUTH_SECRET"
+          value = random_password.nextauth_secret.result
         },
         {
           name  = "NEXT_PUBLIC_BASE_PATH"
@@ -151,6 +173,10 @@ resource "aws_ecs_task_definition" "langfuse_web" {
         {
           name  = "NEXTAUTH_URL"
           value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
+        },
+        {
+          name  = "SALT"
+          value = random_password.langfuse_salt.result
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -165,35 +191,16 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           value = aws_s3_bucket.langfuse.bucket
         },
         {
+          name  = "TELEMETRY_ENABLED"
+          value = "true"
+        },
+        {
+          name  = "LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES"
+          value = "true"
+        },
+        {
           name = "HOSTNAME",
           value = "0.0.0.0"
-        }
-      ]
-
-      secrets = [
-        {
-          name      = "DATABASE_URL"
-          valueFrom = aws_secretsmanager_secret.database_url.arn
-        },
-        {
-          name      = "REDIS_CONNECTION_STRING"
-          valueFrom = aws_secretsmanager_secret.redis_connection.arn
-        },
-        {
-          name      = "CLICKHOUSE_PASSWORD"
-          valueFrom = aws_secretsmanager_secret.clickhouse_password.arn
-        },
-        {
-          name      = "NEXTAUTH_SECRET"
-          valueFrom = aws_secretsmanager_secret.nextauth_secret.arn
-        },
-        {
-          name      = "ENCRYPTION_KEY"
-          valueFrom = aws_secretsmanager_secret.encryption_key.arn
-        },
-        {
-          name      = "SALT"
-          valueFrom = aws_secretsmanager_secret.salt.arn
         }
       ]
       
@@ -222,8 +229,8 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
   family                   = "${var.environment_name}-langfuse-worker"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = var.worker_cpu
-  memory                   = var.worker_memory
+  cpu                      = 2048
+  memory                   = 4096
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn           = aws_iam_role.ecs_task_role.arn
 
@@ -232,15 +239,34 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
       portMappings = [
         {
           containerPort = 3030
+          hostPort      = 3030
           protocol      = "tcp"
         }
       ]
       name  = "langfuse-worker"
+      cpu       = 2048
+      memory    = 4096
       essential = true
       
       image = var.langfuse_worker_image
 
       environment = [
+        {
+          name  = "TELEMETRY_ENABLED"
+          value = "true"
+        },
+        {
+          name  = "LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES"
+          value = "true"
+        },
+        {
+          name  = "DATABASE_URL"
+          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+        },
+        {
+          name  = "REDIS_CONNECTION_STRING"
+          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+        },
         {
           name  = "CLICKHOUSE_URL"
           value = "http://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:8123"
@@ -249,14 +275,25 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           name  = "CLICKHOUSE_MIGRATION_URL"
           value = "clickhouse://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:9000"
         },
-        
+        {
+          name  = "ENCRYPTION_KEY"
+          value = random_id.encryption_key.hex
+        },
         {
           name  = "CLICKHOUSE_USER"
           value = "langfuse"
         },
         {
+          name  = "CLICKHOUSE_PASSWORD"
+          value = random_password.clickhouse_password.result
+        },
+        {
           name  = "CLICKHOUSE_CLUSTER_ENABLED"
           value = "false"
+        },
+        {
+          name  = "NEXTAUTH_SECRET"
+          value = random_password.nextauth_secret.result
         },
         {
           name  = "NEXT_PUBLIC_BASE_PATH"
@@ -265,6 +302,10 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         {
           name  = "NEXTAUTH_URL"
           value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
+        },
+        {
+          name  = "SALT"
+          value = random_password.langfuse_salt.result
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -281,32 +322,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         {
           name = "HOSTNAME",
           value = "0.0.0.0"
-        }
-      ],
-      secrets = [
-        {
-          name  = "DATABASE_URL"
-          valueFrom = aws_secretsmanager_secret.database_url.arn
-        },
-        {
-          name  = "REDIS_CONNECTION_STRING"
-          valueFrom = aws_secretsmanager_secret.redis_connection.arn
-        },
-        {
-          name  = "CLICKHOUSE_PASSWORD"
-          valueFrom = aws_secretsmanager_secret.clickhouse_password.arn
-        },
-        {
-          name  = "NEXTAUTH_SECRET"
-          valueFrom = aws_secretsmanager_secret.nextauth_secret.arn
-        },
-        {
-          name  = "ENCRYPTION_KEY"
-          valueFrom = aws_secretsmanager_secret.encryption_key.arn
-        },
-        {
-        name      = "SALT"
-        valueFrom = aws_secretsmanager_secret.salt.arn
         }
       ]
       
@@ -361,7 +376,7 @@ resource "aws_ecs_service" "langfuse_worker" {
   name            = "${var.environment_name}-langfuse-worker"
   cluster         = aws_ecs_cluster.langfuse.id
   task_definition = aws_ecs_task_definition.langfuse_worker.arn
-  desired_count   = var.worker_desired_count
+  desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {

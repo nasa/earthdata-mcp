@@ -26,14 +26,14 @@ module "langfuse" {
   redis_at_rest_encryption = true
   
   # ClickHouse configuration
-  clickhouse_cpu    = 2048
-  clickhouse_memory = 4096
+  clickhouse_cpu    = 1024
+  clickhouse_memory = 2048
   
   # ECS configuration
-  web_cpu          = 2048
-  web_memory       = 4096
-  worker_cpu       = 2048
-  worker_memory    = 4096
+  web_cpu          = 1024
+  web_memory       = 2048
+  worker_cpu       = 512
+  worker_memory    = 1024
   web_desired_count = 1
   worker_desired_count = 1
   
