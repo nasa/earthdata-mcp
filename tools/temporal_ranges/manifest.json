@@ -1,0 +1,8 @@
+{
+  "name": "get_temporal_ranges",
+  "module": "tool",
+  "description": "This extracts temporal start and end dates from textural details provided in the user query",
+  "version": "1.0.0",
+  "tags": ["temporal", "date", "time", "range", "event"],
+  "entry_function": "get_temporal_ranges"
+}
