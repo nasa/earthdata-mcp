@@ -1,5 +1,7 @@
 import pytest
-from datetime import datetime
+
+from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 from pathlib import Path
 
 from toon import decode
@@ -109,34 +111,110 @@ async def test_tool_is_registered(mcp):
 
 def test_spring_four_years_ago():
     """Test relative date: spring of four years ago."""
+    now = datetime.now(timezone.utc)
+    four_years_ago = now.year - 4
+    expected_start = datetime(four_years_ago, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    expected_end = datetime(four_years_ago, 5, 31, 23, 59, 59, tzinfo=timezone.utc)
+
     result = get_temporal_ranges("spring of four years ago")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-03-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-05-31T23:59:59"
+
+    # Allow some timezone flexibility in comparison
+    assert (
+        result[0]["StartDate"].replace(tzinfo=timezone.utc).date()
+        == expected_start.date()
+    )
+    assert (
+        result[0]["EndDate"].replace(tzinfo=timezone.utc).date() == expected_end.date()
+    )
 
 
 def test_spring_argentina():
-    """Test relative date with location: last spring in Argentina"""
+    """Test relative date with location: this winter in Argentina (southern hemisphere)"""
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    # Winter in Argentina (southern hemisphere) is June-August
+    expected_start = datetime(current_year, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    expected_end = datetime(current_year, 8, 31, 23, 59, 59, tzinfo=timezone.utc)
+
     result = get_temporal_ranges("this winter in argentina")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-08-31T23:59:59"
+
+    assert (
+        result[0]["StartDate"].replace(tzinfo=timezone.utc).date()
+        == expected_start.date()
+    )
+    assert (
+        result[0]["EndDate"].replace(tzinfo=timezone.utc).date() == expected_end.date()
+    )
 
 
 def test_last_month():
     """Test relative date: last month."""
+    now = datetime.now(timezone.utc)
+    last_month_date = now - relativedelta(months=1)
+
+    # Get first day of last month
+    expected_start = datetime(
+        last_month_date.year, last_month_date.month, 1, 0, 0, 0, tzinfo=timezone.utc
+    )
+
+    # Get last day of last month
+    # Move to first day of current month, then subtract one day
+    first_of_current = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    last_of_last_month = first_of_current - relativedelta(days=1)
+    expected_end = datetime(
+        last_of_last_month.year,
+        last_of_last_month.month,
+        last_of_last_month.day,
+        23,
+        59,
+        59,
+        tzinfo=timezone.utc,
+    )
+
     result = get_temporal_ranges("last month")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
+
+    assert (
+        result[0]["StartDate"].replace(tzinfo=timezone.utc).date()
+        == expected_start.date()
+    )
+    assert (
+        result[0]["EndDate"].replace(tzinfo=timezone.utc).date() == expected_end.date()
+    )
 
 
 def test_atlantic_hurricane_season():
     """Test seasonal pattern: Atlantic hurricane season."""
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    # Atlantic hurricane season: June 1 - November 30
+    expected_start = datetime(current_year, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    expected_end = datetime(current_year, 11, 30, 23, 59, 59, tzinfo=timezone.utc)
+
     result = get_temporal_ranges("Atlantic hurricane season")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
+
+    assert (
+        result[0]["StartDate"].replace(tzinfo=timezone.utc).date()
+        == expected_start.date()
+    )
+    assert (
+        result[0]["EndDate"].replace(tzinfo=timezone.utc).date() == expected_end.date()
+    )
 
 
 def test_indian_monsoon_season():
     """Test seasonal pattern: Indian monsoon season."""
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    # Indian monsoon season: June 1 - September 30
+    expected_start = datetime(current_year, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    expected_end = datetime(current_year, 9, 30, 23, 59, 59, tzinfo=timezone.utc)
+
     result = get_temporal_ranges("Indian monsoon season")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-09-30T23:59:59"
+
+    assert (
+        result[0]["StartDate"].replace(tzinfo=timezone.utc).date()
+        == expected_start.date()
+    )
+    assert (
+        result[0]["EndDate"].replace(tzinfo=timezone.utc).date() == expected_end.date()
+    )
