@@ -4,7 +4,13 @@ from pathlib import Path
 from pydantic import BaseModel
 import instructor
 
-client = instructor.from_provider("bedrock/amazon.nova-pro-v1:0")
+try:
+    client = instructor.from_provider("bedrock/amazon.nova-pro-v1:0")
+except Exception as e:
+    client = instructor.from_provider(
+        "ollama/llama2",
+        mode=instructor.Mode.JSON,
+    )
 
 
 class DateRange(BaseModel):
