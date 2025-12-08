@@ -122,7 +122,7 @@ resource "aws_ecs_task_definition" "clickhouse" {
         },
         {
           name = "AWS_REGION"
-          value = "us-east-1"
+          value = var.aws_region
         },
         {
           name = "S3_BUCKET"
