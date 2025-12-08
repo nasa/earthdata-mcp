@@ -37,23 +37,13 @@ def get_temporal_ranges(query: str) -> Any:
     with open(prompt_path, "r", encoding="utf-8") as f:
         system_prompt = f.read().replace("{current_date}", today)
 
-    if use_bedrock:
-        daterange = client.create(
-            modelId=model_id,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
-            ],
-            response_model=DateRange,
-        )
-    else:
-        # Ollama uses a different API
-        daterange = client.chat.completions.create(
-            model=model_id,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
-            ],
-            response_model=DateRange,
-        )
+    daterange = client.create(
+        modelId=model_id,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": query},
+        ],
+        response_model=DateRange,
+    )
+
     return [{"StartDate": daterange.start_date, "EndDate": daterange.end_date}]
