@@ -15,6 +15,7 @@ from .output_model import TemporalRangeOutput
 
 logger = logging.getLogger(__name__)
 
+# Try to use Bedrock, fall back to Ollama if credentials are not available
 try:
     LANGFUSE = get_client()
 except Exception as e:
