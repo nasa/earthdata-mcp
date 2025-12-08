@@ -1,5 +1,6 @@
 variable "environment_name" {
   description = "environment name, e.g. sit, uat, prod"
+  type = string
 }
 
 variable "vpc_id" {

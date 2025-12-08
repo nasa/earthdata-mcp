@@ -52,6 +52,7 @@ resource "aws_efs_access_point" "clickhouse" {
 
   root_directory {
     path = "/clickhouse"
+    # UID 1001: Matches ClickHouse container default UID from clickhouse/clickhouse-server image
     creation_info {
       owner_gid   = 1001
       owner_uid   = 1001
@@ -77,6 +78,7 @@ resource "aws_efs_access_point" "langfuse_storage" {
   root_directory {
     path = "/langfuse"
     creation_info {
+      # UID 1000: Matches Langfuse container default UID
       owner_gid   = 1000
       owner_uid   = 1000
       permissions = "0755"

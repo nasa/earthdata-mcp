@@ -60,8 +60,7 @@ resource "aws_iam_policy" "langfuse_s3_access" {
           "s3:GetObject",
           "s3:ListBucket",
           "s3:DeleteObject",
-          "s3:GetObjectVersion",
-          "s3:PutObjectAcl"
+          "s3:GetObjectVersion"
         ]
         Resource = [
           aws_s3_bucket.langfuse.arn,
@@ -81,10 +80,4 @@ resource "aws_iam_policy" "langfuse_s3_access" {
 resource "aws_iam_role_policy_attachment" "langfuse_s3_access" {
   policy_arn = aws_iam_policy.langfuse_s3_access.arn
   role       = aws_iam_role.ecs_task_role.name
-}
-
-
-resource "aws_s3_bucket" "langfuse_clickhouse" {
-  bucket = "langfuse-clickhouse-${var.environment_name}"
-  force_destroy = true
 }

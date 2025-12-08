@@ -1,26 +1,26 @@
 #!/bin/sh
 # Creates the Terraform remote S3 backend configuration for the passed in
-# environment. Optionally the AWS region may be passed in, it will otherwise
-# default to 'us-east-1'. Bamboo should use this to ensure only one deployment runs
-# at a time, all deployments share the same state, and the state is saved in
-# S3. This script should be run from the terraform directory. 
+# environment. Optionally the AWS region may be passed in; it defaults to
+# 'us-east-1'. This script should be run from the terraform directory.
 
-CMR_ENVIRONMENT=$1
-AWS_REGION=${2-us-east-1}
+set -euo pipefail
 
-SCRIPT_NAME=$(basename $0)
+CMR_ENVIRONMENT="$1"
+AWS_REGION="${2:-us-east-1}"
 
-function usage
-{
-  printf "Usage: $SCRIPT_NAME <CMR_ENVIRONMENT> [<AWS_REGION>]\n"
+SCRIPT_NAME="$(basename "$0")"
+
+usage() {
+  printf "Usage: %s <CMR_ENVIRONMENT> [<AWS_REGION>]\n" "$SCRIPT_NAME"
 }
 
+# Validate argument count
 if [ "$#" -ne 1 ] && [ "$#" -ne 2 ]; then
     usage
     exit 1
 fi
 
-# Core remote state.
+# Core remote state config
 cat > terraform_backend.tf << EOF
 terraform {
   backend "s3" {
