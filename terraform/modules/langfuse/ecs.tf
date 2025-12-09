@@ -129,20 +129,12 @@ resource "aws_ecs_task_definition" "langfuse_web" {
       ]
       environment = [
         {
-          name  = "REDIS_CONNECTION_STRING"
-          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
-        },
-        {
           name  = "CLICKHOUSE_URL"
           value = "http://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:8123"
         },
         {
           name  = "CLICKHOUSE_MIGRATION_URL"
           value = "clickhouse://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:9000"
-        },
-        {
-          name  = "ENCRYPTION_KEY"
-          value = random_id.encryption_key.hex
         },
         {
           name  = "CLICKHOUSE_USER"
@@ -153,20 +145,12 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           value = "false"
         },
         {
-          name  = "NEXTAUTH_SECRET"
-          value = random_password.nextauth_secret.result
-        },
-        {
           name  = "NEXT_PUBLIC_BASE_PATH"
           value = "/search/nlp/langfuse"
         },
         {
           name  = "NEXTAUTH_URL"
           value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
-        },
-        {
-          name  = "SALT"
-          value = random_password.langfuse_salt.result
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -181,14 +165,6 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           value = aws_s3_bucket.langfuse.bucket
         },
         {
-          name  = "TELEMETRY_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES"
-          value = "true"
-        },
-        {
           name = "HOSTNAME",
           value = "0.0.0.0"
         }
@@ -196,21 +172,29 @@ resource "aws_ecs_task_definition" "langfuse_web" {
 
       secrets = [
         {
-          name  = "DATABASE_URL"
-          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+          name      = "DATABASE_URL"
+          valueFrom = aws_secretsmanager_secret.database_url.arn
         },
         {
-          name  = "CLICKHOUSE_PASSWORD"
-          value = random_password.clickhouse_password.result
+          name      = "REDIS_CONNECTION_STRING"
+          valueFrom = aws_secretsmanager_secret.redis_connection.arn
         },
         {
-          name  = "NEXTAUTH_SECRET"
-          value = random_password.nextauth_secret.result
+          name      = "CLICKHOUSE_PASSWORD"
+          valueFrom = aws_secretsmanager_secret.clickhouse_password.arn
         },
         {
-          name  = "REDIS_CONNECTION_STRING"
-          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+          name      = "NEXTAUTH_SECRET"
+          valueFrom = aws_secretsmanager_secret.nextauth_secret.arn
         },
+        {
+          name      = "ENCRYPTION_KEY"
+          valueFrom = aws_secretsmanager_secret.encryption_key.arn
+        },
+        {
+          name      = "SALT"
+          valueFrom = aws_secretsmanager_secret.salt.arn
+        }
       ]
       
       logConfiguration = {
@@ -260,14 +244,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
 
       environment = [
         {
-          name  = "TELEMETRY_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES"
-          value = "true"
-        },
-        {
           name  = "CLICKHOUSE_URL"
           value = "http://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:8123"
         },
@@ -275,10 +251,7 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           name  = "CLICKHOUSE_MIGRATION_URL"
           value = "clickhouse://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:9000"
         },
-        {
-          name  = "ENCRYPTION_KEY"
-          value = random_id.encryption_key.hex
-        },
+        
         {
           name  = "CLICKHOUSE_USER"
           value = "langfuse"
@@ -294,10 +267,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         {
           name  = "NEXTAUTH_URL"
           value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
-        },
-        {
-          name  = "SALT"
-          value = random_password.langfuse_salt.result
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -319,20 +288,28 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
       secrets = [
         {
           name  = "DATABASE_URL"
-          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+          valueFrom = aws_secretsmanager_secret.database_url.arn
         },
         {
           name  = "REDIS_CONNECTION_STRING"
-          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+          valueFrom = aws_secretsmanager_secret.redis_connection.arn
         },
         {
           name  = "CLICKHOUSE_PASSWORD"
-          value = random_password.clickhouse_password.result
+          valueFrom = aws_secretsmanager_secret.clickhouse_password.arn
         },
         {
           name  = "NEXTAUTH_SECRET"
-          value = random_password.nextauth_secret.result
+          valueFrom = aws_secretsmanager_secret.nextauth_secret.arn
         },
+        {
+          name  = "ENCRYPTION_KEY"
+          valueFrom = aws_secretsmanager_secret.encryption_key.arn
+        },
+        {
+        name      = "SALT"
+        valueFrom = aws_secretsmanager_secret.salt.arn
+        }
       ]
       
       logConfiguration = {
