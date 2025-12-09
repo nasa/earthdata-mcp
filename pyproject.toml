@@ -22,6 +22,7 @@ dependencies = [
     "redis==7.1.0",
     "langfuse==3.10.6",
     "instructor>=1.13.0",
+    "jsonschema>=4.17.3",
 ]
 
 
