@@ -19,10 +19,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.13
       uses: actions/setup-python@v3
       with:
-        python-version: "3.10"
+        python-version: "3.13"
 
     - name: Install uv
       run: |
@@ -39,3 +39,9 @@ jobs:
     - name: Test with pytest
       run: |
         uv run pytest
+
+    - name: Validate schemas
+      run: |
+        python3 schema_validator.py
+      env:
+        CI: true

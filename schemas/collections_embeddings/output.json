@@ -1,5 +1,5 @@
 {
-    "type": "array",
+     "type": "array",
     "items": {
         "type": "object",
         "properties": {
@@ -19,4 +19,3 @@
         "required": ["concept_id", "abstract", "title"]
     }
 }
-

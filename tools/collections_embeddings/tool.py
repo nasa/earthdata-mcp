@@ -11,9 +11,21 @@ class DatasetSummary(BaseModel):
 def search_cmr_collections_embeddings(
     query: str = "",
 ) -> Any:
-    """Get a list of collections form CMR based on keywords.
+    """Get a list of collections from CMR based on embeddings search.
 
     Args:
-        keywords: A string of text to search collections with.
+        query: A string of text to search collections with using embeddings.
+
+    Returns:
+        A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
     """
-    return {"result": "NOT IMPLEMENTED YET"}
+    output = [
+        DatasetSummary(
+            concept_id="NOT IMPLEMENTED YET",
+            title="NOT IMPLEMENTED YET",
+            abstract="NOT IMPLEMENTED YET",
+        )
+    ]
+
+    # Convert Pydantic models to dicts
+    return [ds.model_dump() for ds in output]
