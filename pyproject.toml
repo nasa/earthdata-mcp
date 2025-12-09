@@ -18,4 +18,5 @@ dependencies = [
     "pytest-cov>=7.0.0",
     "pylint>=3.0.0",
     "instructor>=1.13.0",
+    "jsonschema>=4.17.3",
 ]
