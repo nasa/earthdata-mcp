@@ -68,6 +68,8 @@ resource "aws_ecs_task_definition" "clickhouse" {
     efs_volume_configuration {
       file_system_id     = aws_efs_file_system.langfuse.id
       root_directory = "/"
+      transit_encryption = "ENFORCED"
+      transit_encryption_port = 3049
     }
   }
 

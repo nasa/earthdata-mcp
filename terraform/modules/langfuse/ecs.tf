@@ -120,8 +120,6 @@ resource "aws_ecs_task_definition" "langfuse_web" {
   container_definitions = jsonencode([
     {
       name  = "langfuse-web"
-      # image = "${aws_ecr_repository.langfuse_web.repository_url}:langfuse1"
-      # image = "832706493240.dkr.ecr.us-east-1.amazonaws.com/langfuse-custom:latest"
       image = var.langfuse_web_image
       portMappings = [
         {
@@ -130,10 +128,6 @@ resource "aws_ecs_task_definition" "langfuse_web" {
         }
       ]
       environment = [
-        {
-          name  = "DATABASE_URL"
-          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
-        },
         {
           name  = "REDIS_CONNECTION_STRING"
           value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
@@ -153,10 +147,6 @@ resource "aws_ecs_task_definition" "langfuse_web" {
         {
           name  = "CLICKHOUSE_USER"
           value = "langfuse"
-        },
-        {
-          name  = "CLICKHOUSE_PASSWORD"
-          value = random_password.clickhouse_password.result
         },
         {
           name  = "CLICKHOUSE_CLUSTER_ENABLED"
@@ -202,6 +192,25 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           name = "HOSTNAME",
           value = "0.0.0.0"
         }
+      ]
+
+      secrets = [
+        {
+          name  = "DATABASE_URL"
+          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+        },
+        {
+          name  = "CLICKHOUSE_PASSWORD"
+          value = random_password.clickhouse_password.result
+        },
+        {
+          name  = "NEXTAUTH_SECRET"
+          value = random_password.nextauth_secret.result
+        },
+        {
+          name  = "REDIS_CONNECTION_STRING"
+          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+        },
       ]
       
       logConfiguration = {
@@ -229,8 +238,8 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
   family                   = "${var.environment_name}-langfuse-worker"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 2048
-  memory                   = 4096
+  cpu                      = var.worker_cpu
+  memory                   = var.worker_memory
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn           = aws_iam_role.ecs_task_role.arn
 
@@ -239,7 +248,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
       portMappings = [
         {
           containerPort = 3030
-          hostPort      = 3030
           protocol      = "tcp"
         }
       ]
@@ -260,14 +268,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           value = "true"
         },
         {
-          name  = "DATABASE_URL"
-          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
-        },
-        {
-          name  = "REDIS_CONNECTION_STRING"
-          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
-        },
-        {
           name  = "CLICKHOUSE_URL"
           value = "http://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:8123"
         },
@@ -284,16 +284,8 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           value = "langfuse"
         },
         {
-          name  = "CLICKHOUSE_PASSWORD"
-          value = random_password.clickhouse_password.result
-        },
-        {
           name  = "CLICKHOUSE_CLUSTER_ENABLED"
           value = "false"
-        },
-        {
-          name  = "NEXTAUTH_SECRET"
-          value = random_password.nextauth_secret.result
         },
         {
           name  = "NEXT_PUBLIC_BASE_PATH"
@@ -323,6 +315,24 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           name = "HOSTNAME",
           value = "0.0.0.0"
         }
+      ],
+      secrets = [
+        {
+          name  = "DATABASE_URL"
+          value = "postgresql://${aws_rds_cluster.postgres.master_username}:${random_password.postgres_password.result}@${aws_rds_cluster.postgres.endpoint}:${aws_rds_cluster.postgres.port}/${aws_rds_cluster.postgres.database_name}"
+        },
+        {
+          name  = "REDIS_CONNECTION_STRING"
+          value = "rediss://:${random_password.redis_password.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+        },
+        {
+          name  = "CLICKHOUSE_PASSWORD"
+          value = random_password.clickhouse_password.result
+        },
+        {
+          name  = "NEXTAUTH_SECRET"
+          value = random_password.nextauth_secret.result
+        },
       ]
       
       logConfiguration = {
