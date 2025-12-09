@@ -19,13 +19,4 @@ def search_cmr_collections_embeddings(
     Returns:
         A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
     """
-    output = [
-        DatasetSummary(
-            concept_id="NOT IMPLEMENTED YET",
-            title="NOT IMPLEMENTED YET",
-            abstract="NOT IMPLEMENTED YET",
-        )
-    ]
-
-    # Convert Pydantic models to dicts
-    return [ds.model_dump() for ds in output]
+    return {"result": "NOT IMPLEMENTED YET"}
