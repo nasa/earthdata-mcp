@@ -27,7 +27,7 @@ class DatasetSummary(BaseModel):
 def search_cmr_collections_embeddings(
     query: str = "",
 ) -> Any:
-    """Get a list of collections form CMR based on keywords.
+    """Get a list of collections from CMR based on embeddings search.
 
     Args:
         query: A string of text to search collections with.

@@ -1,157 +1,163 @@
 import os
 import json
-import importlib.util
-import inspect
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
 
 def validate_tool_schemas():
     """
-    Validates tool outputs by running them with sample input data
-    and checking the output against JSON schemas.
+    Validate tools using pre-generated sample outputs in CI,
+    or by running tools locally.
     """
     base_dir = Path(__file__).resolve().parent
-    tools_dir = base_dir / "tools"
     schema_dir = base_dir / "schemas"
-
-    # Check if directories exist
-    if not os.path.exists(tools_dir):
-        print(f"Error: {tools_dir} directory not found")
-        return False
-
-    if not os.path.exists(schema_dir):
-        print(f"Error: {schema_dir} directory not found")
-        return False
+    is_ci = os.getenv("CI", "false").lower() == "true"
 
     all_valid = True
 
-    # Iterate through tool directories
-    for tool_name in os.listdir(tools_dir):
-        # Skip special files/directories
-        if tool_name.startswith("_") or tool_name.startswith("."):
+    for tool_folder in schema_dir.iterdir():
+        if not tool_folder.is_dir() or tool_folder.name.startswith(("_", ".")):
             continue
 
-        tool_folder = os.path.join(tools_dir, tool_name)
+        tool_name = tool_folder.name
+        output_schema_file = tool_folder / "output.json"
+        sample_output_file = tool_folder / "sample_output.json"
 
-        # Skip non-directories
-        if not os.path.isdir(tool_folder):
+        if not output_schema_file.exists():
+            print(f"Warning: No output schema for {tool_name}")
             continue
 
-        # Check manifest.json for enabled status
-        manifest_path = os.path.join(tool_folder, "manifest.json")
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r") as f:
-                    manifest = json.load(f)
-                    enabled = manifest.get("enabled", True)
-                    # Handle both boolean and string values
-                    if enabled is False or enabled == "false":
-                        print(f"Skipping {tool_name} (disabled in manifest)")
-                        continue
-            except Exception as e:
-                print(f"Warning: Error reading manifest for {tool_name}: {e}")
+        # Load schema
+        with open(output_schema_file) as f:
+            output_schema = json.load(f)
 
-        tool_path = os.path.join(tool_folder, "tool.py")
-
-        # Check if tool.py exists
-        if not os.path.exists(tool_path):
-            print(f"Warning: No tool.py found in {tool_name}")
-            continue
-
-        # Look for corresponding schema files
-        schema_folder = os.path.join(schema_dir, tool_name)
-        output_schema_file = os.path.join(schema_folder, "output.json")
-        input_file = os.path.join(schema_folder, "input.json")
-
-        if not os.path.exists(output_schema_file):
-            print(f"Warning: No output.json found for {tool_name}")
-            continue
-
-        if not os.path.exists(input_file):
-            print(f"Warning: No input.json found for {tool_name}")
-            continue
-
-        # Load output schema
-        try:
-            with open(output_schema_file, "r") as f:
-                output_schema = json.load(f)
-        except Exception as e:
-            print(f"Error loading output schema for {tool_name}: {e}")
-            all_valid = False
-            continue
-
-        # Load input
-        try:
-            with open(input_file, "r") as f:
-                input_data = json.load(f)
-        except Exception as e:
-            print(f"Error loading input for {tool_name}: {e}")
-            all_valid = False
-            continue
-
-        # Load the tool module
-        try:
-            spec = importlib.util.spec_from_file_location(tool_name, tool_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # Find the main function in the module
-            # Look for functions (not classes) that aren't private (don't start with _)
-            tool_functions = [
-                name
-                for name in dir(module)
-                if callable(getattr(module, name))
-                and not name.startswith("_")
-                and inspect.isfunction(
-                    getattr(module, name)
-                )  # Only functions, not classes
-                and getattr(module, name).__module__
-                == tool_name  # Defined in this module
-            ]
-
-            if not tool_functions:
-                print(f"Warning: No callable function found in {tool_name}")
+        # In CI: use pre-generated sample
+        if is_ci:
+            if not sample_output_file.exists():
+                print(
+                    f"✗ {tool_name}: No sample_output.json (run 'make generate-samples' locally)"
+                )
+                all_valid = False
                 continue
 
-            # Use the first function found (assuming one main function per tool)
-            func_name = tool_functions[0]
-            tool_function = getattr(module, func_name)
+            with open(sample_output_file) as f:
+                output = json.load(f)
 
-            print(f"\nTesting {tool_name}.{func_name}()...")
-            print(f"  Input: {json.dumps(input_data, indent=2)}")
+            print(f"Testing {tool_name} (using sample output)...")
 
-            # Call the tool function with input data
+        # Locally: run actual tool
+        else:
+            input_file = tool_folder / "input.json"
+            if not input_file.exists():
+                print(f"Warning: No input.json for {tool_name}")
+                continue
+
+            with open(input_file) as f:
+                input_data = json.load(f)
+
+            print(f"Testing {tool_name} (running tool)...")
+
+            # Try to run the tool
             try:
-                output = tool_function(**input_data)
+                output = run_tool(tool_name, input_data)
             except Exception as e:
                 print(f"✗ {tool_name} execution failed: {e}")
-                import traceback
-
-                traceback.print_exc()
                 all_valid = False
                 continue
 
-            print(f"  Output: {json.dumps(output, indent=2, default=str)[:200]}...")
-
-            # Validate output against schema
-            try:
-                validate(instance=output, schema=output_schema)
-                print(f"✓ {tool_name} output is valid")
-            except ValidationError as e:
-                print(f"✗ {tool_name} output validation failed: {e.message}")
-                print(f"  Full output: {json.dumps(output, indent=2, default=str)}")
-                all_valid = False
-
-        except Exception as e:
-            print(f"Error processing {tool_name}: {e}")
-            import traceback
-
-            traceback.print_exc()
+        # Validate output against schema
+        try:
+            validate(instance=output, schema=output_schema)
+            print(f"✓ {tool_name} output is valid")
+        except ValidationError as e:
+            print(f"✗ {tool_name} validation failed: {e.message}")
+            print(f"  Output: {json.dumps(output, indent=2, default=str)[:500]}")
             all_valid = False
 
     return all_valid
 
 
+def run_tool(tool_name, input_data):
+    """Run a tool with given input."""
+    base_dir = Path(__file__).resolve().parent
+    tools_dir = base_dir / "tools"
+    tool_path = tools_dir / tool_name / "tool.py"
+
+    import importlib.util
+    import inspect
+
+    spec = importlib.util.spec_from_file_location(tool_name, tool_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # Find main function
+    tool_functions = [
+        name
+        for name in dir(module)
+        if callable(getattr(module, name))
+        and not name.startswith("_")
+        and inspect.isfunction(getattr(module, name))
+        and getattr(module, name).__module__ == tool_name
+    ]
+
+    if not tool_functions:
+        raise ValueError(f"No function found in {tool_name}")
+
+    func = getattr(module, tool_functions[0])
+    return func(**input_data)
+
+
+def generate_sample_outputs():
+    """
+    Generate sample outputs locally (where you have API access).
+    Run this before committing changes.
+    """
+    base_dir = Path(__file__).resolve().parent
+    tools_dir = base_dir / "tools"
+    schema_dir = base_dir / "schemas"
+
+    print("Generating sample outputs (requires API access)...\n")
+
+    for tool_folder in tools_dir.iterdir():
+        if not tool_folder.is_dir() or tool_folder.name.startswith(("_", ".")):
+            continue
+
+        tool_name = tool_folder.name
+        schema_folder = schema_dir / tool_name
+        input_file = schema_folder / "input.json"
+        sample_output_file = schema_folder / "sample_output.json"
+
+        if not input_file.exists():
+            print(f"Skipping {tool_name} (no input.json)")
+            continue
+
+        with open(input_file) as f:
+            input_data = json.load(f)
+
+        try:
+            print(f"Generating output for {tool_name}...")
+            output = run_tool(tool_name, input_data)
+            print("-" * 50)
+            print(schema_folder)
+            # Save sample output
+            schema_folder.mkdir(exist_ok=True, parents=True)
+            with open(sample_output_file, "w") as f:
+                json.dump(output, f, indent=2, default=str)
+
+            print(f"✓ Saved to {sample_output_file.relative_to(base_dir)}\n")
+
+        except Exception as e:
+            print(f"✗ Failed: {e}\n")
+            import traceback
+
+            traceback.print_exc()
+
+
 if __name__ == "__main__":
-    validate_tool_schemas()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "generate":
+        generate_sample_outputs()
+    else:
+        success = validate_tool_schemas()
+        sys.exit(0 if success else 1)
