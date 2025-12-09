@@ -42,6 +42,6 @@ jobs:
 
     - name: Validate schemas
       run: |
-        python3 schema_validator.py
+        uv run schema_validator.py
       env:
         CI: true
