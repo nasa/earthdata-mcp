@@ -3,8 +3,6 @@
 # environment. Optionally the AWS region may be passed in; it defaults to
 # 'us-east-1'. This script should be run from the terraform directory.
 
-set -euo pipefail
-
 CMR_ENVIRONMENT="$1"
 AWS_REGION="${2:-us-east-1}"
 
