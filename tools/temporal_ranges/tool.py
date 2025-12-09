@@ -16,10 +16,13 @@ def get_temporal_ranges(
     provider="bedrock",
     model_id="amazon.nova-pro-v1:0",
 ) -> Any:
-    """Get a list of collections form CMR based on keywords.
+    """Extract temporal date ranges from a natural language query.
 
-    Args:
-        keywords: A string of text to search collections with.
+     Args:
+        query: A natural language string describing the desired time period.
+
+    Returns:
+        A list containing a dict with StartDate and EndDate datetime objects.
     """
     client = instructor.from_provider(f"{provider}/{model_id}")
 
@@ -29,13 +32,18 @@ def get_temporal_ranges(
     with open(prompt_path, "r", encoding="utf-8") as f:
         system_prompt = f.read().replace("{current_date}", today)
 
-    daterange = client.create(
-        modelId=model_id,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query},
-        ],
-        response_model=DateRange,
-    )
+    try:
+        daterange = client.create(
+            modelId=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": query},
+            ],
+            response_model=DateRange,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to extract temporal ranges from query '{query}': {e}"
+        ) from e
 
     return [{"StartDate": daterange.start_date, "EndDate": daterange.end_date}]

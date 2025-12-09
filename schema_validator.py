@@ -2,6 +2,7 @@ import os
 import json
 import importlib.util
 import inspect
+from pathlib import Path
 from jsonschema import validate, ValidationError
 
 
@@ -10,8 +11,9 @@ def validate_tool_schemas():
     Validates tool outputs by running them with sample input data
     and checking the output against JSON schemas.
     """
-    tools_dir = os.path.abspath("tools")
-    schema_dir = os.path.abspath("schemas")
+    base_dir = Path(__file__).resolve().parent
+    tools_dir = base_dir / "tools"
+    schema_dir = base_dir / "schemas"
 
     # Check if directories exist
     if not os.path.exists(tools_dir):

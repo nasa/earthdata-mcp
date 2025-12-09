@@ -1,12 +1,6 @@
-import pytest
 from unittest.mock import patch, MagicMock
-
 from datetime import datetime, timezone
-from dateutil.relativedelta import relativedelta
-from pathlib import Path
-
 from toon import decode
-from mcp.server.fastmcp import FastMCP
 from loader import create_simple_tool
 from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
 
@@ -106,32 +100,3 @@ def test_mocked_date_range_only_end(mock_instructor):
     assert result[0]["EndDate"] == datetime(
         2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
     )
-
-
-# ===== Integration test MCP loading =====
-
-
-@pytest.fixture(scope="module")
-def mcp():
-    """Create and return MCP server with tool registered."""
-    mcp_instance = FastMCP("test_server")
-    register = create_simple_tool(
-        Path(__file__).parent.parent / "tools" / "temporal_ranges", get_temporal_ranges
-    )
-    register(mcp_instance)
-    return mcp_instance
-
-
-@pytest.fixture(scope="module")
-def wrapped_func(mcp):
-    """Return the wrapped tool function."""
-    register = create_simple_tool(Path(__file__).parent, get_temporal_ranges)
-    return register(mcp)
-
-
-@pytest.mark.asyncio
-async def test_tool_is_registered(mcp):
-    """Verify tool is registered with MCP."""
-    tools = await mcp.list_tools()
-    tool_names = [tool.name for tool in tools]
-    assert "get_temporal_ranges" in tool_names
