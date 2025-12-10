@@ -47,9 +47,9 @@ def validate_tool_schemas():
 
         # Locally: run actual tool
         else:
-            input_file = tool_folder / "input.json"
+            input_file = tool_folder / "sample_input.json"
             if not input_file.exists():
-                print(f"Warning: No input.json for {tool_name}")
+                print(f"Warning: No sample_input.json for {tool_name}")
                 continue
 
             with open(input_file) as f:
@@ -124,11 +124,11 @@ def generate_sample_outputs():
 
         tool_name = tool_folder.name
         schema_folder = schema_dir / tool_name
-        input_file = schema_folder / "input.json"
+        input_file = schema_folder / "sample_input.json"
         sample_output_file = schema_folder / "sample_output.json"
 
         if not input_file.exists():
-            print(f"Skipping {tool_name} (no input.json)")
+            print(f"Skipping {tool_name} (no sample_input.json)")
             continue
 
         with open(input_file) as f:
