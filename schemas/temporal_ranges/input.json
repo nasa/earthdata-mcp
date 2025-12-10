@@ -1,3 +1,11 @@
 {
-    "query": "data from last summer between June and August 2024"
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "A natural language string describing the desired time period."
+        }
+    },
+    "required": []
 }
+

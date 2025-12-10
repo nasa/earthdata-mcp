@@ -1,3 +1,11 @@
 {
-    "query": "sea surface temperature data in the Pacific Ocean"
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "A string of text about earth sciences to search collections with using embeddings."
+        }
+    },
+    "required": []
 }
+

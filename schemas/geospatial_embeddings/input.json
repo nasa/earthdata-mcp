@@ -1,3 +1,11 @@
 {
-    "location": "coastal regions near California"
+    "type": "object",
+    "properties": {
+        "location": {
+            "type": "string",
+            "description": "A natural language location query (e.g., 'San Francisco Bay Area')"
+        }
+    },
+    "required": []
 }
+
