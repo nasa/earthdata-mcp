@@ -236,8 +236,6 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         }
       ]
       name  = "langfuse-worker"
-      cpu       = 2048
-      memory    = 4096
       essential = true
       
       image = var.langfuse_worker_image
