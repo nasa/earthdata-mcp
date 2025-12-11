@@ -26,24 +26,24 @@ This repository contains Terraform code to deploy a self-hosted Langfuse instanc
 - Purpose: Serves the main Langfuse web UI and REST APIs
 - Port: 3000
 - Responsibilities:
-    - Web interface for users to view traces, sessions, and analytics
-    - REST API endpoints for data ingestion (/api/public/ingestion)
-    - User authentication and authorization
-    - Project and organization management
-    - Health check endpoint (baseurl/api/public/health)
-    - Access: External via load balancer at /search/nlp/langfuse
+  - Web interface for users to view traces, sessions, and analytics
+  - REST API endpoints for data ingestion (/api/public/ingestion)
+  - User authentication and authorization
+  - Project and organization management
+  - Health check endpoint (baseurl/api/public/health)
+  - Access: External via load balancer at /search/nlp/langfuse
 
 #### Langfuse Worker Container
 - Purpose: Background processing and asynchronous task execution
 - Port: 3030
 - Responsibilities:
-    - Processing incoming traces and observations asynchronously
-    - Computing analytics and aggregations
-    - Batch processing for exports and reports
-    - Background database migrations and maintenance tasks
-    - Score calculations and evaluations
-    - Data pipeline processing for ClickHouse
-    - Access: Internal only (health check at /api/health)
+  - Processing incoming traces and observations asynchronously
+  - Computing analytics and aggregations
+  - Batch processing for exports and reports
+  - Background database migrations and maintenance tasks
+  - Score calculations and evaluations
+  - Data pipeline processing for ClickHouse
+  - Access: Internal only (health check at /api/health)
 ```
 mcp_terraform/
 ├── build-langfuse-web-custom.sh    # Script to build custom web image
@@ -79,6 +79,7 @@ First, create the ECR repositories for the custom images:
 2. Build and Push Docker Images
     Build the custom Langfuse web image (for custom base path):
     ```
+    bash
     # For web UI with custom base path
     ./build-langfuse-web-custom.sh langfuse-web-<environment> /search/nlp/langfuse
 
@@ -89,7 +90,7 @@ First, create the ECR repositories for the custom images:
 `terraform apply`
 
 ### Helpful Link
-https://github.com/tubone24/langfuse-v3-terraform
++[Langfuse v3 Terraform Reference](https://github.com/tubone24/langfuse-v3-terraform)
 
 ### Local development
 To run Langfuse on local dev machine follow: https://langfuse.com/self-hosting/deployment/docker-compose
