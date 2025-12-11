@@ -20,7 +20,7 @@ resource "aws_ecr_lifecycle_policy" "langfuse_web_ecr_lifecycle" {
   "rules": [
     {
       "rulePriority": 1,
-      "description": "Keep only 15 most recent images",
+      "description": "Keep only 5 most recent images",
       "selection": {
         "tagStatus": "any",
         "countType": "imageCountMoreThan",
@@ -57,7 +57,7 @@ resource "aws_ecr_lifecycle_policy" "langfuse_worker_ecr_lifecycle" {
   "rules": [
     {
       "rulePriority": 1,
-      "description": "Keep only 15 most recent images",
+      "description": "Keep only 5 most recent images",
       "selection": {
         "tagStatus": "any",
         "countType": "imageCountMoreThan",
