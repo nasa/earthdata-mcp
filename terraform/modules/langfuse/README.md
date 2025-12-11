@@ -90,7 +90,7 @@ First, create the ECR repositories for the custom images:
 `terraform apply`
 
 ### Helpful Link
-+[Langfuse v3 Terraform Reference](https://github.com/tubone24/langfuse-v3-terraform)
+ [Langfuse v3 Terraform Reference](https://github.com/tubone24/langfuse-v3-terraform)
 
 ### Local development
-To run Langfuse on local dev machine follow: https://langfuse.com/self-hosting/deployment/docker-compose
+To run Langfuse on local dev machine follow: [Langfuse Docker Compose Deployment](https://langfuse.com/self-hosting/deployment/docker-compose)
