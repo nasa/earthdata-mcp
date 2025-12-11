@@ -24,7 +24,7 @@ resource "aws_ecr_lifecycle_policy" "langfuse_web_ecr_lifecycle" {
       "selection": {
         "tagStatus": "any",
         "countType": "imageCountMoreThan",
-        "countNumber": 15
+        "countNumber": 5
       },
       "action": {
         "type": "expire"
@@ -61,7 +61,7 @@ resource "aws_ecr_lifecycle_policy" "langfuse_worker_ecr_lifecycle" {
       "selection": {
         "tagStatus": "any",
         "countType": "imageCountMoreThan",
-        "countNumber": 15
+        "countNumber": 5
       },
       "action": {
         "type": "expire"
