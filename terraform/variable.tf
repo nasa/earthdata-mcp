@@ -18,3 +18,9 @@ variable "subnet_tag_name_filter" {
   description = "Subnet tag name to filter on"
   type        = string
 }
+
+variable "redis_num_cache_nodes" {
+  description = "Number of redis cache nodes"
+  type = number
+  default = 1
+}
