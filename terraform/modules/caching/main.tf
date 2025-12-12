@@ -71,7 +71,7 @@ resource "aws_elasticache_replication_group" "nlp_cache_cluster" {
   port                 = 6379
   parameter_group_name = aws_elasticache_parameter_group.nlp_cache_params.name
 
-  engine               = "redis"
+engine               = "redis"
   engine_version       = "7.0"
 
   num_cache_clusters   = var.redis_num_cache_nodes
@@ -82,7 +82,7 @@ resource "aws_elasticache_replication_group" "nlp_cache_cluster" {
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
 
-  auth_token                 = random_password.redis_password.result
+  auth_token                 = random_password.nlp_cache_redis_password.result
 
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.nlp-cache-logs.name
