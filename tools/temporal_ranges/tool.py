@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import List, Dict
 from pathlib import Path
 from pydantic import BaseModel
 import instructor
+from schemas.temporal_ranges.input_model import TemporalRangeInput
 
 
 class DateRange(BaseModel):
@@ -12,10 +13,10 @@ class DateRange(BaseModel):
 
 
 def get_temporal_ranges(
-    query: str,
-    provider="bedrock",
-    model_id="amazon.nova-pro-v1:0",
-) -> Any:
+    query: TemporalRangeInput,
+    provider: str = "bedrock",
+    model_id: str = "amazon.nova-pro-v1:0",
+) -> List[Dict]:
     """Extract temporal date ranges from a natural language query.
 
      Args:
@@ -37,13 +38,13 @@ def get_temporal_ranges(
             modelId=model_id,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
+                {"role": "user", "content": query.timerange_string},
             ],
             response_model=DateRange,
         )
     except Exception as e:
         raise RuntimeError(
-            f"Failed to extract temporal ranges from query '{query}': {e}"
+            f"Failed to extract temporal ranges from query '{query.timerange_string}': {e}"
         ) from e
 
     return [{"StartDate": daterange.start_date, "EndDate": daterange.end_date}]

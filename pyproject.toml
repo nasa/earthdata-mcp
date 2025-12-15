@@ -5,7 +5,7 @@ description = "Basic FastMCP implementation for the common metadata repository u
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "fastmcp>=2.12.4",
+    "fastmcp==2.13.0",
     "earthaccess>=0.14.0",
     "starlette>=0.48.0",
     "uvicorn>=0.37.0",
@@ -19,4 +19,5 @@ dependencies = [
     "pylint>=3.0.0",
     "instructor>=1.13.0",
     "jsonschema>=4.17.3",
+    "langfuse>=3.10.6",
 ]

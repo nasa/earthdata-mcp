@@ -1,9 +1,9 @@
 from typing import Any
-
+from schemas.geospatial_embeddings.input_model import LocationInput
 from util.natural_language_geocoder import convert_text_to_geom
 
 
-def natural_language_geocode(location: str) -> dict[str, Any]:
+def natural_language_geocode(location: LocationInput) -> dict[str, Any]:
     """Convert natural language location query to geometry.
 
     Args:
