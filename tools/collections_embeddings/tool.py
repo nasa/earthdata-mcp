@@ -7,6 +7,7 @@ collections using natural language queries and semantic search capabilities.
 
 from typing import Any
 from pydantic import BaseModel
+from schemas.collections_embeddings.input_model import CollectionsEmbeddingsInput
 
 
 class DatasetSummary(BaseModel):
@@ -25,7 +26,7 @@ class DatasetSummary(BaseModel):
 
 
 def search_cmr_collections_embeddings(
-    query: str = "",
+    query: CollectionsEmbeddingsInput,
 ) -> Any:
     """Get a list of collections from CMR based on embeddings search.
 
