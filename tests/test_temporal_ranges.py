@@ -1,8 +1,7 @@
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
-from toon import decode
-from loader import create_simple_tool
 from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
+from schemas.temporal_ranges.input_model import TemporalRangeInput
 
 
 # ===== Mocked unit tests (no LLM dependency) =====
@@ -23,7 +22,9 @@ def test_mocked_date_range_both_dates(mock_instructor):
     mock_client.create.return_value = mock_date_range
 
     # Call function
-    result = get_temporal_ranges("Show me data for 2024")
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Show me data for 2024")
+    )
 
     # Assertions
     assert result[0]["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
@@ -49,7 +50,9 @@ def test_mocked_date_range_no_dates(mock_instructor):
     mock_client.create.return_value = mock_date_range
 
     # Call function
-    result = get_temporal_ranges("Show me all data")
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Show me all data")
+    )
 
     # Assertions
     assert result[0]["StartDate"] is None
@@ -71,7 +74,9 @@ def test_mocked_date_range_only_start(mock_instructor):
     mock_client.create.return_value = mock_date_range
 
     # Call function
-    result = get_temporal_ranges("From June 2024 onwards")
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="From June 2024 onwards")
+    )
 
     # Assertions
     assert result[0]["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
@@ -93,7 +98,9 @@ def test_mocked_date_range_only_end(mock_instructor):
     mock_client.create.return_value = mock_date_range
 
     # Call function
-    result = get_temporal_ranges("Until end of June 2024")
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Until end of June 2024")
+    )
 
     # Assertions
     assert result[0]["StartDate"] is None

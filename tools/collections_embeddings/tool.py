@@ -1,3 +1,5 @@
+"""Get a list of collections from CMR based on embeddings search."""
+
 from typing import Any
 from pydantic import BaseModel
 from schemas.collections_embeddings.input_model import CollectionsEmbeddingsInput
@@ -14,6 +16,7 @@ def search_cmr_collections_embeddings(
 ) -> Any:
     """Get a list of collections from CMR based on embeddings search.
 
+    NOTE: This function is not yet implemented.
     Args:
         query: A string of text to search collections with using embeddings.
 

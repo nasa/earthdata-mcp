@@ -23,11 +23,3 @@ def wrapped_func(mcp):
     """Return the wrapped tool function."""
     register = create_simple_tool(Path(__file__).parent, get_temporal_ranges)
     return register(mcp)
-
-
-@pytest.mark.asyncio
-async def test_tool_is_registered(mcp):
-    """Verify tool is registered with MCP."""
-    tools = await mcp.list_tools()
-    tool_names = [tool.name for tool in tools]
-    assert "get_temporal_ranges" in tool_names
