@@ -81,6 +81,7 @@ def run_tool(tool_name, input_data):
     """Run a tool with given input."""
     base_dir = Path(__file__).resolve().parent
     tools_dir = base_dir / "tools"
+    schema_dir = base_dir / "schemas"
     tool_path = tools_dir / tool_name / "tool.py"
 
     import importlib.util
@@ -104,6 +105,39 @@ def run_tool(tool_name, input_data):
         raise ValueError(f"No function found in {tool_name}")
 
     func = getattr(module, tool_functions[0])
+
+    # Check if the tool has an input model
+    input_model_path = schema_dir / tool_name / "input_model.py"
+    if input_model_path.exists():
+        # Load the input model
+        input_model_spec = importlib.util.spec_from_file_location(
+            f"{tool_name}_input_model", input_model_path
+        )
+        input_model_module = importlib.util.module_from_spec(input_model_spec)
+        input_model_spec.loader.exec_module(input_model_module)
+
+        # Find the input model class (look for BaseModel subclasses)
+        from pydantic import BaseModel
+
+        input_model_classes = [
+            cls
+            for name, cls in inspect.getmembers(input_model_module, inspect.isclass)
+            if issubclass(cls, BaseModel) and cls is not BaseModel
+        ]
+
+        if input_model_classes:
+            # Instantiate the input model with the input data
+            input_model_class = input_model_classes[0]
+            input_instance = input_model_class(**input_data)
+
+            # Get the function signature to determine parameter name
+            sig = inspect.signature(func)
+            first_param = list(sig.parameters.keys())[0]
+
+            # Call with the instantiated model
+            return func(**{first_param: input_instance})
+
+    # Fallback: call with unpacked input_data (for tools without input models)
     return func(**input_data)
 
 
