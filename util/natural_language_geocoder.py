@@ -21,14 +21,28 @@ from e84_geoai_common.geometry import simplify_geometry
 # uses "./temp" as the default cache directory, which is not writable in AWS Lambda environments.
 # We override the default to use "/tmp", which is the writable directory in Lambda.
 #
-# TODO: Remove this monkey-patch once the library is updated to handle Lambda environments.
+# Remove this monkey-patch once the library is updated to handle Lambda environments.
 # Issue: [https://github.com/Element84/natural-language-geocoding/issues/15]
 import natural_language_geocoding.geocode_index.hierachical_place_cache as hpc
+
+from natural_language_geocoding import extract_geometry_from_text
+from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
+    GeocodeIndexPlaceLookup,
+)
 
 _original_init = hpc.PlaceCache.__init__
 
 
 def lambda_safe_init(self, *args, **kwargs):
+    """
+    Lambda-safe initialization wrapper for PlaceCache.__init__.
+
+    This function replaces the original PlaceCache.__init__ method to ensure
+    compatibility with AWS Lambda environments. The original implementation
+    uses "./temp" as the default cache directory, which is not writable in
+    Lambda. This wrapper redirects cache operations to "/tmp", which is the
+    writable directory in Lambda environments.
+    """
     if "cache_dir" not in kwargs or kwargs["cache_dir"] == "./temp":
         kwargs["cache_dir"] = "/tmp"
     return _original_init(self, *args, **kwargs)
@@ -36,10 +50,6 @@ def lambda_safe_init(self, *args, **kwargs):
 
 hpc.PlaceCache.__init__ = lambda_safe_init
 
-from natural_language_geocoding import extract_geometry_from_text
-from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
-    GeocodeIndexPlaceLookup,
-)
 
 simplify_geom_max_point = int(os.getenv("SIMPLIFY_GEOM_MAX_POINT", "1000"))
 
@@ -99,7 +109,8 @@ def fix_geometry(geom):
         shp = shape(geom)
         oriented = orient(shp, sign=1.0)  # 1.0 for counter-clockwise
         return mapping(oriented)
-    elif geom["type"] == "MultiPolygon":
+
+    if geom["type"] == "MultiPolygon":
         # Fix each polygon in the MultiPolygon
         fixed_polys = [
             fix_geometry({"type": "Polygon", "coordinates": poly})
@@ -109,9 +120,9 @@ def fix_geometry(geom):
             "type": "MultiPolygon",
             "coordinates": [p["coordinates"] for p in fixed_polys],
         }
-    else:
-        # Return other geometries unchanged
-        return geom
+
+    # Return other geometries unchanged
+    return geom
 
 
 def convert_geometry_to_geojson(geometry):

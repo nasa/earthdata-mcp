@@ -1,6 +1,10 @@
+"""GeoSpatial Embedding Test"""
+
 import json
-import pytest
 from unittest.mock import patch, Mock
+import redis
+import pytest
+
 from tools.geospatial_embeddings.tool import (
     natural_language_geocode,
     get_from_cache,
@@ -14,7 +18,10 @@ def sample_geometry():
     """Sample polygon geometry object for testing."""
     mock_geom = Mock()
     # Use a polygon representing San Francisco Bay Area
-    polygon_wkt = "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, -122.5150 37.8150, -122.5150 37.7050))"
+    polygon_wkt = (
+        "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, "
+        "-122.5150 37.8150, -122.5150 37.7050))"
+    )
     mock_geom.__str__ = Mock(return_value=polygon_wkt)
     return mock_geom
 
@@ -24,7 +31,10 @@ def sample_cache_data():
     """Sample cached data with polygon geometry for testing."""
     return {
         "geoLocation": "San Francisco Bay Area",
-        "geometry": "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, -122.5150 37.8150, -122.5150 37.7050))",
+        "geometry": (
+            "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, "
+            "-122.5150 37.8150, -122.5150 37.7050))"
+        ),
         "success": True,
     }
 
@@ -66,7 +76,7 @@ class TestCacheOperations:
 
     def test_get_from_cache_redis_error(self, mock_redis):
         """Test cache retrieval with Redis error."""
-        mock_redis.get.side_effect = Exception("Redis connection failed")
+        mock_redis.get.side_effect = redis.RedisError("Redis connection failed")
 
         result = get_from_cache("San Francisco Bay Area")
 
@@ -76,7 +86,10 @@ class TestCacheOperations:
         """Test successful cache storage with polygon geometry."""
         data = {
             "geoLocation": "Silicon Valley",
-            "geometry": "POLYGON((-122.2000 37.3000, -121.8000 37.3000, -121.8000 37.5000, -122.2000 37.5000, -122.2000 37.3000))",
+            "geometry": (
+                "POLYGON((-122.2000 37.3000, -121.8000 37.3000, -121.8000 37.5000, "
+                "-122.2000 37.5000, -122.2000 37.3000))"
+            ),
             "success": True,
         }
 
@@ -98,7 +111,7 @@ class TestCacheOperations:
 
     def test_store_in_cache_redis_error(self, mock_redis):
         """Test cache storage with Redis error."""
-        mock_redis.setex.side_effect = Exception("Redis connection failed")
+        mock_redis.setex.side_effect = redis.RedisError("Redis connection failed")
 
         # Should not raise exception
         store_in_cache("San Francisco Bay Area", {"test": "data"})

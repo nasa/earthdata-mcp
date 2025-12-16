@@ -1,13 +1,16 @@
-import pytest
-from unittest.mock import patch, Mock
-from shapely.geometry import Polygon
+"""Natural Language Geocoder Util Test"""
+
 import json
+from unittest.mock import patch, Mock
 
+import pytest
 
+from shapely.geometry import Polygon
 from util.natural_language_geocoder import (
     convert_text_to_geom,
     fix_geometry,
     convert_geometry_to_geojson,
+    lambda_safe_init,
 )
 
 
@@ -58,13 +61,23 @@ class TestNaturalLanguageGeocoder:
         self, mock_lookup, mock_llm_class, mock_extract
     ):
         """Test error handling when extract_geometry_from_text fails."""
+        # Setup - actually use the mocked objects
         mock_llm_instance = mock_llm_class.return_value
         mock_lookup_instance = mock_lookup.return_value
+        # Configure the extract function to raise an exception
         mock_extract.side_effect = Exception("Extraction failed")
 
+        # Exercise
         result = convert_text_to_geom("San Francisco")
 
+        # Verify
         assert result is None
+        # Verify mocks were used
+        mock_llm_class.assert_called_once()
+        mock_lookup.assert_called_once()
+        mock_extract.assert_called_once_with(
+            mock_llm_instance, "San Francisco", mock_lookup_instance
+        )
 
     @patch("util.natural_language_geocoder.simplify_geometry")
     @patch("util.natural_language_geocoder.extract_geometry_from_text")
@@ -74,6 +87,7 @@ class TestNaturalLanguageGeocoder:
         self, mock_lookup, mock_llm_class, mock_extract, mock_simplify
     ):
         """Test error handling when simplify_geometry fails."""
+        # Setup - actually use the mocked objects
         mock_llm_instance = mock_llm_class.return_value
         mock_lookup_instance = mock_lookup.return_value
         mock_geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
@@ -83,6 +97,14 @@ class TestNaturalLanguageGeocoder:
         result = convert_text_to_geom("San Francisco")
 
         assert result is None
+
+        # Verify the mocks were called as expected
+        mock_llm_class.assert_called_once()
+        mock_lookup.assert_called_once()
+        mock_extract.assert_called_once_with(
+            mock_llm_instance, "San Francisco", mock_lookup_instance
+        )
+        mock_simplify.assert_called_once_with(geom=mock_geometry, max_points=1000)
 
     def test_fix_geometry_polygon(self):
         """Test fix_geometry with a polygon."""
@@ -219,19 +241,15 @@ class TestNaturalLanguageGeocoder:
         assert "Failed to convert geometry to GeoJSON" in str(excinfo.value)
 
 
-class TestMonkeyPatch:
-    """Test the monkey patch functionality."""
+@patch("util.natural_language_geocoder._original_init")
+def test_lambda_safe_init_default_cache_dir(mock_original_init):
+    """Test lambda_safe_init with ./temp cache_dir (should change to /tmp)."""
 
-    @patch("util.natural_language_geocoder._original_init")
-    def test_lambda_safe_init_default_cache_dir(self, mock_original_init):
-        """Test lambda_safe_init with ./temp cache_dir (should change to /tmp)."""
-        from util.natural_language_geocoder import lambda_safe_init
+    mock_self = Mock()
+    mock_original_init.return_value = None
 
-        mock_self = Mock()
-        mock_original_init.return_value = None
+    # Test with "./temp" - should be changed to "/tmp"
+    lambda_safe_init(mock_self, cache_dir="./temp")
 
-        # Test with "./temp" - should be changed to "/tmp"
-        lambda_safe_init(mock_self, cache_dir="./temp")
-
-        # Verify _original_init was called with /tmp
-        mock_original_init.assert_called_once_with(mock_self, cache_dir="/tmp")
+    # Verify _original_init was called with /tmp
+    mock_original_init.assert_called_once_with(mock_self, cache_dir="/tmp")

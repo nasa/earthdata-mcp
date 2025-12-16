@@ -1,8 +1,19 @@
+"""
+Geospatial Embeddings Tool
+
+This module provides functionality to convert natural language location queries
+into geometric representations (like polygons or points) for use in geospatial
+applications. It includes Redis-based caching to improve performance and
+Langfuse integration for observability.
+"""
+
+import os
 import json
 import hashlib
+
 from typing import Any, Dict, Optional
 import redis
-import os
+
 from langfuse import observe, get_client
 
 from util.natural_language_geocoder import convert_text_to_geom
@@ -12,7 +23,7 @@ langfuse = get_client()
 
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", 6379)),
+    port=(os.getenv("REDIS_PORT")),
     password=os.getenv("REDIS_PASSWORD"),
     ssl="true",
     ssl_cert_reqs=None,
@@ -35,8 +46,8 @@ def get_from_cache(location: str) -> Optional[Dict[str, Any]]:
         if cached_result:
             return json.loads(cached_result)
         return None
-    except Exception as e:
-        print(f"Cache read error: {e}")
+    except redis.RedisError as e:
+        print(f"Redis error when reading from cache: {e}")
         return None
 
 
@@ -46,8 +57,8 @@ def store_in_cache(location: str, result: Dict[str, Any], ttl: int = 900) -> Non
     try:
         cache_key = get_cache_key(location)
         redis_client.setex(cache_key, ttl, json.dumps(result))
-    except Exception as e:
-        print(f"Cache write error: {e}")
+    except redis.RedisError as e:
+        print(f"Redis error when storing to cache: {e}")
 
 
 @observe(name="natural_language_geocode")
@@ -108,24 +119,24 @@ def natural_language_geocode(location: str) -> Dict[str, Any]:
             )
 
             return result
-        else:
-            result = {
-                "error": f"Unable to geocode the location '{location}'. "
-                f"The location might be too vague, not recognized, "
-                f"or there was an error in the geocoding process.",
+
+        result = {
+            "error": f"Unable to geocode the location '{location}'. "
+            f"The location might be too vague, not recognized, "
+            f"or there was an error in the geocoding process.",
+            "success": False,
+        }
+
+        langfuse.update_current_trace(
+            tags=["cache_miss", "error", "geocoding_failed"],
+            metadata={
+                "error_type": "geocoding_failed",
                 "success": False,
-            }
+                "location_length": len(location),
+            },
+        )
 
-            langfuse.update_current_trace(
-                tags=["cache_miss", "error", "geocoding_failed"],
-                metadata={
-                    "error_type": "geocoding_failed",
-                    "success": False,
-                    "location_length": len(location),
-                },
-            )
-
-            return result
+        return result
 
     except Exception as e:
         result = {"error": f"Exception during geocoding: {str(e)}", "success": False}

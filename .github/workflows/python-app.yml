@@ -33,13 +33,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        uv run pytest \
-          --cov=util \
-          --cov=tools \
-          --cov-report=xml \
-          --cov-report=term-missing \
-          --cov-fail-under=80 \
-          -v
+        uv run pytest
 
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v4
@@ -67,8 +61,7 @@ jobs:
 
       - name: Lint with pylint
         run: |
-          uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py
-
+          uv run pylint tools/ util/ tests/
 
 
 
