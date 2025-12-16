@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
-from schemas.temporal_ranges.input_model import TemporalRangeInput
+from tools.temporal_ranges.input_model import TemporalRangeInput
 
 
 # ===== Mocked unit tests (no LLM dependency) =====
@@ -27,10 +27,8 @@ def test_mocked_date_range_both_dates(mock_instructor):
     )
 
     # Assertions
-    assert result[0]["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert result[0]["EndDate"] == datetime(
-        2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
-    )
+    assert result["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert result["EndDate"] == datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
     # Verify the mock was called correctly
     mock_instructor.assert_called_once_with("bedrock/amazon.nova-pro-v1:0")
@@ -55,8 +53,8 @@ def test_mocked_date_range_no_dates(mock_instructor):
     )
 
     # Assertions
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] is None
+    assert result["StartDate"] is None
+    assert result["EndDate"] is None
 
 
 @patch("tools.temporal_ranges.tool.instructor.from_provider")
@@ -79,8 +77,8 @@ def test_mocked_date_range_only_start(mock_instructor):
     )
 
     # Assertions
-    assert result[0]["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert result[0]["EndDate"] is None
+    assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert result["EndDate"] is None
 
 
 @patch("tools.temporal_ranges.tool.instructor.from_provider")
@@ -103,7 +101,5 @@ def test_mocked_date_range_only_end(mock_instructor):
     )
 
     # Assertions
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] == datetime(
-        2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
-    )
+    assert result["StartDate"] is None
+    assert result["EndDate"] == datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
