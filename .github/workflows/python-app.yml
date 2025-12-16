@@ -18,10 +18,10 @@ jobs:
     - name: Checkout Code 
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
+    - name: Set up Python 3.13
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Install uv
       run: |
@@ -52,10 +52,10 @@ jobs:
       - name: Checkout Code 
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       
       - name: Install uv
         run: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Lint with pylint
         run: |
-          uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py || true
+          uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py
 
 
 
