@@ -108,9 +108,9 @@ wheels = [
 
 [[package]]
 name = "astroid"
-version = "4.0.2"
+version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b7/22/97df040e15d964e592d3a180598ace67e91b7c559d8298bdb3c949dc6e42/astroid-4.0.2.tar.gz", hash = "sha256:ac8fb7ca1c08eb9afec91ccc23edbd8ac73bb22cbdd7da1d488d9fb8d6579070", size = 405714, upload-time = "2025-11-09T21:21:18.373Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/aa/60bf19fe9d33cd8753b0547df513c3004b33b9a482800d3af0845bcbb3d0/astroid-3.0.3.tar.gz", hash = "sha256:4148645659b08b70d72460ed1921158027a9e53ae8b7234149b1400eddacbb93", size = 395183, upload-time = "2024-02-04T15:16:28.236Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/93/ac/a85b4bfb4cf53221513e27f33cc37ad158fce02ac291d18bee6b49ab477d/astroid-4.0.2-py3-none-any.whl", hash = "sha256:d7546c00a12efc32650b19a2bb66a153883185d3179ab0d4868086f807338b9b", size = 276354, upload-time = "2025-11-09T21:21:16.54Z" },
 =======
@@ -956,7 +956,7 @@ wheels = [
 
 [[package]]
 name = "jsonschema"
-version = "4.25.1"
+version = "4.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -964,9 +964,9 @@ dependencies = [
     { name = "referencing" },
     { name = "rpds-py" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/69/f7185de793a29082a9f3c7728268ffb31cb5095131a9c139a74078e27336/jsonschema-4.25.1.tar.gz", hash = "sha256:e4a9655ce0da0c0b67a085847e00a3a51449e1157f4f75e9fb5aa545e122eb85", size = 357342, upload-time = "2025-08-18T17:03:50.038Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/74/77bf12d3dd32b764692a71d4200f03429c41eee2e8a9225d344d91c03aff/jsonschema-4.20.0.tar.gz", hash = "sha256:4f614fd46d8d61258610998997743ec5492a648b33cf478c1ddc23ed4598a5fa", size = 320243, upload-time = "2023-11-16T17:08:05.705Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/9c/8c95d856233c1f82500c2450b8c68576b4cf1c871db3afac5c34ff84e6fd/jsonschema-4.25.1-py3-none-any.whl", hash = "sha256:3fba0169e345c7175110351d456342c364814cfcf3b964ba4587f22915230a63", size = 90040, upload-time = "2025-08-18T17:03:48.373Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/ed/0058234d8dd2b1fc6beeea8eab945191a05e9d391a63202f49fe23327586/jsonschema-4.20.0-py3-none-any.whl", hash = "sha256:ed6231f0429ecf966f5bc8dfef245998220549cbbcf140f913b7464c52c3b6b3", size = 84663, upload-time = "2023-11-16T17:08:03.186Z" },
 ]
 
 [[package]]
@@ -1199,7 +1199,7 @@ wheels = [
 =======
 version = "1.42.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1f/6d/11f07aa42c0edffa88b58388aaff7a3a7d8c2ccbf76a583e86537087f4f1/mypy_boto3_bedrock-1.42.3.tar.gz", hash = "sha256:32b8aa12ff762f4ea472f519efad4d10a66c9060eec69989ff9ff92a1da81fdb", size = 61236, upload-time = "2025-12-04T20:56:42.624Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/c3/9099263a1b6be118023946ada450c20feb2f3fe2cc7ead02e2d138a8ea63/mypy_boto3_bedrock-1.42.7.tar.gz", hash = "sha256:8c32d913174b14e80e6eb9a522daad0279b44f1fdc7db91bd16f952c381182ba", size = 61312, upload-time = "2025-12-10T20:40:58.712Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/a7/fc468a749e2ed1e2d881b5a3233bb870cfe228833302e9e4c15dcd57e719/mypy_boto3_bedrock-1.42.3-py3-none-any.whl", hash = "sha256:3104bd58d667ea89ed98a85dfc8ab317fe273a69072b5a2fcd7b22604b5b312f", size = 69073, upload-time = "2025-12-04T20:56:40.665Z" },
 >>>>>>> a443aaf (CMRNLP-38 making the tests relative to today)
@@ -1225,7 +1225,7 @@ wheels = [
 =======
 version = "1.42.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b8/15/4700b6c4e97975932c22b8d66026183d4b88c8f75aa01614a3fb73a690c6/mypy_boto3_s3-1.42.3.tar.gz", hash = "sha256:2507bdfa17829f1f422b8bf334db836689b0529fbe6635af4e0f3aaa72f92806", size = 76015, upload-time = "2025-12-04T21:11:47.686Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/a5/b5c7cb526694a796bdc60903d0a6700f96cf03986c6bdf4cda7994c064ed/mypy_boto3_s3-1.42.10.tar.gz", hash = "sha256:9a4575124b500c29c023919f17b022e66109a56ba2318ef8aeab3d0dd2cd174e", size = 75989, upload-time = "2025-12-15T20:39:49.391Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/32/9834730800a423f3d7ba3eaaba9741874c49d01f7abb21bdfff76464a2bd/mypy_boto3_s3-1.42.3-py3-none-any.whl", hash = "sha256:97c5171928a2ae8c7b60a60700f395407cb5eca60704c7ab6a1ff0861f4db997", size = 83144, upload-time = "2025-12-04T21:11:45.967Z" },
 >>>>>>> a443aaf (CMRNLP-38 making the tests relative to today)

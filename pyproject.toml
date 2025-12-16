@@ -1,5 +1,5 @@
 [project]
-name = "fastmcp-python"
+name = "earthdata-mcp"
 version = "0.0.1"
 description = "Basic FastMCP implementation for the common metadata repository using Python."
 
