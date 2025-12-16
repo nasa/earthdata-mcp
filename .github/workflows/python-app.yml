@@ -5,19 +5,18 @@ name: Python application
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  pull_request: {}
 
 permissions:
   contents: read
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code 
+      uses: actions/checkout@v4
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
@@ -32,10 +31,47 @@ jobs:
       run: |
         uv sync
 
-    - name: Lint with pylint
+    - name: Run tests with coverage
       run: |
-        uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py || true
+        uv run pytest \
+          --cov=util \
+          --cov=tools \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=80 \
+          -v
 
-    - name: Test with pytest
-      run: |
-        uv run pytest
+    - name: Upload coverage to codecov
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code 
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+      
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Install dependencies with uv
+        run: |
+          uv sync
+
+      - name: Lint with pylint
+        run: |
+          uv run pylint *.py tools/**/*.py tests/**/*.py util/**/*.py
+
+
+
+
+
+
+

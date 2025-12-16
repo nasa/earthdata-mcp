@@ -80,7 +80,7 @@ def create_simple_tool(
         @wraps(func)
         async def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-            return [encode(result)]
+            return result
 
         # copy signature explicitly
         wrapper.__signature__ = inspect.signature(func)
