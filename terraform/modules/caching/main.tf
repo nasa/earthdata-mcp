@@ -15,7 +15,7 @@ resource "aws_elasticache_parameter_group" "nlp_cache_params" {
 
   parameter {
     name  = "maxmemory-policy"
-    value = "noeviction"
+    value = "volatile-lfu"
   }
 
   tags = {
