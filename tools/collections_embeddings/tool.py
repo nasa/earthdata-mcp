@@ -7,7 +7,7 @@ collections using natural language queries and semantic search capabilities.
 
 from typing import Any
 from pydantic import BaseModel
-from schemas.collections_embeddings.input_model import CollectionsEmbeddingsInput
+from .input_model import CollectionsEmbeddingsInput
 
 
 class DatasetSummary(BaseModel):

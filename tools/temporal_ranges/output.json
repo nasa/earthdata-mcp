@@ -1,0 +1,16 @@
+{
+    "type": "object",
+    "properties": {
+        "StartDate": {
+            "description": "Start date as datetime object or ISO 8601 string with timezone",
+            "examples": ["2024-06-01T00:00:00+00:00", null]
+        },
+        "EndDate": {
+            "description": "End date as datetime object or ISO 8601 string with timezone",
+            "examples": ["2024-08-31T23:59:59+00:00", null]
+        }
+    },
+    "required": ["StartDate", "EndDate"],
+    "additionalProperties": false
+}
+
