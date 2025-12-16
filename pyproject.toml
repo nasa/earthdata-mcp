@@ -3,7 +3,7 @@ name = "fastmcp-python"
 version = "0.0.1"
 description = "Basic FastMCP implementation for the common metadata repository using Python."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastmcp>=2.12.4",
     "earthaccess>=0.14.0",
