@@ -1,5 +1,5 @@
 from typing import Any
-from schemas.geospatial_embeddings.input_model import LocationInput
+from .input_model import LocationInput
 from util.natural_language_geocoder import convert_text_to_geom
 
 

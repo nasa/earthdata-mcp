@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 def get_cors_middleware() -> Middleware:
     """
     Create and return CORS middleware configuration.
-    
+
     Returns:
         Middleware: Configured CORS middleware for FastMCP server
     """

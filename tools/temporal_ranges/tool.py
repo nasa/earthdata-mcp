@@ -3,7 +3,7 @@ from typing import List, Dict
 from pathlib import Path
 from pydantic import BaseModel
 import instructor
-from schemas.temporal_ranges.input_model import TemporalRangeInput
+from .input_model import TemporalRangeInput
 
 
 class DateRange(BaseModel):
@@ -16,7 +16,7 @@ def get_temporal_ranges(
     query: TemporalRangeInput,
     provider: str = "bedrock",
     model_id: str = "amazon.nova-pro-v1:0",
-) -> List[Dict]:
+) -> Dict:
     """Extract temporal date ranges from a natural language query.
 
      Args:
@@ -47,4 +47,4 @@ def get_temporal_ranges(
             f"Failed to extract temporal ranges from query '{query.timerange_string}': {e}"
         ) from e
 
-    return [{"StartDate": daterange.start_date, "EndDate": daterange.end_date}]
+    return {"StartDate": daterange.start_date, "EndDate": daterange.end_date}
