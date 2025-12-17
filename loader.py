@@ -54,6 +54,7 @@ class ToolManifest:
 def create_simple_tool(
     manifest_path: Path,
     func: Callable[..., Any],
+    output_schema: dict | None = None,
 ) -> Callable:
     """
     Factory function for creating simple tools without a class.
@@ -61,6 +62,7 @@ def create_simple_tool(
     Args:
         manifest_path: Path to the tool's directory (containing manifest.json)
         func: The function implementing the tool logic
+        output_schema: Optional output schema dictionary for the tool
 
     Returns:
         A register function compatible with the MCP loader
@@ -77,6 +79,7 @@ def create_simple_tool(
         @mcp.tool(
             name=manifest.name,
             description=manifest.description,
+            output_schema=output_schema,
             # tags=set(manifest.tags) if manifest.tags else None,
         )
         @wraps(func)
@@ -127,8 +130,20 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
 
             tool_func = getattr(module, tool_entry)
 
+            # Load output schema if available
+            output_schema = None
+            schema_path = tool_folder / "output.json"
+            if schema_path.exists():
+                try:
+                    with open(schema_path, encoding="utf-8") as f:
+                        output_schema = json.load(f)
+                except Exception as e:
+                    print(
+                        f"[WARNING] Could not load output schema for {tool_name}: {e}"
+                    )
+
             # Register the tool using create_simple_tool
-            register_func = create_simple_tool(tool_folder, tool_func)
+            register_func = create_simple_tool(tool_folder, tool_func, output_schema)
             register_func(mcp)
 
             loaded.append(tool_name)
