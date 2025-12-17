@@ -77,7 +77,7 @@ def create_simple_tool(
             name=manifest.name,
             description=manifest.description,
             output_schema=output_schema,
-            # tags=set(manifest.tags) if manifest.tags else None,
+            tags=set(manifest.tags) if manifest.tags else None,
         )
         @wraps(func)
         async def wrapper(*args, **kwargs):
