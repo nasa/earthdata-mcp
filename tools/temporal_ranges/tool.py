@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import Dict
 from pathlib import Path
 from pydantic import BaseModel
 import instructor
