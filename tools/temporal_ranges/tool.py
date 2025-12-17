@@ -4,6 +4,9 @@ from pathlib import Path
 from pydantic import BaseModel
 import instructor
 from .input_model import TemporalRangeInput
+from langfuse import observe, get_client
+
+langfuse = get_client()
 
 
 class DateRange(BaseModel):
@@ -12,6 +15,7 @@ class DateRange(BaseModel):
     reasoning: str | None = None
 
 
+@observe(name="get_temporal_ranges")
 def get_temporal_ranges(
     query: TemporalRangeInput,
     provider: str = "bedrock",
@@ -43,6 +47,10 @@ def get_temporal_ranges(
             response_model=DateRange,
         )
     except Exception as e:
+        langfuse.update_current_trace(
+            tags=["error", "llm_error"],
+            metadata={"error_type": "llm_error", "message": e, "success": False},
+        )
         raise RuntimeError(
             f"Failed to extract temporal ranges from query '{query.timerange_string}': {e}"
         ) from e
