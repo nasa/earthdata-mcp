@@ -1,148 +1,105 @@
-"""Temporal Range Tool Test"""
-
-import json
-from datetime import datetime
-from pathlib import Path
-
-import pytest
-
-from mcp.server.fastmcp import FastMCP
-from loader import create_simple_tool
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timezone
 from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
+from tools.temporal_ranges.input_model import TemporalRangeInput
 
 
-@pytest.fixture(scope="module")
-def mcp():
-    """Create and return MCP server with tool registered."""
-    mcp_instance = FastMCP("test_server")
-    register = create_simple_tool(
-        Path(__file__).parent.parent / "tools" / "temporal_ranges", get_temporal_ranges
+# ===== Mocked unit tests (no LLM dependency) =====
+
+
+@patch("tools.temporal_ranges.tool.instructor.from_provider")
+def test_mocked_date_range_both_dates(mock_instructor):
+    """Test with mocked LLM response returning both dates."""
+    # Setup mock
+    mock_client = MagicMock()
+    mock_instructor.return_value = mock_client
+
+    mock_date_range = DateRange(
+        start_date=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        end_date=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        reasoning="Year 2024",
     )
-    register(mcp_instance)
-    return mcp_instance
+    mock_client.create.return_value = mock_date_range
 
-
-@pytest.fixture(scope="module")
-def wrapped_func(mcp):
-    """Return the wrapped tool function."""
-    register = create_simple_tool(Path(__file__).parent, get_temporal_ranges)
-    return register(mcp)
-
-
-# ===== Direct function tests (no MCP) =====
-
-
-def test_direct_function_with_dates():
-    """Test the function directly with both dates."""
-    result = get_temporal_ranges("Show me data from November 20 to November 25, 2025")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-20T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-25T23:59:59"
-
-
-def test_direct_function_no_dates():
-    """Test with no dates provided."""
-    result = get_temporal_ranges("Show me all available data")
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] is None
-
-
-def test_direct_function_only_start():
-    """Test with only start date."""
-    result = get_temporal_ranges("Show me data from November 20, 2025 onwards")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-20T00:00:00"
-    assert result[0]["EndDate"] is None
-
-
-def test_direct_function_only_end():
-    """Test with only end date."""
-    result = get_temporal_ranges("Show me data until November 25, 2025")
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-25T23:59:59"
-
-
-# ===== MCP wrapper tests =====
-
-
-@pytest.mark.asyncio
-async def test_via_mcp_wrapper(wrapped_func):
-    """Test via the MCP wrapper."""
-    result = await wrapped_func(
-        query="Show me data from November 20 to November 25, 2025"
+    # Call function
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Show me data for 2024")
     )
 
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+    # Assertions
+    assert result["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert result["EndDate"] == datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+
+    # Verify the mock was called correctly
+    mock_instructor.assert_called_once_with("bedrock/amazon.nova-pro-v1:0")
+    mock_client.create.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_via_call_tool(mcp):
-    """Test via MCP call_tool interface."""
-    result = await mcp.call_tool(
-        "get_temporal_ranges",
-        {"query": "Show me data from November 20 to November 25, 2025"},
+@patch("tools.temporal_ranges.tool.instructor.from_provider")
+def test_mocked_date_range_no_dates(mock_instructor):
+    """Test with mocked LLM response returning no dates."""
+    # Setup mock
+    mock_client = MagicMock()
+    mock_instructor.return_value = mock_client
+
+    mock_date_range = DateRange(
+        start_date=None, end_date=None, reasoning="No specific dates mentioned"
+    )
+    mock_client.create.return_value = mock_date_range
+
+    # Call function
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Show me all data")
     )
 
-    content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
-
-    parsed_content = json.loads(content_text)
-
-    assert parsed_content["StartDate"] == "2025-11-20T00:00:00"
-    assert parsed_content["EndDate"] == "2025-11-25T00:00:00"
+    # Assertions
+    assert result["StartDate"] is None
+    assert result["EndDate"] is None
 
 
-@pytest.mark.asyncio
-async def test_via_call_tool_no_dates(mcp):
-    """Test via MCP with no dates."""
-    result = await mcp.call_tool(
-        "get_temporal_ranges", {"query": "Show me all available data"}
+@patch("tools.temporal_ranges.tool.instructor.from_provider")
+def test_mocked_date_range_only_start(mock_instructor):
+    """Test with mocked LLM response returning only start date."""
+    # Setup mock
+    mock_client = MagicMock()
+    mock_instructor.return_value = mock_client
+
+    mock_date_range = DateRange(
+        start_date=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
+        end_date=None,
+        reasoning="From June 2024 onwards",
+    )
+    mock_client.create.return_value = mock_date_range
+
+    # Call function
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="From June 2024 onwards")
     )
 
-    content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
-
-    parsed_content = json.loads(content_text)
-
-    assert parsed_content["StartDate"] is None
-    assert parsed_content["EndDate"] is None
+    # Assertions
+    assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert result["EndDate"] is None
 
 
-@pytest.mark.asyncio
-async def test_tool_is_registered(mcp):
-    """Verify tool is registered with MCP."""
-    tools = await mcp.list_tools()
-    tool_names = [tool.name for tool in tools]
-    assert "get_temporal_ranges" in tool_names
+@patch("tools.temporal_ranges.tool.instructor.from_provider")
+def test_mocked_date_range_only_end(mock_instructor):
+    """Test with mocked LLM response returning only end date."""
+    # Setup mock
+    mock_client = MagicMock()
+    mock_instructor.return_value = mock_client
 
+    mock_date_range = DateRange(
+        start_date=None,
+        end_date=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
+        reasoning="Until end of June 2024",
+    )
+    mock_client.create.return_value = mock_date_range
 
-def test_spring_four_years_ago():
-    """Test relative date: spring of four years ago."""
-    result = get_temporal_ranges("spring of four years ago")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-03-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2021-05-31T23:59:59"
+    # Call function
+    result = get_temporal_ranges(
+        TemporalRangeInput(timerange_string="Until end of June 2024")
+    )
 
-
-def test_spring_argentina():
-    """Test relative date with location: last spring in Argentina"""
-    result = get_temporal_ranges("this winter in argentina")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-08-31T23:59:59"
-
-
-def test_last_month():
-    """Test relative date: last month."""
-    result = get_temporal_ranges("last month")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
-
-
-def test_atlantic_hurricane_season():
-    """Test seasonal pattern: Atlantic hurricane season."""
-    result = get_temporal_ranges("Atlantic hurricane season")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-11-30T23:59:59"
-
-
-def test_indian_monsoon_season():
-    """Test seasonal pattern: Indian monsoon season."""
-    result = get_temporal_ranges("Indian monsoon season")
-    assert result[0]["StartDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-06-01T00:00:00"
-    assert result[0]["EndDate"].strftime("%Y-%m-%dT%H:%M:%S") == "2025-09-30T23:59:59"
+    # Assertions
+    assert result["StartDate"] is None
+    assert result["EndDate"] == datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
