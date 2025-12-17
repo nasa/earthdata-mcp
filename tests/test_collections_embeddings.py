@@ -12,6 +12,5 @@ def test_returns_not_implemented():
 def test_returns_not_implemented_empty_query():
     """Test with empty query."""
     result = search_cmr_collections_embeddings(query="")
-    print(result)
 
     assert result == {"result": "NOT IMPLEMENTED YET", "message": "No query provided"}

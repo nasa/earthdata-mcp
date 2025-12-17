@@ -30,7 +30,7 @@ def search_cmr_collections_embeddings(
     """Get a list of collections form CMR based on keywords.
 
     Args:
-        keywords: A string of text to search collections with.
+        query: A string of text to search collections with.
     """
     # Use the query parameter to avoid unused-argument warning
     # Implement actual CMR collections search with embeddings

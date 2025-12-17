@@ -23,9 +23,9 @@ langfuse = get_client()
 
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
-    port=(os.getenv("REDIS_PORT")),
+    port=int(os.getenv("REDIS_PORT", 6379)),
     password=os.getenv("REDIS_PASSWORD"),
-    ssl="true",
+    ssl=True,
     ssl_cert_reqs=None,
 )
 

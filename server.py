@@ -1,4 +1,4 @@
-"Server File"
+"""Server File - FastMCP server for CMR tools."""
 
 import sys
 import logging
