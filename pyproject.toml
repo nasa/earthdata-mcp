@@ -18,4 +18,31 @@ dependencies = [
     "pytest-cov>=7.0.0",
     "pylint>=3.0.0",
     "instructor>=1.13.0",
+    "langfuse==3.10.6",
+]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=html", 
+    "--cov-report=xml",
+    "-v"
+]
+
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/site-packages/*"
 ]
