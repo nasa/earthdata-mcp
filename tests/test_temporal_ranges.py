@@ -109,6 +109,32 @@ class TestDateRangeExtraction:
             2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
         )
 
+    @patch("tools.temporal_ranges.tool.instructor.from_provider")
+    def test_seasonal_range(self, mock_instructor):
+        """Test with mocked LLM response returning a seasonal date range."""
+        # Setup mock
+        mock_client = MagicMock()
+        mock_instructor.return_value = mock_client
+
+        # Summer 2024: June 20 - September 22
+        mock_date_range = DateRange(
+            start_date=datetime(2024, 6, 20, 0, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 9, 22, 23, 59, 59, tzinfo=timezone.utc),
+            reasoning="Summer 2024 season",
+        )
+        mock_client.create.return_value = mock_date_range
+
+        # Call function
+        result = get_temporal_ranges(TemporalRangeInput(timerange_string="summer 2024"))
+
+        # Assertions
+        assert result["StartDate"] == datetime(
+            2024, 6, 20, 0, 0, 0, tzinfo=timezone.utc
+        )
+        assert result["EndDate"] == datetime(
+            2024, 9, 22, 23, 59, 59, tzinfo=timezone.utc
+        )
+
 
 class TestErrorHandling:
     """Test error handling for various failure scenarios."""
