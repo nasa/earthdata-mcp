@@ -5,5 +5,5 @@
   "version": "1.0.0",
   "tags": ["temporal", "date", "time", "range", "event"],
   "entry_function": "get_temporal_ranges",
-  "enabled": "true"
+  "enabled": true
 }
