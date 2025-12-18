@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 class DateRange(BaseModel):
     """
-    update this once the tool is implemented
+    Update this once the tool is implemented
     """
 
     start: datetime | None = None
