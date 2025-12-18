@@ -29,11 +29,28 @@ def get_temporal_ranges(
     Returns:
         A list containing a dict with StartDate and EndDate datetime objects.
     """
-    client = instructor.from_provider(f"{provider}/{model_id}")
+    try:
+        client = instructor.from_provider(f"{provider}/{model_id}")
+    except Exception as e:
+        langfuse.update_current_trace(
+            tags=["error", "client_init_error"],
+            metadata={
+                "error_type": "client_init_error",
+                "message": str(e),
+                "success": False,
+            },
+        )
+        raise RuntimeError(
+            f"Failed to initialize instructor client with provider '{provider}' and model '{model_id}': {e}"
+        ) from e
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     # Load prompt from prompt.md file
     prompt_path = Path(__file__).parent / "prompt.md"
+
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Required prompt file not found: {prompt_path}")
+
     with open(prompt_path, "r", encoding="utf-8") as f:
         system_prompt = f.read().replace("{current_date}", today)
 
