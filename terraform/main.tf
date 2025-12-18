@@ -4,6 +4,19 @@ module "ecr" {
   environment_name = var.environment_name
 }
 
+# NLP Caching infrastructure
+module "caching" {
+  source = "./modules/caching"
+
+  environment_name = var.environment_name
+  vpc_id          = data.aws_vpc.app.id
+  vpc_cidr_block  = data.aws_vpc.app.cidr_block
+  subnet_ids      = data.aws_subnets.app.ids
+  
+  # Redis configuration
+  redis_num_cache_nodes = var.redis_num_cache_nodes
+}
+
 # Langfuse infrastructure (depends on ECR)
 module "langfuse" {
   source = "./modules/langfuse"
