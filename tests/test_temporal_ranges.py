@@ -1,26 +1,31 @@
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
 import pytest
-from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
+from unittest.mock import patch, MagicMock, mock_open
+from datetime import datetime, timezone
+from tools.temporal_ranges.tool import get_temporal_ranges
 from tools.temporal_ranges.input_model import TemporalRangeInput
+from tools.temporal_ranges.output_model import TemporalRangeOutput
 
 
-# ===== Mocked unit tests (no LLM dependency) =====
+class TestTemporalRangesMocked:
+    """Mocked unit tests for temporal ranges (no LLM dependency)."""
 
+    @pytest.fixture
+    def mock_instructor_client(self):
+        """Fixture to create a mocked instructor client."""
+        with patch(
+            "tools.temporal_ranges.tool.instructor.from_provider"
+        ) as mock_instructor:
+            mock_client = MagicMock()
+            mock_instructor.return_value = mock_client
+            yield mock_instructor, mock_client
 
-class TestDateRangeExtraction:
-    """Test date range extraction with various date combinations."""
-
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_both_dates(self, mock_instructor):
+    def test_date_range_both_dates(self, mock_instructor_client):
         """Test with mocked LLM response returning both dates."""
-        # Setup mock
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
+        mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            end_date=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Year 2024",
         )
         mock_client.create.return_value = mock_date_range
@@ -40,15 +45,12 @@ class TestDateRangeExtraction:
         mock_instructor.assert_called_once_with("bedrock/amazon.nova-pro-v1:0")
         mock_client.create.assert_called_once()
 
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_no_dates(self, mock_instructor):
+    def test_date_range_no_dates(self, mock_instructor_client):
         """Test with mocked LLM response returning no dates."""
-        # Setup mock
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
+        mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=None, end_date=None, reasoning="No specific dates mentioned"
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
         )
         mock_client.create.return_value = mock_date_range
 
@@ -61,16 +63,13 @@ class TestDateRangeExtraction:
         assert result["StartDate"] is None
         assert result["EndDate"] is None
 
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_only_start_date(self, mock_instructor):
+    def test_date_range_only_start(self, mock_instructor_client):
         """Test with mocked LLM response returning only start date."""
-        # Setup mock
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
+        mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
-            end_date=None,
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=None,
             reasoning="From June 2024 onwards",
         )
         mock_client.create.return_value = mock_date_range
@@ -84,16 +83,13 @@ class TestDateRangeExtraction:
         assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
         assert result["EndDate"] is None
 
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_only_end_date(self, mock_instructor):
+    def test_date_range_only_end(self, mock_instructor_client):
         """Test with mocked LLM response returning only end date."""
-        # Setup mock
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
+        mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=None,
-            end_date=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None,
+            EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Until end of June 2024",
         )
         mock_client.create.return_value = mock_date_range
@@ -109,78 +105,51 @@ class TestDateRangeExtraction:
             2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
         )
 
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_seasonal_range(self, mock_instructor):
-        """Test with mocked LLM response returning a seasonal date range."""
-        # Setup mock
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
+    def test_client_initialization_error(self):
+        """Test error handling when instructor client fails to initialize."""
+        with patch(
+            "tools.temporal_ranges.tool.instructor.from_provider"
+        ) as mock_instructor:
+            mock_instructor.side_effect = Exception("Failed to initialize client")
 
-        # Summer 2024: June 20 - September 22
-        mock_date_range = DateRange(
-            start_date=datetime(2024, 6, 20, 0, 0, 0, tzinfo=timezone.utc),
-            end_date=datetime(2024, 9, 22, 23, 59, 59, tzinfo=timezone.utc),
-            reasoning="Summer 2024 season",
-        )
-        mock_client.create.return_value = mock_date_range
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
 
-        # Call function
-        result = get_temporal_ranges(TemporalRangeInput(timerange_string="summer 2024"))
+            assert "Failed to initialize instructor client" in str(exc_info.value)
+            assert "bedrock" in str(exc_info.value)
+            assert "amazon.nova-pro-v1:0" in str(exc_info.value)
 
-        # Assertions
-        assert result["StartDate"] == datetime(
-            2024, 6, 20, 0, 0, 0, tzinfo=timezone.utc
-        )
-        assert result["EndDate"] == datetime(
-            2024, 9, 22, 23, 59, 59, tzinfo=timezone.utc
-        )
+    def test_prompt_file_missing(self, mock_instructor_client, tmp_path):
+        """Test error handling when prompt.md file is missing."""
+        mock_instructor, mock_client = mock_instructor_client
 
+        # Mock Path to point to a non-existent location
+        with patch("tools.temporal_ranges.tool.Path") as mock_path:
+            mock_prompt_path = MagicMock()
+            mock_prompt_path.exists.return_value = False
+            mock_path.return_value.parent = MagicMock()
+            mock_path.return_value.parent.__truediv__ = (
+                lambda self, other: mock_prompt_path
+            )
 
-class TestErrorHandling:
-    """Test error handling for various failure scenarios."""
+            with pytest.raises(FileNotFoundError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
 
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_connection_error(self, mock_instructor):
-        """Test exception handling for connection errors."""
-        # Setup mock to raise a connection error
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
-        mock_client.create.side_effect = ConnectionError("Failed to connect to LLM API")
+            assert "Required prompt file not found" in str(exc_info.value)
 
-        query = TemporalRangeInput(timerange_string="yesterday")
+    def test_llm_extraction_error(self, mock_instructor_client):
+        """Test error handling when LLM fails to extract temporal ranges."""
+        mock_instructor, mock_client = mock_instructor_client
+        mock_client.create.side_effect = Exception("LLM API error")
 
-        # Execute and assert exception is raised
         with pytest.raises(RuntimeError) as exc_info:
-            get_temporal_ranges(query)
+            get_temporal_ranges(
+                TemporalRangeInput(timerange_string="Show me data for 2024")
+            )
 
-        # Verify error message
-        assert "Failed to extract temporal ranges from query 'yesterday'" in str(
-            exc_info.value
-        )
-        assert "Failed to connect to LLM API" in str(exc_info.value)
-
-        # Verify original exception is preserved
-        assert isinstance(exc_info.value.__cause__, ConnectionError)
-
-    @patch("tools.temporal_ranges.tool.instructor.from_provider")
-    def test_timeout_error(self, mock_instructor):
-        """Test exception handling for timeout errors."""
-        # Setup mock to raise a timeout error
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
-        mock_client.create.side_effect = TimeoutError("Request timed out after 30s")
-
-        query = TemporalRangeInput(timerange_string="this month")
-
-        # Execute and assert exception is raised
-        with pytest.raises(RuntimeError) as exc_info:
-            get_temporal_ranges(query)
-
-        # Verify error message includes timeout details
-        assert "Failed to extract temporal ranges from query 'this month'" in str(
-            exc_info.value
-        )
-        assert "Request timed out after 30s" in str(exc_info.value)
-
-        # Verify original exception is preserved
-        assert isinstance(exc_info.value.__cause__, TimeoutError)
+        assert "Failed to extract temporal ranges" in str(exc_info.value)
+        assert "Show me data for 2024" in str(exc_info.value)
