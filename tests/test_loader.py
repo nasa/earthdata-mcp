@@ -166,14 +166,21 @@ class TestLoadToolsFromDirectory:
         }
         (tool_dir / "manifest.json").write_text(json.dumps(manifest))
 
-        # Mock the imported module
-        mock_module = Mock()
+        # Mock the tool module with a register function
+        mock_tool_module = Mock()
 
         def mock_register(param: str) -> dict:
             return {"result": param}
 
-        mock_module.register = mock_register
-        mock_import.return_value = mock_module
+        mock_tool_module.register = mock_register
+
+        # Setup: loader imports tool.py successfully, output_model.py fails (doesn't exist)
+        mock_import.side_effect = [
+            mock_tool_module,  # First call: tools.test_tool.tool
+            ImportError(
+                "No module named 'tools.test_tool.output_model'"
+            ),  # Second call
+        ]
 
         mock_mcp = Mock()
         mock_mcp.tool = Mock(return_value=lambda f: f)
@@ -182,7 +189,9 @@ class TestLoadToolsFromDirectory:
 
         assert "test_tool" in result["loaded"]
         assert len(result["failed"]) == 0
-        mock_import.assert_called_once_with("tools.test_tool.tool")
+        # Verify the tool module was imported
+        assert mock_import.call_count == 2
+        mock_import.assert_any_call("tools.test_tool.tool")
 
         captured = capsys.readouterr()
         assert "✓ test_tool" in captured.out
@@ -242,8 +251,8 @@ class TestLoadToolsFromDirectory:
         assert "✗ broken_tool" in captured.out
 
     @patch("loader.importlib.import_module")
-    def test_load_tools_with_output_schema(self, mock_import, tmp_path):
-        """Test loading tool with output schema."""
+    def test_load_tools_with_output_schema(self, mock_import, tmp_path, capsys):
+        """Test loading tool with JSON output schema."""
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
@@ -256,14 +265,21 @@ class TestLoadToolsFromDirectory:
         output_schema = {"type": "object"}
         (tool_dir / "output.json").write_text(json.dumps(output_schema))
 
-        # Mock the imported module
-        mock_module = Mock()
+        # Mock the tool module with a register function
+        mock_tool_module = Mock()
 
         def mock_register(param: str) -> dict:
             return {"result": param}
 
-        mock_module.register = mock_register
-        mock_import.return_value = mock_module
+        mock_tool_module.register = mock_register
+
+        # Setup: tool.py imports successfully, output_model.py doesn't exist
+        mock_import.side_effect = [
+            mock_tool_module,  # First call: tools.schema_tool.tool
+            ImportError(
+                "No module"
+            ),  # Second call: tools.schema_tool.output_model (doesn't exist)
+        ]
 
         mock_mcp = Mock()
         mock_mcp.tool = Mock(return_value=lambda f: f)
@@ -271,6 +287,9 @@ class TestLoadToolsFromDirectory:
         result = load_tools_from_directory(mock_mcp, str(tools_dir))
 
         assert "schema_tool" in result["loaded"]
+        captured = capsys.readouterr()
+        # This should hit line 159 - the JSON schema loading print statement
+        assert "Using JSON schema for schema_tool" in captured.out
 
     @patch("loader.importlib.import_module")
     def test_load_tools_missing_name_field(self, mock_import, tmp_path, capsys):
@@ -308,14 +327,19 @@ class TestLoadToolsFromDirectory:
         # Create invalid JSON in output.json
         (tool_dir / "output.json").write_text("{invalid json}")
 
-        # Mock the imported module
-        mock_module = Mock()
+        # Mock the tool module with a register function
+        mock_tool_module = Mock()
 
         def mock_register(param: str) -> dict:
             return {"result": param}
 
-        mock_module.register = mock_register
-        mock_import.return_value = mock_module
+        mock_tool_module.register = mock_register
+
+        # Setup: tool.py imports successfully, output_model.py doesn't exist
+        mock_import.side_effect = [
+            mock_tool_module,  # First call: tools.bad_schema_tool.tool
+            ImportError("No module"),  # Second call: tools.bad_schema_tool.output_model
+        ]
 
         mock_mcp = Mock()
         mock_mcp.tool = Mock(return_value=lambda f: f)
