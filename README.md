@@ -12,9 +12,6 @@ mcp/
 │   └── <toolname>/        # Each tool is fully self-contained
 │       ├── tool.py        # Python implementation of the tool
 │       ├── manifest.json  # MCP tool metadata (incl. entry function)
-│
-├── schemas/               # Schema definitions for all tools
-│   └── <toolname>/        # Schema files for each tool
 │       ├── input_model.py # Pydantic model for tool inputs 
 │       └── output.json    # JSON schema for tool outputs
 │

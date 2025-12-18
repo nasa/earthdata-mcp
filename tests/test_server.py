@@ -3,10 +3,11 @@
 import pytest
 import sys
 import subprocess
+import importlib
 import importlib.util
 from pathlib import Path
 from unittest.mock import Mock, patch, call
-
+import server
 
 # ===== Server Module Tests =====
 
@@ -23,16 +24,13 @@ class TestServerInitialization:
         mock_cors.return_value = Mock()
         mock_loader.side_effect = Exception("Failed to load tools")
 
-        # Need to use exec to force re-import with mocked dependencies
         with pytest.raises(Exception) as exc_info:
-            import sys
 
             # Remove from cache if exists
             if "server" in sys.modules:
                 del sys.modules["server"]
 
             # This should raise during import
-            import server
 
         assert "Failed to load tools" in str(exc_info.value)
 
@@ -43,7 +41,6 @@ class TestMainFunction:
     @patch("server.mcp")
     def test_main_stdio_mode(self, mock_mcp):
         """Test main function in stdio mode."""
-        import server
 
         with patch.object(sys, "argv", ["server.py", "stdio"]):
             with patch("builtins.print") as mock_print:
@@ -56,7 +53,6 @@ class TestMainFunction:
     @patch("server.app")
     def test_main_http_mode(self, mock_app, mock_uvicorn):
         """Test main function in HTTP mode."""
-        import server
 
         with patch.object(sys, "argv", ["server.py", "http"]):
             with patch("builtins.print") as mock_print:
@@ -71,7 +67,6 @@ class TestMainFunction:
     @patch("server.app")
     def test_main_sse_mode(self, mock_app, mock_uvicorn):
         """Test main function in SSE mode."""
-        import server
 
         with patch.object(sys, "argv", ["server.py", "sse"]):
             with patch("builtins.print") as mock_print:
@@ -86,7 +81,6 @@ class TestMainFunction:
     @patch("server.app")
     def test_main_default_mode(self, mock_app, mock_uvicorn):
         """Test main function defaults to HTTP mode when no args provided."""
-        import server
 
         with patch.object(sys, "argv", ["server.py"]):
             with patch("builtins.print") as mock_print:
@@ -99,7 +93,6 @@ class TestMainFunction:
 
     def test_main_invalid_mode(self):
         """Test main function raises error for invalid mode."""
-        import server
 
         with patch.object(sys, "argv", ["server.py", "invalid_mode"]):
             with pytest.raises(ValueError) as exc_info:
@@ -117,9 +110,6 @@ class TestAppConfiguration:
         """Test that app is configured with /mcp path."""
         mock_cors.return_value = Mock()
         mock_loader.return_value = {"loaded": [], "failed": []}
-
-        import importlib
-        import server
 
         importlib.reload(server)
 
