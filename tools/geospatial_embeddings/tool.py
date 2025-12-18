@@ -7,7 +7,6 @@ applications. It includes Redis-based caching to improve performance and
 Langfuse integration for observability.
 """
 
-
 import hashlib
 
 from typing import Any, Dict, Union
@@ -68,7 +67,6 @@ def store_in_cache(location: str, result: Dict[str, Any], ttl: int = 900) -> Non
     try:
         cache_key = get_cache_key(location)
         return cache.set(cache_key, result, ttl)
-        # redis_client.setex(cache_key, ttl, json.dumps(result))
     except redis.RedisError as e:
         print(f"Redis error when storing to cache: {e}")
 
@@ -77,9 +75,9 @@ def store_in_cache(location: str, result: Dict[str, Any], ttl: int = 900) -> Non
 def natural_language_geocode(location: str) -> GeocodingResponse:
     """Convert natural language location query to geometry with caching.
     Args:
-    location: A natural language description of a geographic location.
+        location: A natural language description of a geographic location.
                 Can include various formats and specificity levels:
-                
+
                 **Supported Location Types:**
                 - Cities: "San Francisco", "New York City", "London"
                 - Regions: "San Francisco Bay Area", "Silicon Valley", "New England"
@@ -89,14 +87,14 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 - Administrative areas: "San Francisco County", "King County, Washington"
                 - Landmarks: "Golden Gate Bridge area", "Central Park vicinity"
                 - Descriptive locations: "Northern California coast", "Eastern seaboard"
-                
+
                 **Format Guidelines:**
                 - Use common, recognizable place names
                 - Include context for disambiguation (e.g., "Paris, France" vs "Paris, Texas")
                 - Avoid overly specific addresses or coordinates
                 - Natural language is preferred over formal geographic codes
                 - Both singular locations and regions are supported
-                
+
                 **Examples:**
                 - ✅ "San Francisco Bay Area" → Returns polygon covering SF Bay region
                 - ✅ "Downtown Seattle" → Returns polygon of Seattle's downtown area
