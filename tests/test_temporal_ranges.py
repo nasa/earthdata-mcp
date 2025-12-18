@@ -1,8 +1,9 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 from datetime import datetime, timezone
-from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
+from tools.temporal_ranges.tool import get_temporal_ranges
 from tools.temporal_ranges.input_model import TemporalRangeInput
+from tools.temporal_ranges.output_model import TemporalRangeOutput
 
 
 class TestTemporalRangesMocked:
@@ -22,9 +23,9 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning both dates."""
         mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            end_date=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Year 2024",
         )
         mock_client.create.return_value = mock_date_range
@@ -48,8 +49,8 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning no dates."""
         mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=None, end_date=None, reasoning="No specific dates mentioned"
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
         )
         mock_client.create.return_value = mock_date_range
 
@@ -66,9 +67,9 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning only start date."""
         mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
-            end_date=None,
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=None,
             reasoning="From June 2024 onwards",
         )
         mock_client.create.return_value = mock_date_range
@@ -86,9 +87,9 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning only end date."""
         mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = DateRange(
-            start_date=None,
-            end_date=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None,
+            EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Until end of June 2024",
         )
         mock_client.create.return_value = mock_date_range
@@ -103,3 +104,52 @@ class TestTemporalRangesMocked:
         assert result["EndDate"] == datetime(
             2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
         )
+
+    def test_client_initialization_error(self):
+        """Test error handling when instructor client fails to initialize."""
+        with patch(
+            "tools.temporal_ranges.tool.instructor.from_provider"
+        ) as mock_instructor:
+            mock_instructor.side_effect = Exception("Failed to initialize client")
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Failed to initialize instructor client" in str(exc_info.value)
+            assert "bedrock" in str(exc_info.value)
+            assert "amazon.nova-pro-v1:0" in str(exc_info.value)
+
+    def test_prompt_file_missing(self, mock_instructor_client, tmp_path):
+        """Test error handling when prompt.md file is missing."""
+        mock_instructor, mock_client = mock_instructor_client
+
+        # Mock Path to point to a non-existent location
+        with patch("tools.temporal_ranges.tool.Path") as mock_path:
+            mock_prompt_path = MagicMock()
+            mock_prompt_path.exists.return_value = False
+            mock_path.return_value.parent = MagicMock()
+            mock_path.return_value.parent.__truediv__ = (
+                lambda self, other: mock_prompt_path
+            )
+
+            with pytest.raises(FileNotFoundError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Required prompt file not found" in str(exc_info.value)
+
+    def test_llm_extraction_error(self, mock_instructor_client):
+        """Test error handling when LLM fails to extract temporal ranges."""
+        mock_instructor, mock_client = mock_instructor_client
+        mock_client.create.side_effect = Exception("LLM API error")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            get_temporal_ranges(
+                TemporalRangeInput(timerange_string="Show me data for 2024")
+            )
+
+        assert "Failed to extract temporal ranges" in str(exc_info.value)
+        assert "Show me data for 2024" in str(exc_info.value)
