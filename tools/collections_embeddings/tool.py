@@ -40,3 +40,9 @@ def search_cmr_collections_embeddings(
         return {"result": "NOT IMPLEMENTED YET", "message": "No query provided"}
 
     return {"result": "NOT IMPLEMENTED YET", "query": query}
+        query: A CollectionsEmbeddingsInput model containing the search text.
+
+    Returns:
+        A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
+    """
+    return {"result": "NOT IMPLEMENTED YET"}
