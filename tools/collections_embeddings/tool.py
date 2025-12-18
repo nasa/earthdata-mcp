@@ -18,7 +18,7 @@ def search_cmr_collections_embeddings(
 
     NOTE: This function is not yet implemented.
     Args:
-        query: A string of text to search collections with using embeddings.
+        query: A CollectionsEmbeddingsInput model containing the search text.
 
     Returns:
         A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
