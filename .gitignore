@@ -1,5 +1,10 @@
 __pycache__/
 .venv
+.env
+
+.pytest_cache/
+.coverage
+coverage.xml
 
 # Terraform
 *.tfstate

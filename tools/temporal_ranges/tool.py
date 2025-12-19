@@ -1,9 +1,19 @@
+"""
+Temporal Ranges Tool
+
+Update this once the tool is implemented
+"""
+
 from datetime import datetime
 from typing import Any
 from pydantic import BaseModel
 
 
 class DateRange(BaseModel):
+    """
+    Update this once the tool is implemented
+    """
+
     start: datetime | None = None
     end: datetime | None = None
 

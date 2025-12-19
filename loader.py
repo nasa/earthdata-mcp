@@ -5,7 +5,6 @@ import importlib
 import inspect
 from pathlib import Path
 from typing import Any, Callable
-from toon import encode
 from functools import wraps
 
 
@@ -24,10 +23,10 @@ class ToolManifest:
 
         if manifest_path.exists():
             try:
-                with open(manifest_path) as f:
+                with open(manifest_path, encoding="utf-8") as f:
                     file_manifest = json.load(f)
                 self.manifest.update(file_manifest)
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
                 print(f"[WARNING] Could not read manifest.json: {e}")
         else:
             print(f"[WARNING] No manifest.json found at {manifest_path}")
@@ -38,14 +37,17 @@ class ToolManifest:
 
     @property
     def name(self) -> str:
+        """Get the tool name from the manifest."""
         return self.manifest["name"]
 
     @property
     def description(self) -> str:
+        """Get the tool description from the manifest."""
         return self.manifest["description"]
 
     @property
     def tags(self) -> list:
+        """Get the tool tags from the manifest, returning empty list if not specified."""
         return self.manifest.get("tags", [])
 
 
@@ -80,7 +82,7 @@ def create_simple_tool(
         @wraps(func)
         async def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-            return [encode(result)]
+            return result
 
         # copy signature explicitly
         wrapper.__signature__ = inspect.signature(func)
@@ -107,7 +109,7 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
 
         try:
             # Load manifest
-            with open(manifest_path) as f:
+            with open(manifest_path, encoding="utf-8") as f:
                 manifest = json.load(f)
 
             tool_name = manifest.get("name")
@@ -132,9 +134,9 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
             loaded.append(tool_name)
             print(f"[LOAD] ✓ {tool_name}")
 
-        except Exception as e:
+        except FileNotFoundError:
             failed.append(tool_folder.name)
-            print(f"[FAIL] ✗ {tool_folder.name}: {e}")
+            print(f"[FAIL] ✗ {tool_folder.name}: Manifest file not found")
 
     # Summary
     print(f"\n{'='*50}")

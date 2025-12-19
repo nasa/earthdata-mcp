@@ -1,8 +1,11 @@
-import pytest
+"""Temporal Range Tool Test"""
+
+import json
 from datetime import datetime
 from pathlib import Path
 
-from toon import decode
+import pytest
+
 from mcp.server.fastmcp import FastMCP
 from loader import create_simple_tool
 from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
@@ -69,9 +72,8 @@ async def test_via_mcp_wrapper(wrapped_func):
         daterange=DateRange(start=datetime(2025, 11, 20), end=datetime(2025, 11, 25))
     )
 
-    decoded = decode(result[0])
-    assert decoded[0]["StartDate"] == "2025-11-20T00:00:00"
-    assert decoded[0]["EndDate"] == "2025-11-25T00:00:00"
+    assert result[0]["StartDate"] == datetime(2025, 11, 20)
+    assert result[0]["EndDate"] == datetime(2025, 11, 25)
 
 
 @pytest.mark.asyncio
@@ -83,9 +85,11 @@ async def test_via_call_tool(mcp):
     )
 
     content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
-    decoded = decode(content_text)
-    assert decoded[0]["StartDate"] == "2025-11-20T00:00:00"
-    assert decoded[0]["EndDate"] == "2025-11-25T00:00:00"
+
+    parsed_content = json.loads(content_text)
+
+    assert parsed_content["StartDate"] == "2025-11-20T00:00:00"
+    assert parsed_content["EndDate"] == "2025-11-25T00:00:00"
 
 
 @pytest.mark.asyncio
@@ -94,9 +98,11 @@ async def test_via_call_tool_no_dates(mcp):
     result = await mcp.call_tool("get_temporal_ranges", {"daterange": {}})
 
     content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
-    decoded = decode(content_text)
-    assert decoded[0]["StartDate"] is None
-    assert decoded[0]["EndDate"] is None
+
+    parsed_content = json.loads(content_text)
+
+    assert parsed_content["StartDate"] is None
+    assert parsed_content["EndDate"] is None
 
 
 @pytest.mark.asyncio
