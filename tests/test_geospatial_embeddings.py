@@ -135,11 +135,10 @@ class TestNaturalLanguageGeocode:
     @pytest.mark.parametrize("location", ["", None])
     def test_empty_or_none_location(self, location):
         """Test with empty or None location."""
-        result = natural_language_geocode(location)
 
-        assert result["success"] is False
-        assert "error" in result
-        assert "No location query provided" in result["error"]
+        result = natural_language_geocode(location)
+        assert result.success is False
+        assert "No location query provided" in result.error
 
     def test_cache_hit(self, sample_cache_data):
         """Test successful cache hit with polygon geometry."""
@@ -148,10 +147,9 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("San Francisco Bay Area")
 
-            assert result["from_cache"] is True
-            assert result["success"] is True
-            assert result["geoLocation"] == "San Francisco Bay Area"
-            assert "POLYGON" in result["geometry"]
+            assert result.from_cache is True
+            assert result.success is True
+            assert result.geoLocation == "San Francisco Bay Area"
             mock_get_cache.assert_called_once_with("San Francisco Bay Area")
 
     def test_cache_miss_successful_geocoding(self, sample_geometry):
@@ -170,11 +168,11 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("Silicon Valley")
 
-            assert result["success"] is True
-            assert result["geoLocation"] == "Silicon Valley"
-            assert "POLYGON" in result["geometry"]
-            assert result["geometry"].startswith("POLYGON")
-            assert result["from_cache"] is False
+            assert result.success is True
+            assert result.geoLocation == "Silicon Valley"
+            assert "POLYGON" in result.geometry
+            assert result.geometry.startswith("POLYGON")
+            assert result.from_cache is False
 
             mock_get_cache.assert_called_once_with("Silicon Valley")
             mock_convert.assert_called_once_with("Silicon Valley")
@@ -194,11 +192,10 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("Nonexistent Metropolitan Area XYZ123")
 
-            assert result["success"] is False
-            assert "error" in result
-            assert "Unable to geocode" in result["error"]
-            assert "Nonexistent Metropolitan Area XYZ123" in result["error"]
-            assert result["from_cache"] is False
+            assert result.success is False
+            assert "Unable to geocode" in result.error
+            assert "Nonexistent Metropolitan Area XYZ123" in result.error
+            assert result.from_cache is False
 
     def test_geocoding_value_error_exception(self):
         """Test ValueError exception during geocoding."""
@@ -214,10 +211,9 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("San Francisco Bay Area")
 
-            assert result["success"] is False
-            assert "error" in result
-            assert "Invalid location format" in result["error"]
-            assert "Invalid parameter format" in result["error"]
+            assert result.success is False
+            assert "Invalid location format" in result.error
+            assert "Invalid parameter format" in result.error
 
     def test_geocoding_type_error_exception(self):
         """Test TypeError exception during geocoding."""
@@ -233,10 +229,9 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("San Francisco Bay Area")
 
-            assert result["success"] is False
-            assert "error" in result
-            assert "Invalid location format" in result["error"]
-            assert "Expected string, got int" in result["error"]
+            assert result.success is False
+            assert "Invalid location format" in result.error
+            assert "Expected string, got int" in result.error
 
     def test_geocoding_generic_exception(self):
         """Test generic exception during geocoding."""
@@ -252,10 +247,9 @@ class TestNaturalLanguageGeocode:
 
             result = natural_language_geocode("San Francisco Bay Area")
 
-            assert result["success"] is False
-            assert "error" in result
-            assert "Unexpected error" in result["error"]
-            assert "Geocoding API Error" in result["error"]
+            assert result.success is False
+            assert "Unexpected error" in result.error
+            assert "Geocoding API Error" in result.error
 
 
 class TestPydanticModels:

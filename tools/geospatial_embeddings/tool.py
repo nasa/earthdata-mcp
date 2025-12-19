@@ -112,7 +112,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
             tags=["error", "empty_location"],
             metadata={"error_type": "empty_location", "location_length": 0},
         )
-        return result
+        return GeocodingError(**result)
 
     # Check cache first
     cached_result = get_from_cache(location)
@@ -126,7 +126,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return cached_result
+        return GeocodingSuccess(**cached_result)
 
     # Cache miss - geocode the location
     try:
@@ -153,7 +153,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 },
             )
 
-            return result
+            return GeocodingSuccess(**result)
         else:
             result = {
                 "error": f"Unable to geocode the location '{location}'.",
@@ -170,7 +170,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 },
             )
 
-            return result
+            return GeocodingError(**result)
 
     except (ValueError, TypeError) as e:
         result = {"error": f"Invalid location format: {str(e)}", "success": False}
@@ -181,7 +181,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return result
+        return GeocodingError(**result)
 
     except Exception as e:
         result = {"error": f"Unexpected error: {str(e)}", "success": False}
@@ -194,4 +194,4 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return result
+        return GeocodingError(**result)
