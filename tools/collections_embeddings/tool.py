@@ -1,5 +1,8 @@
+"""Get a list of collections from CMR based on embeddings search."""
+
 from typing import Any
 from pydantic import BaseModel
+from .input_model import CollectionsEmbeddingsInput
 
 
 class DatasetSummary(BaseModel):
@@ -9,11 +12,15 @@ class DatasetSummary(BaseModel):
 
 
 def search_cmr_collections_embeddings(
-    query: str = "",
+    query: CollectionsEmbeddingsInput,
 ) -> Any:
-    """Get a list of collections form CMR based on keywords.
+    """Get a list of collections from CMR based on embeddings search.
 
+    NOTE: This function is not yet implemented.
     Args:
-        keywords: A string of text to search collections with.
+        query: A CollectionsEmbeddingsInput model containing the search text.
+
+    Returns:
+        A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
     """
     return {"result": "NOT IMPLEMENTED YET"}

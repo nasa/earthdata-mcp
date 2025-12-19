@@ -4,9 +4,9 @@ import json
 import importlib
 import inspect
 from pathlib import Path
-from typing import Any, Callable
-from toon import encode
+from typing import Any, Callable, Type
 from functools import wraps
+from pydantic import BaseModel
 
 
 class ToolManifest:
@@ -24,7 +24,7 @@ class ToolManifest:
 
         if manifest_path.exists():
             try:
-                with open(manifest_path) as f:
+                with open(manifest_path, encoding="utf-8") as f:
                     file_manifest = json.load(f)
                 self.manifest.update(file_manifest)
             except Exception as e:
@@ -52,6 +52,7 @@ class ToolManifest:
 def create_simple_tool(
     manifest_path: Path,
     func: Callable[..., Any],
+    output_schema: dict | Type[BaseModel] | None = None,
 ) -> Callable:
     """
     Factory function for creating simple tools without a class.
@@ -59,6 +60,7 @@ def create_simple_tool(
     Args:
         manifest_path: Path to the tool's directory (containing manifest.json)
         func: The function implementing the tool logic
+        output_schema: Optional output schema (dict or Pydantic model class) for the tool
 
     Returns:
         A register function compatible with the MCP loader
@@ -75,12 +77,13 @@ def create_simple_tool(
         @mcp.tool(
             name=manifest.name,
             description=manifest.description,
+            output_schema=output_schema,
             # tags=set(manifest.tags) if manifest.tags else None,
         )
         @wraps(func)
         async def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-            return [encode(result)]
+            return result
 
         # copy signature explicitly
         wrapper.__signature__ = inspect.signature(func)
@@ -107,7 +110,7 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
 
         try:
             # Load manifest
-            with open(manifest_path) as f:
+            with open(manifest_path, encoding="utf-8") as f:
                 manifest = json.load(f)
 
             tool_name = manifest.get("name")
@@ -125,8 +128,42 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
 
             tool_func = getattr(module, tool_entry)
 
+            # Load output schema - prefer Pydantic model over JSON schema
+            output_schema = None
+
+            # Try to import output_model.py first
+            try:
+                output_model_path = f"{tools_dir.name}.{tool_folder.name}.output_model"
+                output_module = importlib.import_module(output_model_path)
+
+                # Look for a Pydantic model class (typically ending with 'Output')
+                for attr_name in dir(output_module):
+                    attr = getattr(output_module, attr_name)
+                    if (
+                        inspect.isclass(attr)
+                        and issubclass(attr, BaseModel)
+                        and attr is not BaseModel
+                    ):
+                        output_schema = attr.model_json_schema()
+                        print(
+                            f"[INFO] Using Pydantic model {attr_name} for {tool_name}"
+                        )
+                        break
+            except (ImportError, AttributeError):
+                # Fall back to JSON schema if output_model.py doesn't exist
+                schema_path = tool_folder / "output.json"
+                if schema_path.exists():
+                    try:
+                        with open(schema_path, encoding="utf-8") as f:
+                            output_schema = json.load(f)
+                            print(f"[INFO] Using JSON schema for {tool_name}")
+                    except Exception as e:
+                        print(
+                            f"[WARNING] Could not load output schema for {tool_name}: {e}"
+                        )
+
             # Register the tool using create_simple_tool
-            register_func = create_simple_tool(tool_folder, tool_func)
+            register_func = create_simple_tool(tool_folder, tool_func, output_schema)
             register_func(mcp)
 
             loaded.append(tool_name)

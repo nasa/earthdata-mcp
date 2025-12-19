@@ -12,6 +12,8 @@ mcp/
 │   └── <toolname>/        # Each tool is fully self-contained
 │       ├── tool.py        # Python implementation of the tool
 │       ├── manifest.json  # MCP tool metadata (incl. entry function)
+│       ├── input_model.py # Pydantic model for tool inputs 
+│       └── output.json    # JSON schema for tool outputs
 │
 ├── tests/                 # All Pytest test files live here
 │   ├── test_<tool>.py
@@ -189,6 +191,7 @@ When adding a new tool:
 
 1. ✅ Follow the folder structure
 2. ✅ Include `manifest.json` and `tool.py`
+3. ✅ Create a `input_model.py` and `output.json`
 3. ✅ Ensure manifest specifies "entry"
 4. ✅ Write pytest files under tests/
 5. ✅ Test with MCP Inspector

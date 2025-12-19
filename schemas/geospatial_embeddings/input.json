@@ -1,9 +1,0 @@
-{
-    "type" : "object",
-    "properties" : {
-        "query" : {
-            "type" : "string",
-            "description": "Part of query describing the location"
-        }
-    }
-}

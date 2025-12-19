@@ -4,5 +4,6 @@
   "description": "Search NASA's Common Metadata Repository (CMR) collection records using full text search through similarity search on the CMR collections embeddings.",
   "version": "1.0.0",
   "tags": ["search", "nlp", "similarity search", "vector database"],
-  "entry_function": "search_cmr_collections_embeddings"
+  "entry_function": "search_cmr_collections_embeddings",
+  "enabled": "false"
 }
