@@ -5,8 +5,8 @@ Defines the structure of temporal range query results.
 """
 
 from datetime import datetime
-from pydantic import BaseModel, Field
 from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class TemporalRangeOutput(BaseModel):
@@ -43,12 +43,18 @@ class TemporalRangeOutput(BaseModel):
                 {
                     "StartDate": "2024-06-01T00:00:00+00:00",
                     "EndDate": "2024-08-31T23:59:59+00:00",
-                    "reasoning": "Query refers to summer 2024, interpreted as June 1st to August 31st",
+                    "reasoning": (
+                        "Query refers to summer 2024, "
+                        "interpreted as June 1st to August 31st"
+                    ),
                 },
                 {
                     "StartDate": "2024-01-01T00:00:00+00:00",
                     "EndDate": None,
-                    "reasoning": "Query refers to 'after 2024', open-ended range starting from January 1st 2024",
+                    "reasoning": (
+                        "Query refers to 'after 2024', "
+                        "open-ended range starting from January 1st 2024"
+                    ),
                 },
                 {
                     "StartDate": None,

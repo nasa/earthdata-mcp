@@ -1,8 +1,9 @@
-import pytest
+"""Unit tests for temporal ranges tool with mocked LLM responses."""
+
 import sys
-import importlib
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
+import pytest
 from tools.temporal_ranges.tool import get_temporal_ranges
 from tools.temporal_ranges.input_model import TemporalRangeInput
 from tools.temporal_ranges.output_model import TemporalRangeOutput
@@ -49,7 +50,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_no_dates(self, mock_instructor_client):
         """Test with mocked LLM response returning no dates."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
@@ -67,7 +68,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_only_start(self, mock_instructor_client):
         """Test with mocked LLM response returning only start date."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
@@ -87,7 +88,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_only_end(self, mock_instructor_client):
         """Test with mocked LLM response returning only end date."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=None,
@@ -123,9 +124,9 @@ class TestTemporalRangesMocked:
             assert "bedrock" in str(exc_info.value)
             assert "amazon.nova-pro-v1:0" in str(exc_info.value)
 
-    def test_prompt_file_missing(self, mock_instructor_client, tmp_path):
+    def test_prompt_file_missing(self, mock_instructor_client):
         """Test error handling when prompt.md file is missing."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, _ = mock_instructor_client
 
         # Mock Path to point to a non-existent location
         with patch("tools.temporal_ranges.tool.Path") as mock_path:
@@ -145,7 +146,7 @@ class TestTemporalRangesMocked:
 
     def test_llm_extraction_error(self, mock_instructor_client):
         """Test error handling when LLM fails to extract temporal ranges."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
         mock_client.create.side_effect = Exception("LLM API error")
 
         with pytest.raises(RuntimeError) as exc_info:
@@ -157,15 +158,15 @@ class TestTemporalRangesMocked:
         assert "Show me data for 2024" in str(exc_info.value)
 
     def test_langfuse_none_during_error(self, mock_instructor_client):
-        """Test that errors are handled gracefully when langfuse is None."""
-        # This tests the conditional `if langfuse:` checks in the error handlers
+        """Test that errors are handled gracefully when LANGFUSE is None."""
+        # This tests the conditional `if LANGFUSE:` checks in the error handlers
         mock_instructor, mock_client = mock_instructor_client
 
-        # Temporarily set langfuse to None to simulate failed initialization
-        import tools.temporal_ranges.tool as tool_module
+        # Temporarily set LANGFUSE to None to simulate failed initialization
+        import tools.temporal_ranges.tool as tool_module  # pylint: disable=import-outside-toplevel
 
-        original_langfuse = tool_module.langfuse
-        tool_module.langfuse = None
+        original_langfuse = tool_module.LANGFUSE
+        tool_module.LANGFUSE = None
 
         try:
             # Test client initialization error with langfuse=None
@@ -193,8 +194,8 @@ class TestTemporalRangesMocked:
             assert "Failed to extract temporal ranges" in str(exc_info.value)
 
         finally:
-            # Restore original langfuse
-            tool_module.langfuse = original_langfuse
+            # Restore original LANGFUSE
+            tool_module.LANGFUSE = original_langfuse
 
     def test_langfuse_initialization_exception(self):
         """Test the exception handler when Langfuse client fails to initialize at import time."""
@@ -203,7 +204,7 @@ class TestTemporalRangesMocked:
 
         # Remove the module and its dependencies from sys.modules
         modules_to_remove = [
-            k for k in sys.modules.keys() if "tools.temporal_ranges.tool" in k
+            k for k in sys.modules if "tools.temporal_ranges.tool" in k
         ]
         for module in modules_to_remove:
             sys.modules.pop(module, None)
@@ -213,11 +214,11 @@ class TestTemporalRangesMocked:
             with patch(
                 "langfuse.get_client", side_effect=Exception("Langfuse init failed")
             ):
-                # Reimport the module - should catch the exception and set langfuse=None
-                import tools.temporal_ranges.tool as reimported_module
+                # Reimport the module - should catch the exception and set LANGFUSE=None
+                import tools.temporal_ranges.tool as reimported_module  # pylint: disable=import-outside-toplevel
 
-                # Verify langfuse was set to None after the exception
-                assert reimported_module.langfuse is None
+                # Verify LANGFUSE was set to None after the exception
+                assert reimported_module.LANGFUSE is None
         finally:
             # Restore original module state
             if original_module:

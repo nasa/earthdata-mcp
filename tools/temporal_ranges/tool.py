@@ -1,19 +1,25 @@
+"""Temporal range extraction tool for parsing natural language time queries.
+
+This module provides functionality to extract structured date ranges from
+natural language queries using LLM-based parsing.
+"""
+
 from datetime import datetime, timezone
 from typing import Dict
 from pathlib import Path
 import logging
 import instructor
+from langfuse import observe, get_client
 from .input_model import TemporalRangeInput
 from .output_model import TemporalRangeOutput
-from langfuse import observe, get_client
 
 logger = logging.getLogger(__name__)
 
 try:
-    langfuse = get_client()
+    LANGFUSE = get_client()
 except Exception as e:
-    logger.warning(f"Failed to initialize Langfuse client: {e}")
-    langfuse = None
+    logger.warning("Failed to initialize Langfuse client: %s", e)
+    LANGFUSE = None
 
 
 @observe(name="get_temporal_ranges")
@@ -28,13 +34,14 @@ def get_temporal_ranges(
         query: A natural language string describing the desired time period.
 
     Returns:
-        A dict with StartDate and EndDate datetime objects (dictionary representation of TemporalRangeOutput).
+        A dict with StartDate and EndDate datetime objects
+        (dictionary representation of TemporalRangeOutput).
     """
     try:
         client = instructor.from_provider(f"{provider}/{model_id}")
     except Exception as e:
-        if langfuse:
-            langfuse.update_current_trace(
+        if LANGFUSE:
+            LANGFUSE.update_current_trace(
                 tags=["error", "client_init_error"],
                 metadata={
                     "error_type": "client_init_error",
@@ -43,7 +50,8 @@ def get_temporal_ranges(
                 },
             )
         raise RuntimeError(
-            f"Failed to initialize instructor client with provider '{provider}' and model '{model_id}': {e}"
+            f"Failed to initialize instructor client with provider '{provider}' "
+            f"and model '{model_id}': {e}"
         ) from e
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -66,8 +74,8 @@ def get_temporal_ranges(
             response_model=TemporalRangeOutput,
         )
     except Exception as e:
-        if langfuse:
-            langfuse.update_current_trace(
+        if LANGFUSE:
+            LANGFUSE.update_current_trace(
                 tags=["error", "llm_error"],
                 metadata={"error_type": "llm_error", "message": e, "success": False},
             )

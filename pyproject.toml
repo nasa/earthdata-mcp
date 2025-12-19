@@ -29,6 +29,7 @@ dependencies = [
 disable = [
     "redefined-outer-name",
     "broad-exception-caught",
+    "too-few-public-methods"
 ]
 
 [tool.pytest.ini_options]
