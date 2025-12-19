@@ -196,7 +196,7 @@ class TestLoadToolsFromDirectory:
         captured = capsys.readouterr()
         assert "✓ test_tool" in captured.out
 
-    def test_load_tools_skip_hidden_dirs(self, tmp_path, capsys):
+    def test_load_tools_skip_hidden_dirs(self, tmp_path):
         """Test that hidden directories are skipped."""
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
@@ -311,6 +311,7 @@ class TestLoadToolsFromDirectory:
         captured = capsys.readouterr()
         assert "✗ no_name_tool" in captured.out
         assert "missing 'name' field" in captured.out
+        mock_import.assert_not_called()
 
     @patch("loader.importlib.import_module")
     def test_load_tools_invalid_output_schema(self, mock_import, tmp_path, capsys):

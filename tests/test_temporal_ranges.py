@@ -47,7 +47,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_no_dates(self, mock_instructor_client):
         """Test with mocked LLM response returning no dates."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
@@ -65,7 +65,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_only_start(self, mock_instructor_client):
         """Test with mocked LLM response returning only start date."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
@@ -85,7 +85,7 @@ class TestTemporalRangesMocked:
 
     def test_date_range_only_end(self, mock_instructor_client):
         """Test with mocked LLM response returning only end date."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
             StartDate=None,
@@ -121,19 +121,10 @@ class TestTemporalRangesMocked:
             assert "bedrock" in str(exc_info.value)
             assert "amazon.nova-pro-v1:0" in str(exc_info.value)
 
-    def test_prompt_file_missing(self, mock_instructor_client, tmp_path):
+    def test_prompt_file_missing(self, mock_instructor_client):
         """Test error handling when prompt.md file is missing."""
-        mock_instructor, mock_client = mock_instructor_client
-
-        # Mock Path to point to a non-existent location
-        with patch("tools.temporal_ranges.tool.Path") as mock_path:
-            mock_prompt_path = MagicMock()
-            mock_prompt_path.exists.return_value = False
-            mock_path.return_value.parent = MagicMock()
-            mock_path.return_value.parent.__truediv__ = (
-                lambda self, other: mock_prompt_path
-            )
-
+        # Patch Path.exists to return False, simulating a missing prompt file
+        with patch("pathlib.Path.exists", return_value=False):
             with pytest.raises(FileNotFoundError) as exc_info:
                 get_temporal_ranges(
                     TemporalRangeInput(timerange_string="Show me data for 2024")
