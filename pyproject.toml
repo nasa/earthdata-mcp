@@ -20,7 +20,8 @@ dependencies = [
     "pytest-cov==7.0.0",
     "pylint==3.0.0",
     "redis==7.1.0",
-    "langfuse==3.10.6"
+    "langfuse==3.10.6",
+    "instructor>=1.13.0",
 ]
 
 

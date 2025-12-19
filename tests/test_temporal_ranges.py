@@ -1,4 +1,6 @@
 import pytest
+import sys
+import importlib
 from unittest.mock import patch, MagicMock, mock_open
 from datetime import datetime, timezone
 from tools.temporal_ranges.tool import get_temporal_ranges
@@ -153,3 +155,72 @@ class TestTemporalRangesMocked:
 
         assert "Failed to extract temporal ranges" in str(exc_info.value)
         assert "Show me data for 2024" in str(exc_info.value)
+
+    def test_langfuse_none_during_error(self, mock_instructor_client):
+        """Test that errors are handled gracefully when langfuse is None."""
+        # This tests the conditional `if langfuse:` checks in the error handlers
+        mock_instructor, mock_client = mock_instructor_client
+
+        # Temporarily set langfuse to None to simulate failed initialization
+        import tools.temporal_ranges.tool as tool_module
+
+        original_langfuse = tool_module.langfuse
+        tool_module.langfuse = None
+
+        try:
+            # Test client initialization error with langfuse=None
+            mock_instructor.side_effect = Exception("Client init failed")
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Failed to initialize instructor client" in str(exc_info.value)
+
+            # Reset for next test
+            mock_instructor.side_effect = None
+            mock_instructor.return_value = mock_client
+
+            # Test LLM error with langfuse=None
+            mock_client.create.side_effect = Exception("LLM failed")
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Failed to extract temporal ranges" in str(exc_info.value)
+
+        finally:
+            # Restore original langfuse
+            tool_module.langfuse = original_langfuse
+
+    def test_langfuse_initialization_exception(self):
+        """Test the exception handler when Langfuse client fails to initialize at import time."""
+        # Save original module state
+        original_module = sys.modules.get("tools.temporal_ranges.tool")
+
+        # Remove the module and its dependencies from sys.modules
+        modules_to_remove = [
+            k for k in sys.modules.keys() if "tools.temporal_ranges.tool" in k
+        ]
+        for module in modules_to_remove:
+            sys.modules.pop(module, None)
+
+        try:
+            # Mock get_client to raise an exception at import time
+            with patch(
+                "langfuse.get_client", side_effect=Exception("Langfuse init failed")
+            ):
+                # Reimport the module - should catch the exception and set langfuse=None
+                import tools.temporal_ranges.tool as reimported_module
+
+                # Verify langfuse was set to None after the exception
+                assert reimported_module.langfuse is None
+        finally:
+            # Restore original module state
+            if original_module:
+                sys.modules["tools.temporal_ranges.tool"] = original_module
+            else:
+                sys.modules.pop("tools.temporal_ranges.tool", None)
