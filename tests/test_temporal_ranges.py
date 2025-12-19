@@ -1,113 +1,227 @@
-"""Temporal Range Tool Test"""
+"""Unit tests for temporal ranges tool with mocked LLM responses."""
 
-import json
-from datetime import datetime
-from pathlib import Path
-
+import sys
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timezone
 import pytest
-
-from mcp.server.fastmcp import FastMCP
-from loader import create_simple_tool
-from tools.temporal_ranges.tool import get_temporal_ranges, DateRange
-
-
-@pytest.fixture(scope="module")
-def mcp():
-    """Create and return MCP server with tool registered."""
-    mcp_instance = FastMCP("test_server")
-    register = create_simple_tool(
-        Path(__file__).parent.parent / "tools" / "temporal_ranges", get_temporal_ranges
-    )
-    register(mcp_instance)
-    return mcp_instance
+from tools.temporal_ranges.tool import get_temporal_ranges
+from tools.temporal_ranges.input_model import TemporalRangeInput
+from tools.temporal_ranges.output_model import TemporalRangeOutput
 
 
-@pytest.fixture(scope="module")
-def wrapped_func(mcp):
-    """Return the wrapped tool function."""
-    register = create_simple_tool(Path(__file__).parent, get_temporal_ranges)
-    return register(mcp)
+class TestTemporalRangesMocked:
+    """Mocked unit tests for temporal ranges (no LLM dependency)."""
 
+    @pytest.fixture
+    def mock_instructor_client(self):
+        """Fixture to create a mocked instructor client."""
+        with patch(
+            "tools.temporal_ranges.tool.instructor.from_provider"
+        ) as mock_instructor:
+            mock_client = MagicMock()
+            mock_instructor.return_value = mock_client
+            yield mock_instructor, mock_client
 
-# ===== Direct function tests (no MCP) =====
+    def test_date_range_both_dates(self, mock_instructor_client):
+        """Test with mocked LLM response returning both dates."""
+        mock_instructor, mock_client = mock_instructor_client
 
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+            reasoning="Year 2024",
+        )
+        mock_client.create.return_value = mock_date_range
 
-def test_direct_function_with_dates():
-    """Test the function directly with both dates."""
-    result = get_temporal_ranges(
-        DateRange(start=datetime(2025, 11, 20), end=datetime(2025, 11, 25))
-    )
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+        # Call function
+        result = get_temporal_ranges(
+            TemporalRangeInput(timerange_string="Show me data for 2024")
+        )
 
+        # Assertions
+        assert result["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        assert result["EndDate"] == datetime(
+            2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+        )
 
-def test_direct_function_no_dates():
-    """Test with no dates provided."""
-    result = get_temporal_ranges(DateRange())
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] is None
+        # Verify the mock was called correctly
+        mock_instructor.assert_called_once_with("bedrock/amazon.nova-pro-v1:0")
+        mock_client.create.assert_called_once()
 
+    def test_date_range_no_dates(self, mock_instructor_client):
+        """Test with mocked LLM response returning no dates."""
+        _, mock_client = mock_instructor_client
 
-def test_direct_function_only_start():
-    """Test with only start date."""
-    result = get_temporal_ranges(DateRange(start=datetime(2025, 11, 20)))
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
-    assert result[0]["EndDate"] is None
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
+        )
+        mock_client.create.return_value = mock_date_range
 
+        # Call function
+        result = get_temporal_ranges(
+            TemporalRangeInput(timerange_string="Show me all data")
+        )
 
-def test_direct_function_only_end():
-    """Test with only end date."""
-    result = get_temporal_ranges(DateRange(end=datetime(2025, 11, 25)))
-    assert result[0]["StartDate"] is None
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+        # Assertions
+        assert result["StartDate"] is None
+        assert result["EndDate"] is None
 
+    def test_date_range_only_start(self, mock_instructor_client):
+        """Test with mocked LLM response returning only start date."""
+        _, mock_client = mock_instructor_client
 
-# ===== MCP wrapper tests =====
+        mock_date_range = TemporalRangeOutput(
+            StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
+            EndDate=None,
+            reasoning="From June 2024 onwards",
+        )
+        mock_client.create.return_value = mock_date_range
 
+        # Call function
+        result = get_temporal_ranges(
+            TemporalRangeInput(timerange_string="From June 2024 onwards")
+        )
 
-@pytest.mark.asyncio
-async def test_via_mcp_wrapper(wrapped_func):
-    """Test via the MCP wrapper."""
-    result = await wrapped_func(
-        daterange=DateRange(start=datetime(2025, 11, 20), end=datetime(2025, 11, 25))
-    )
+        # Assertions
+        assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+        assert result["EndDate"] is None
 
-    assert result[0]["StartDate"] == datetime(2025, 11, 20)
-    assert result[0]["EndDate"] == datetime(2025, 11, 25)
+    def test_date_range_only_end(self, mock_instructor_client):
+        """Test with mocked LLM response returning only end date."""
+        _, mock_client = mock_instructor_client
 
+        mock_date_range = TemporalRangeOutput(
+            StartDate=None,
+            EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
+            reasoning="Until end of June 2024",
+        )
+        mock_client.create.return_value = mock_date_range
 
-@pytest.mark.asyncio
-async def test_via_call_tool(mcp):
-    """Test via MCP call_tool interface."""
-    result = await mcp.call_tool(
-        "get_temporal_ranges",
-        {"daterange": {"start": "2025-11-20T00:00:00", "end": "2025-11-25T00:00:00"}},
-    )
+        # Call function
+        result = get_temporal_ranges(
+            TemporalRangeInput(timerange_string="Until end of June 2024")
+        )
 
-    content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
+        # Assertions
+        assert result["StartDate"] is None
+        assert result["EndDate"] == datetime(
+            2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
+        )
 
-    parsed_content = json.loads(content_text)
+    def test_client_initialization_error(self):
+        """Test error handling when instructor client fails to initialize."""
+        with patch(
+            "tools.temporal_ranges.tool.instructor.from_provider"
+        ) as mock_instructor:
+            mock_instructor.side_effect = Exception("Failed to initialize client")
 
-    assert parsed_content["StartDate"] == "2025-11-20T00:00:00"
-    assert parsed_content["EndDate"] == "2025-11-25T00:00:00"
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
 
+            assert "Failed to initialize instructor client" in str(exc_info.value)
+            assert "bedrock" in str(exc_info.value)
+            assert "amazon.nova-pro-v1:0" in str(exc_info.value)
 
-@pytest.mark.asyncio
-async def test_via_call_tool_no_dates(mcp):
-    """Test via MCP with no dates."""
-    result = await mcp.call_tool("get_temporal_ranges", {"daterange": {}})
+    def test_prompt_file_missing(self, mock_instructor_client):
+        """Test error handling when prompt.md file is missing."""
+        _, _ = mock_instructor_client
 
-    content_text = result[0].text if hasattr(result[0], "text") else str(result[0])
+        # Mock Path to point to a non-existent location
+        with patch("tools.temporal_ranges.tool.Path") as mock_path:
+            mock_prompt_path = MagicMock()
+            mock_prompt_path.exists.return_value = False
+            mock_path.return_value.parent = MagicMock()
+            mock_path.return_value.parent.__truediv__ = (
+                lambda self, other: mock_prompt_path
+            )
 
-    parsed_content = json.loads(content_text)
+            with pytest.raises(FileNotFoundError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
 
-    assert parsed_content["StartDate"] is None
-    assert parsed_content["EndDate"] is None
+            assert "Required prompt file not found" in str(exc_info.value)
 
+    def test_llm_extraction_error(self, mock_instructor_client):
+        """Test error handling when LLM fails to extract temporal ranges."""
+        _, mock_client = mock_instructor_client
+        mock_client.create.side_effect = Exception("LLM API error")
 
-@pytest.mark.asyncio
-async def test_tool_is_registered(mcp):
-    """Verify tool is registered with MCP."""
-    tools = await mcp.list_tools()
-    tool_names = [tool.name for tool in tools]
-    assert "get_temporal_ranges" in tool_names
+        with pytest.raises(RuntimeError) as exc_info:
+            get_temporal_ranges(
+                TemporalRangeInput(timerange_string="Show me data for 2024")
+            )
+
+        assert "Failed to extract temporal ranges" in str(exc_info.value)
+        assert "Show me data for 2024" in str(exc_info.value)
+
+    def test_langfuse_none_during_error(self, mock_instructor_client):
+        """Test that errors are handled gracefully when LANGFUSE is None."""
+        # This tests the conditional `if LANGFUSE:` checks in the error handlers
+        mock_instructor, mock_client = mock_instructor_client
+
+        # Temporarily set LANGFUSE to None to simulate failed initialization
+        import tools.temporal_ranges.tool as tool_module  # pylint: disable=import-outside-toplevel
+
+        original_langfuse = tool_module.LANGFUSE
+        tool_module.LANGFUSE = None
+
+        try:
+            # Test client initialization error with langfuse=None
+            mock_instructor.side_effect = Exception("Client init failed")
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Failed to initialize instructor client" in str(exc_info.value)
+
+            # Reset for next test
+            mock_instructor.side_effect = None
+            mock_instructor.return_value = mock_client
+
+            # Test LLM error with langfuse=None
+            mock_client.create.side_effect = Exception("LLM failed")
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_temporal_ranges(
+                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                )
+
+            assert "Failed to extract temporal ranges" in str(exc_info.value)
+
+        finally:
+            # Restore original LANGFUSE
+            tool_module.LANGFUSE = original_langfuse
+
+    def test_langfuse_initialization_exception(self):
+        """Test the exception handler when Langfuse client fails to initialize at import time."""
+        # Save original module state
+        original_module = sys.modules.get("tools.temporal_ranges.tool")
+
+        # Remove the module and its dependencies from sys.modules
+        modules_to_remove = [
+            k for k in sys.modules if "tools.temporal_ranges.tool" in k
+        ]
+        for module in modules_to_remove:
+            sys.modules.pop(module, None)
+
+        try:
+            # Mock get_client to raise an exception at import time
+            with patch(
+                "langfuse.get_client", side_effect=Exception("Langfuse init failed")
+            ):
+                # Reimport the module - should catch the exception and set LANGFUSE=None
+                import tools.temporal_ranges.tool as reimported_module  # pylint: disable=import-outside-toplevel
+
+                # Verify LANGFUSE was set to None after the exception
+                assert reimported_module.LANGFUSE is None
+        finally:
+            # Restore original module state
+            if original_module:
+                sys.modules["tools.temporal_ranges.tool"] = original_module
+            else:
+                sys.modules.pop("tools.temporal_ranges.tool", None)
