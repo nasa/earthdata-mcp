@@ -169,8 +169,10 @@ class TestNaturalLanguageGeocode:
 
             assert result.success is True
             assert result.geoLocation == "Silicon Valley"
-            assert "POLYGON" in result.geometry
-            assert result.geometry.startswith("POLYGON")
+            assert result.geometry is not None
+            geometry_str = str(result.geometry)
+            assert "POLYGON" in geometry_str
+            assert geometry_str.startswith("POLYGON")
             assert result.from_cache is False
 
             mock_get_cache.assert_called_once_with("Silicon Valley")

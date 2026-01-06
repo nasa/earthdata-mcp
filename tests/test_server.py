@@ -1,11 +1,13 @@
 """Tests for the server.py module."""
 
-import pytest
-import sys
 import importlib
 import importlib.util
+import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch
+
+import pytest
+
 import server
 
 # ===== Server Module Tests =====
@@ -173,4 +175,4 @@ class TestImportTimeErrorHandling:
 
                 # Now try to import server - it should raise the exception
                 with pytest.raises(Exception, match="Tool loading failed"):
-                    import server as _  # noqa: F401
+                    import server as _  # noqa: F401  # pylint: disable=reimported,import-outside-toplevel

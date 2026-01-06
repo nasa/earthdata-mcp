@@ -1,10 +1,10 @@
 """Tests for the loader.py module."""
 
-import pytest
 import json
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, mock_open, MagicMock
+from unittest.mock import Mock, patch
+
+import pytest
+
 from loader import ToolManifest, create_simple_tool, load_tools_from_directory
 
 
@@ -128,7 +128,7 @@ class TestCreateSimpleTool:
         # Capture the wrapper function
         wrapper_func = None
 
-        def mock_tool_decorator(**kwargs):
+        def mock_tool_decorator(**_kwargs):
             def decorator(func):
                 nonlocal wrapper_func
                 wrapper_func = func
@@ -142,6 +142,7 @@ class TestCreateSimpleTool:
         register_func(mock_mcp)
 
         # Now call the wrapper to cover lines 84-85
+        # pylint: disable=not-callable
         result = await wrapper_func(keyword="test")
         assert result == {"result": "Processed test"}
 
