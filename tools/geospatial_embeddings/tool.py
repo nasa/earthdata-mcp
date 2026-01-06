@@ -121,7 +121,6 @@ def natural_language_geocode(location: str) -> GeospatialOutput:
 
             # Store in cache
             cache_result = store_in_cache(location, result)
-            print(cache_result)
 
             langfuse.update_current_trace(
                 tags=["cache_miss", "success", "geocoded"],
