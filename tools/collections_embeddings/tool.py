@@ -32,17 +32,13 @@ def search_cmr_collections_embeddings(
 
     NOTE: This function is not yet implemented.
     Args:
-        query: A string of text to search collections with.
-    """
-    # Use the query parameter to avoid unused-argument warning
-    # Implement actual CMR collections search with embeddings
-    if not query:
-        return {"result": "NOT IMPLEMENTED YET", "message": "No query provided"}
-
-    return {"result": "NOT IMPLEMENTED YET", "query": query}
         query: A CollectionsEmbeddingsInput model containing the search text.
 
     Returns:
         A list of dictionaries containing dataset summaries with concept_id, title, and abstract.
     """
-    return {"result": "NOT IMPLEMENTED YET"}
+    # Check if query string is empty
+    if not query.query:
+        return {"result": "NOT IMPLEMENTED YET", "message": "No query provided"}
+
+    return {"result": "NOT IMPLEMENTED YET", "query": query}

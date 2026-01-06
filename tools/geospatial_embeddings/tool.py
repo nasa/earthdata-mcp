@@ -9,33 +9,13 @@ Langfuse integration for observability.
 
 import hashlib
 
-from typing import Any, Dict, Union
+from typing import Any, Dict
 import redis
-from pydantic import BaseModel
 from langfuse import observe, get_client
 
 from util.natural_language_geocoder import convert_text_to_geom
 from util.redis_client import CacheClient
-
-
-class GeocodingSuccess(BaseModel):
-    """Successful geocoding response."""
-
-    geoLocation: str
-    geometry: str
-    success: bool = True
-    from_cache: bool = False
-
-
-class GeocodingError(BaseModel):
-    """Failed geocoding response."""
-
-    error: str
-    success: bool = False
-    from_cache: bool = False
-
-
-GeocodingResponse = Union[GeocodingSuccess, GeocodingError]
+from .output_model import GeospatialOutput
 
 # Initialize clients
 langfuse = get_client()
@@ -72,7 +52,7 @@ def store_in_cache(location: str, result: Dict[str, Any], ttl: int = 900) -> Non
 
 
 @observe(name="natural_language_geocode")
-def natural_language_geocode(location: str) -> GeocodingResponse:
+def natural_language_geocode(location: str) -> GeospatialOutput:
     """Convert natural language location query to geometry with caching.
     Args:
         location: A natural language description of a geographic location.
@@ -104,15 +84,14 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
     """
 
     if not location:
-        result = {
-            "error": "No location query provided. Please specify a location.",
-            "success": False,
-        }
         langfuse.update_current_trace(
             tags=["error", "empty_location"],
             metadata={"error_type": "empty_location", "location_length": 0},
         )
-        return GeocodingError(**result)
+        return GeospatialOutput(
+            error="No location query provided. Please specify a location.",
+            success=False,
+        )
 
     # Check cache first
     cached_result = get_from_cache(location)
@@ -126,7 +105,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return GeocodingSuccess(**cached_result)
+        return GeospatialOutput(**cached_result)
 
     # Cache miss - geocode the location
     try:
@@ -141,7 +120,8 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
             }
 
             # Store in cache
-            store_in_cache(location, result)
+            cache_result = store_in_cache(location, result)
+            print(cache_result)
 
             langfuse.update_current_trace(
                 tags=["cache_miss", "success", "geocoded"],
@@ -153,14 +133,8 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 },
             )
 
-            return GeocodingSuccess(**result)
+            return GeospatialOutput(**result)
         else:
-            result = {
-                "error": f"Unable to geocode the location '{location}'.",
-                "success": False,
-                "from_cache": False,
-            }
-
             langfuse.update_current_trace(
                 tags=["cache_miss", "error", "geocoding_failed"],
                 metadata={
@@ -170,10 +144,13 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 },
             )
 
-            return GeocodingError(**result)
+            return GeospatialOutput(
+                error=f"Unable to geocode the location '{location}'.",
+                success=False,
+                from_cache=False,
+            )
 
     except (ValueError, TypeError) as e:
-        result = {"error": f"Invalid location format: {str(e)}", "success": False}
         langfuse.update_current_trace(
             tags=["cache_miss", "error", "validation_error"],
             metadata={
@@ -181,10 +158,12 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return GeocodingError(**result)
+        return GeospatialOutput(
+            error=f"Invalid location format: {str(e)}",
+            success=False,
+        )
 
     except Exception as e:
-        result = {"error": f"Unexpected error: {str(e)}", "success": False}
         langfuse.update_current_trace(
             tags=["cache_miss", "error", "exception"],
             metadata={
@@ -194,4 +173,7 @@ def natural_language_geocode(location: str) -> GeocodingResponse:
                 "location_length": len(location),
             },
         )
-        return GeocodingError(**result)
+        return GeospatialOutput(
+            error=f"Unexpected error: {str(e)}",
+            success=False,
+        )

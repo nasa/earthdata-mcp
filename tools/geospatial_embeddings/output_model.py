@@ -5,92 +5,51 @@ Defines the structure of geocoding results from natural language location querie
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, Union, Literal, List, Any
-
-
-class PointGeometry(BaseModel):
-    """GeoJSON Point geometry."""
-
-    type: Literal["Point"] = Field(default="Point")
-    coordinates: List[float] = Field(
-        ...,
-        description="[longitude, latitude]",
-        min_length=2,
-        max_length=2,
-        examples=[[-122.4194, 37.7749]],
-    )
-
-
-class PolygonGeometry(BaseModel):
-    """GeoJSON Polygon geometry."""
-
-    type: Literal["Polygon"] = Field(default="Polygon")
-    coordinates: List[List[List[float]]] = Field(
-        ...,
-        description="Array of linear rings (first is exterior, rest are holes)",
-        examples=[
-            [
-                [
-                    [-122.5, 37.7],
-                    [-122.3, 37.7],
-                    [-122.3, 37.8],
-                    [-122.5, 37.8],
-                    [-122.5, 37.7],
-                ]
-            ]
-        ],
-    )
-
-
-class MultiPolygonGeometry(BaseModel):
-    """GeoJSON MultiPolygon geometry."""
-
-    type: Literal["MultiPolygon"] = Field(default="MultiPolygon")
-    coordinates: List[List[List[List[float]]]] = Field(
-        ...,
-        description="Array of Polygon coordinate arrays",
-    )
-
-
-class BoundingBox(BaseModel):
-    """Bounding box representation."""
-
-    bbox: List[float] = Field(
-        ...,
-        description="[min_lon, min_lat, max_lon, max_lat]",
-        min_length=4,
-        max_length=4,
-        examples=[[-122.5, 37.7, -122.3, 37.8]],
-    )
-
-
-# Union type for all geometry types
-GeometryType = Union[PointGeometry, PolygonGeometry, MultiPolygonGeometry, BoundingBox]
+from typing import Optional
 
 
 class GeospatialOutput(BaseModel):
     """
-    Output model for geospatial location queries.
+    Output model for geocoding responses.
 
-    Contains the geometry information for a location query, or error information if geocoding failed.
+    Can represent both successful and failed geocoding attempts.
+    - For success: geoLocation and geometry are populated, success=True
+    - For errors: error is populated, success=False
     """
 
-    geometry: Optional[GeometryType] = Field(
-        None,
-        description="GeoJSON geometry object (Point, Polygon, MultiPolygon, or bounding box)",
-    )
-    location: Optional[str] = Field(
-        None,
-        description="The original location query string",
-        examples=["San Francisco Bay Area"],
-    )
     success: bool = Field(
-        default=True,
+        ...,
         description="Whether the geocoding was successful",
     )
+
+    # Success fields (populated when success=True)
+    geoLocation: Optional[str] = Field(
+        None,
+        description="The original location query string (only present on success)",
+        examples=["San Francisco Bay Area"],
+    )
+    geometry: Optional[str] = Field(
+        None,
+        description="WKT (Well-Known Text) representation of the geometry (only present on success)",
+        examples=[
+            "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, -122.5 37.8, -122.5 37.7))",
+            "POINT(-122.4194 37.7749)",
+        ],
+    )
+
+    # Error field (populated when success=False)
     error: Optional[str] = Field(
         None,
-        description="Error message if geocoding failed",
+        description="Error message describing why geocoding failed (only present on error)",
+        examples=[
+            "Unable to geocode the location 'NonexistentPlace123'.",
+            "No location query provided. Please specify a location.",
+        ],
+    )
+
+    from_cache: bool = Field(
+        default=False,
+        description="Whether the result was retrieved from cache",
     )
 
     class Config:
@@ -99,33 +58,26 @@ class GeospatialOutput(BaseModel):
         json_schema_extra = {
             "examples": [
                 {
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [
-                            [
-                                [-122.5, 37.7],
-                                [-122.3, 37.7],
-                                [-122.3, 37.8],
-                                [-122.5, 37.8],
-                                [-122.5, 37.7],
-                            ]
-                        ],
-                    },
-                    "location": "San Francisco Bay Area",
                     "success": True,
-                    "error": None,
+                    "geoLocation": "San Francisco Bay Area",
+                    "geometry": "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, -122.5 37.8, -122.5 37.7))",
+                    "from_cache": False,
                 },
                 {
-                    "geometry": {"type": "Point", "coordinates": [-122.4194, 37.7749]},
-                    "location": "San Francisco",
                     "success": True,
-                    "error": None,
+                    "geoLocation": "San Francisco",
+                    "geometry": "POINT(-122.4194 37.7749)",
+                    "from_cache": True,
                 },
                 {
-                    "geometry": None,
-                    "location": "NonexistentPlace123",
                     "success": False,
                     "error": "Unable to geocode the location 'NonexistentPlace123'.",
+                    "from_cache": False,
+                },
+                {
+                    "success": False,
+                    "error": "No location query provided. Please specify a location.",
+                    "from_cache": False,
                 },
             ]
         }

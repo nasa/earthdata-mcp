@@ -8,9 +8,8 @@ from tools.geospatial_embeddings.tool import (
     natural_language_geocode,
     get_from_cache,
     store_in_cache,
-    GeocodingSuccess,
-    GeocodingError,
 )
+from tools.geospatial_embeddings.output_model import GeospatialOutput
 
 
 # Pytest fixtures
@@ -253,11 +252,12 @@ class TestNaturalLanguageGeocode:
 
 
 class TestPydanticModels:
-    """Test Pydantic model functionality (if you decide to use them)."""
+    """Test Pydantic model functionality."""
 
-    def test_geocoding_success_model(self):
-        """Test GeocodingSuccess model creation."""
-        success_response = GeocodingSuccess(
+    def test_geospatial_output_success_model(self):
+        """Test GeospatialOutput model creation for success case."""
+        success_response = GeospatialOutput(
+            success=True,
             geoLocation="Test Location",
             geometry="POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))",
             from_cache=True,
@@ -265,12 +265,20 @@ class TestPydanticModels:
 
         assert success_response.success is True
         assert success_response.geoLocation == "Test Location"
+        assert success_response.geometry == "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
         assert success_response.from_cache is True
+        assert success_response.error is None
 
-    def test_geocoding_error_model(self):
-        """Test GeocodingError model creation."""
-        error_response = GeocodingError(error="Test error message")
+    def test_geospatial_output_error_model(self):
+        """Test GeospatialOutput model creation for error case."""
+        error_response = GeospatialOutput(
+            success=False,
+            error="Test error message",
+            from_cache=False,
+        )
 
         assert error_response.success is False
         assert error_response.error == "Test error message"
         assert error_response.from_cache is False
+        assert error_response.geoLocation is None
+        assert error_response.geometry is None

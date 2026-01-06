@@ -1,6 +1,7 @@
 """Tests for Redis client utility."""
 
 import json
+import os
 from unittest.mock import Mock, patch
 import redis
 
@@ -10,6 +11,7 @@ from util.redis_client import CacheClient
 class TestCacheClientInitialization:
     """Test CacheClient initialization and connection."""
 
+    @patch.dict(os.environ, {"REDIS_HOST": "localhost"}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_successful_initialization(self, mock_redis_class):
         """Test successful Redis connection during initialization."""
@@ -38,6 +40,7 @@ class TestCacheClientInitialization:
             # Verify client is available
             assert client.client is not None
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_connection_failure_during_init(self, mock_redis_class):
         """Test handling of connection failure during initialization."""
@@ -55,6 +58,7 @@ class TestCacheClientInitialization:
             # Verify client is None
             assert client.client is None
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_redis_creation_failure(self, mock_redis_class):
         """Test handling when Redis client creation fails."""
@@ -74,6 +78,7 @@ class TestCacheClientInitialization:
 class TestIsAvailable:
     """Test the is_available method."""
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_is_available_with_no_client(self):
         """Test is_available when client is None."""
         client = CacheClient()
@@ -81,6 +86,7 @@ class TestIsAvailable:
 
         assert client.is_available() is False
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_is_available_with_working_client(self, mock_redis_class):
         """Test is_available when client works."""
@@ -96,6 +102,7 @@ class TestIsAvailable:
         # Verify ping was called at least twice (once in init, once in is_available)
         assert mock_client.ping.call_count >= 2
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_is_available_with_connection_error(self, mock_redis_class):
         """Test is_available when ping fails."""
@@ -114,6 +121,7 @@ class TestIsAvailable:
 class TestGetMethod:
     """Test the get method."""
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_get_with_unavailable_client(self):
         """Test get when client is unavailable."""
         client = CacheClient()
@@ -123,6 +131,7 @@ class TestGetMethod:
 
         assert result is None
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_get_successful_retrieval(self, mock_redis_class):
         """Test successful data retrieval from cache."""
@@ -139,6 +148,7 @@ class TestGetMethod:
         assert result == test_data
         mock_client.get.assert_called_with("test_key")
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_get_key_not_found(self, mock_redis_class):
         """Test get when key doesn't exist."""
@@ -152,6 +162,7 @@ class TestGetMethod:
         assert result is None
         mock_client.get.assert_called_with("nonexistent_key")
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_get_with_redis_error(self, mock_redis_class):
         """Test get with Redis error."""
@@ -172,6 +183,7 @@ class TestGetMethod:
 class TestSetMethod:
     """Test the set method."""
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_set_with_unavailable_client(self):
         """Test set when client is unavailable."""
         client = CacheClient()
@@ -181,6 +193,7 @@ class TestSetMethod:
 
         assert result is False
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_set_successful(self, mock_redis_class):
         """Test successful data storage in cache."""
@@ -197,6 +210,7 @@ class TestSetMethod:
             "test_key", 600, json.dumps(test_data)
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_set_with_default_ttl(self, mock_redis_class):
         """Test set with default TTL."""
@@ -213,6 +227,7 @@ class TestSetMethod:
             "test_key", 900, json.dumps(test_data)
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("util.redis_client.redis.Redis")
     def test_set_with_redis_error(self, mock_redis_class):
         """Test set with Redis error."""

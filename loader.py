@@ -172,9 +172,9 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
             loaded.append(tool_name)
             print(f"[LOAD] ✓ {tool_name}")
 
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError, AttributeError, Exception) as e:
             failed.append(tool_folder.name)
-            print(f"[FAIL] ✗ {tool_folder.name}: Manifest file not found")
+            print(f"[FAIL] ✗ {tool_folder.name}: {e}")
 
     # Summary
     print(f"\n{'='*50}")
