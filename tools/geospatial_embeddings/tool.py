@@ -15,7 +15,7 @@ from langfuse import observe, get_client
 
 from util.natural_language_geocoder import convert_text_to_geom
 from util.redis_client import CacheClient
-from .output_model import GeospatialOutput
+from tools.geospatial_embeddings.output_model import GeospatialOutput
 
 # Initialize clients
 langfuse = get_client()
@@ -133,21 +133,21 @@ def natural_language_geocode(location: str) -> GeospatialOutput:
             )
 
             return GeospatialOutput(**result)
-        else:
-            langfuse.update_current_trace(
-                tags=["cache_miss", "error", "geocoding_failed"],
-                metadata={
-                    "error_type": "geocoding_failed",
-                    "success": False,
-                    "location_length": len(location),
-                },
-            )
 
-            return GeospatialOutput(
-                error=f"Unable to geocode the location '{location}'.",
-                success=False,
-                from_cache=False,
-            )
+        langfuse.update_current_trace(
+            tags=["cache_miss", "error", "geocoding_failed"],
+            metadata={
+                "error_type": "geocoding_failed",
+                "success": False,
+                "location_length": len(location),
+            },
+        )
+
+        return GeospatialOutput(
+            error=f"Unable to geocode the location '{location}'.",
+            success=False,
+            from_cache=False,
+        )
 
     except (ValueError, TypeError) as e:
         langfuse.update_current_trace(

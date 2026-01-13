@@ -23,6 +23,7 @@ dependencies = [
     "langfuse==3.10.6",
     "instructor>=1.13.0",
     "jsonschema>=4.17.3",
+    "psycopg2-binary==2.9.10",
 ]
 
 

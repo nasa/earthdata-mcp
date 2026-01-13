@@ -1,0 +1,18 @@
+{
+  "titan" : {
+      "model-name" : "amazon.titan-embed-text-v2:0",
+      "model-type" : "aws"
+  },
+  "all-mpnet-base-v2" : {
+      "model-name" : "sentence-transformers/all-mpnet-base-v2",
+      "model-type" : "huggingface"
+  },
+  "all-MiniLM-L6-v2" : {
+      "model-name" : "sentence-transformers/all-MiniLM-L6-v2",
+      "model-type" : "huggingface"
+  },
+  "nasa-smd-ibm-st-v2" : {
+      "model-name" : "nasa-impact/nasa-smd-ibm-st-v2",
+      "model-type" : "huggingface"
+  }
+}

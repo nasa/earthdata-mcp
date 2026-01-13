@@ -4,8 +4,8 @@ Output model for geospatial/location queries.
 Defines the structure of geocoding results from natural language location queries.
 """
 
-from pydantic import BaseModel, Field
 from typing import Optional
+from pydantic import BaseModel, Field  # pylint: disable=import-error
 
 
 class GeospatialOutput(BaseModel):
@@ -30,9 +30,13 @@ class GeospatialOutput(BaseModel):
     )
     geometry: Optional[str] = Field(
         None,
-        description="WKT (Well-Known Text) representation of the geometry (only present on success)",
+        description=(
+            "WKT (Well-Known Text) representation of the geometry "
+            "(only present on success)"
+        ),
         examples=[
-            "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, -122.5 37.8, -122.5 37.7))",
+            "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, "
+            "-122.5 37.8, -122.5 37.7))",
             "POINT(-122.4194 37.7749)",
         ],
     )
@@ -40,7 +44,9 @@ class GeospatialOutput(BaseModel):
     # Error field (populated when success=False)
     error: Optional[str] = Field(
         None,
-        description="Error message describing why geocoding failed (only present on error)",
+        description=(
+            "Error message describing why geocoding failed " "(only present on error)"
+        ),
         examples=[
             "Unable to geocode the location 'NonexistentPlace123'.",
             "No location query provided. Please specify a location.",
@@ -60,7 +66,10 @@ class GeospatialOutput(BaseModel):
                 {
                     "success": True,
                     "geoLocation": "San Francisco Bay Area",
-                    "geometry": "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, -122.5 37.8, -122.5 37.7))",
+                    "geometry": (
+                        "POLYGON((-122.5 37.7, -122.3 37.7, -122.3 37.8, "
+                        "-122.5 37.8, -122.5 37.7))"
+                    ),
                     "from_cache": False,
                 },
                 {
