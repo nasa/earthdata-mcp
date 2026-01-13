@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 default_headers = {"Client-Id": "cmr-nlp-search"}
 
 
-def fetch_cmr_data(
+def fetch_cmr_data(  # pylint: disable=too-many-arguments
     cmr_url,
     method="GET",
     headers=None,

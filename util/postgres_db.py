@@ -256,7 +256,7 @@ class PostgresDBConnection(AbstractDBConnection):
             logger.error("Failed to parse date '%s': %s", date_str, e)
             raise ValueError(f"Invalid date format: {date_str}") from e
 
-    def search(self, query_params):
+    def search(self, query_params):  # pylint: disable=too-many-locals
         """
         Perform a combined search using cosine similarity (keyword), spatial, and temporal filters.
 

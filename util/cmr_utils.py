@@ -9,7 +9,9 @@ import shapely.wkt
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 
-def reorder_results(response, concept_ids, response_format, similarity_scores):
+def reorder_results(
+    response, concept_ids, response_format, similarity_scores
+):  # pylint: disable=too-many-locals
     """
     Reorder CMR results to match the order from Postgres and filter by granule count.
 
