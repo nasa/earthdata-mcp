@@ -75,6 +75,37 @@ def get_from_cache(location: str) -> Dict[str, Any]:
         return None
 
 
+def is_valid_bracket_structure(geometry_str: str) -> bool:
+    """
+    Validate that a geometry string has properly matched brackets.
+
+    Checks for balanced parentheses in WKT geometry strings.
+
+    Args:
+        geometry_str: The geometry string to validate
+
+    Returns:
+        True if all brackets are properly matched, False otherwise
+    """
+    if not geometry_str:
+        return False
+
+    stack = []
+    bracket_pairs = {"(": ")", "[": "]", "{": "}"}
+
+    for char in geometry_str:
+        if char in bracket_pairs:
+            stack.append(char)
+        elif char in bracket_pairs.values():
+            if not stack:
+                return False
+            opening = stack.pop()
+            if bracket_pairs[opening] != char:
+                return False
+
+    return len(stack) == 0
+
+
 @observe(name="process_spatial_query")
 def process_spatial_query(spatial_query) -> Dict[str, Any]:
     """
@@ -106,6 +137,7 @@ def process_spatial_query(spatial_query) -> Dict[str, Any]:
             keyword in geometry_str.upper()
             for keyword in ["POINT", "POLYGON", "MULTIPOLYGON", "LINESTRING"]
         )
+        or not is_valid_bracket_structure(geometry_str)
     ):
         # Geometry is nonsensical, try to retrieve from cache using geoLocation
         if spatial_query.geoLocation:
@@ -121,7 +153,7 @@ def process_spatial_query(spatial_query) -> Dict[str, Any]:
                         "location_length": len(spatial_query.geoLocation),
                     },
                 )
-                result["geometry"] = cached_result["geometry"]
+                result["geometry"] = convert_text_to_geom(cached_result["geometry"])
             else:
                 # Cache miss - geometry cannot be retrieved
                 langfuse.update_current_trace(
