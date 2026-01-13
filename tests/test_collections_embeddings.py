@@ -6,8 +6,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 import redis
 
-from tools.collections_embeddings import tool as mod
-from tools.collections_embeddings.output_model import CollectionsEmbeddingsOutput
+# Mock the embedding generator BEFORE importing the module
+# This prevents boto3 client initialization during import
+with patch("util.embedding.boto3.client"):
+    from tools.collections_embeddings import tool as mod
+    from tools.collections_embeddings.output_model import CollectionsEmbeddingsOutput
 
 
 @pytest.fixture
