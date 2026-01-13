@@ -10,11 +10,6 @@ from tools.collections_embeddings import tool as mod
 from tools.collections_embeddings.output_model import CollectionsEmbeddingsOutput
 
 
-# ---------------------------
-# Fixtures
-# ---------------------------
-
-
 @pytest.fixture
 def mock_embedding():
     """Fixture for mock embedding vector."""
@@ -87,11 +82,6 @@ def mock_cmr_response():
     }
 
 
-# ---------------------------
-# Unit tests
-# ---------------------------
-
-
 def test_get_cache_key_is_deterministic():
     """Test that cache key generation is deterministic."""
     key1 = mod.get_cache_key("New York")
@@ -135,10 +125,15 @@ def test_process_spatial_query_valid_geometry(mock_convert):
     mock_convert.assert_called_once()
 
 
+@patch.object(mod, "convert_text_to_geom")
 @patch.object(mod, "get_from_cache")
-def test_process_spatial_query_invalid_geometry_uses_cache(mock_cache):
+@patch.object(mod, "langfuse")
+def test_process_spatial_query_invalid_geometry_uses_cache(
+    mock_langfuse, mock_cache, mock_convert
+):
     """Test processing spatial query with invalid geometry uses cache."""
     mock_cache.return_value = {"geometry": "POLYGON ((cached))"}
+    mock_convert.return_value = "POLYGON ((cached))"
 
     spatial = MagicMock()
     spatial.success = True
@@ -148,11 +143,15 @@ def test_process_spatial_query_invalid_geometry_uses_cache(mock_cache):
     result = mod.process_spatial_query(spatial)
 
     assert result["geometry"] == "POLYGON ((cached))"
-
-
-# ---------------------------
-# Integration-style test
-# ---------------------------
+    mock_convert.assert_called_once_with("POLYGON ((cached))")
+    mock_langfuse.update_current_trace.assert_called_with(
+        tags=["cache_hit", "success"],
+        metadata={
+            "cache_hit": True,
+            "location": "Chicago",
+            "location_length": 7,
+        },
+    )
 
 
 @patch.object(mod, "fetch_cmr_data")
@@ -215,11 +214,6 @@ def test_search_returns_empty_on_no_db_results(
     assert result["count"] == 0
     assert result["results"] == []
     mock_fetch.assert_not_called()
-
-
-# ---------------------------
-# Additional tests for 100% coverage
-# ---------------------------
 
 
 @patch.object(mod, "cache")
