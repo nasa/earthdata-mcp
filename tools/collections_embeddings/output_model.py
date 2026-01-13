@@ -4,8 +4,8 @@ Output model for collections embeddings queries.
 Defines the structure of search results from CMR collections.
 """
 
-from pydantic import BaseModel, Field
 from typing import List
+from pydantic import BaseModel, Field
 
 
 class DatasetSummary(BaseModel):
@@ -21,7 +21,9 @@ class DatasetSummary(BaseModel):
     title: str = Field(
         ...,
         description="The title of the collection",
-        examples=["MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V061"],
+        examples=[
+            "MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V061"
+        ],
     )
     abstract: str = Field(
         ...,
@@ -55,13 +57,25 @@ class CollectionsEmbeddingsOutput(BaseModel):
                     "results": [
                         {
                             "concept_id": "C1234567890-PROVIDER",
-                            "title": "MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V061",
-                            "abstract": "The MODIS Surface Reflectance products provide an estimate of the surface spectral reflectance...",
+                            "title": (
+                                "MODIS/Terra Surface Reflectance Daily L2G "
+                                "Global 250m SIN Grid V061"
+                            ),
+                            "abstract": (
+                                "The MODIS Surface Reflectance products provide "
+                                "an estimate of the surface spectral reflectance..."
+                            ),
                         },
                         {
                             "concept_id": "C9876543210-PROVIDER",
-                            "title": "VIIRS/NPP Surface Reflectance Daily L2G Global 375m SIN Grid V001",
-                            "abstract": "The VIIRS Surface Reflectance products provide an estimate...",
+                            "title": (
+                                "VIIRS/NPP Surface Reflectance Daily L2G "
+                                "Global 375m SIN Grid V001"
+                            ),
+                            "abstract": (
+                                "The VIIRS Surface Reflectance products provide "
+                                "an estimate..."
+                            ),
                         },
                     ],
                     "count": 2,

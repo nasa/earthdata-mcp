@@ -1,3 +1,5 @@
+"""Input model for geospatial/location queries."""
+
 from pydantic import BaseModel, Field
 
 
