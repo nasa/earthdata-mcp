@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .input_model import CollectionsEmbeddingsInput
+from tools.collections_embeddings.input_model import CollectionsEmbeddingsInput
 
 
 class DatasetSummary(BaseModel):

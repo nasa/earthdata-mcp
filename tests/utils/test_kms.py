@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from util.kms import KMSClient, KMSTerm, clear_cache, lookup_term
+from util.kms import clear_cache, lookup_term
+from util.models import KMSTerm
 
 
 @pytest.fixture(autouse=True)
@@ -51,7 +52,7 @@ class TestLookupTerm:
         search_response = {"concepts": [{"prefLabel": "MODIS", "uuid": "modis-uuid-123"}]}
         concept_response = {"definition": "Moderate Resolution Imaging Spectroradiometer"}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -74,7 +75,7 @@ class TestLookupTerm:
         """Should return None when term is not found in KMS."""
         search_response = {"concepts": []}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -86,7 +87,7 @@ class TestLookupTerm:
 
     def test_returns_none_on_network_error(self):
         """Should return None when network request fails."""
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             mock_get.side_effect = requests.RequestException("Connection refused")
 
             result = lookup_term("MODIS", "instruments")
@@ -95,7 +96,7 @@ class TestLookupTerm:
 
     def test_returns_none_on_invalid_json(self):
         """Should return None when response is not valid JSON."""
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             mock_response = MagicMock(status_code=200)
             mock_response.raise_for_status = MagicMock()
             mock_response.json.side_effect = ValueError("Invalid JSON")
@@ -116,7 +117,7 @@ class TestLookupTerm:
         }
         concept_response = {"definition": "The correct definition"}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -141,7 +142,7 @@ class TestLookupTerm:
         }
         concept_response = {"definition": "Some definition"}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -161,7 +162,7 @@ class TestLookupTerm:
         search_response = {"concepts": [{"prefLabel": "MODIS", "uuid": "modis-uuid"}]}
         concept_response = {"definition": "Cached definition"}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -186,7 +187,7 @@ class TestLookupTerm:
         """Should construct correct KMS API URL."""
         search_response = {"concepts": []}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()
@@ -199,56 +200,6 @@ class TestLookupTerm:
             assert "concept_scheme/platforms/pattern/TERRA" in url
 
 
-class TestKMSClient:
-    """Tests for KMSClient class."""
-
-    def test_custom_base_url(self):
-        """Should use custom base URL when provided."""
-        search_response = {"concepts": [{"prefLabel": "MODIS", "uuid": "test-uuid"}]}
-        concept_response = {"definition": "Test definition"}
-
-        with patch("util.kms.requests.get") as mock_get:
-            search_mock = MagicMock(status_code=200)
-            search_mock.json.return_value = search_response
-            search_mock.raise_for_status = MagicMock()
-
-            concept_mock = MagicMock(status_code=200)
-            concept_mock.json.return_value = concept_response
-            concept_mock.raise_for_status = MagicMock()
-
-            mock_get.side_effect = [search_mock, concept_mock]
-
-            client = KMSClient(base_url="https://custom-kms.example.com")
-            result = client.lookup_term("MODIS", "instruments")
-
-            assert result is not None
-            # Verify custom URL was used
-            call_url = mock_get.call_args_list[0][0][0]
-            assert "custom-kms.example.com" in call_url
-
-    def test_delegates_to_cached_function(self):
-        """Should delegate to the cached lookup function."""
-        search_response = {"concepts": [{"prefLabel": "TERRA", "uuid": "terra-uuid"}]}
-        concept_response = {"definition": "Earth observation satellite"}
-
-        with patch("util.kms.requests.get") as mock_get:
-            search_mock = MagicMock(status_code=200)
-            search_mock.json.return_value = search_response
-            search_mock.raise_for_status = MagicMock()
-
-            concept_mock = MagicMock(status_code=200)
-            concept_mock.json.return_value = concept_response
-            concept_mock.raise_for_status = MagicMock()
-
-            mock_get.side_effect = [search_mock, concept_mock]
-
-            client = KMSClient()
-            result = client.lookup_term("TERRA", "platforms")
-
-            assert result.term == "TERRA"
-            assert result.scheme == "platforms"
-
-
 class TestClearCache:
     """Tests for clear_cache function."""
 
@@ -257,7 +208,7 @@ class TestClearCache:
         search_response = {"concepts": [{"prefLabel": "MODIS", "uuid": "modis-uuid"}]}
         concept_response = {"definition": "First definition"}
 
-        with patch("util.kms.requests.get") as mock_get:
+        with patch("util.kms.client.requests.get") as mock_get:
             search_mock = MagicMock(status_code=200)
             search_mock.json.return_value = search_response
             search_mock.raise_for_status = MagicMock()

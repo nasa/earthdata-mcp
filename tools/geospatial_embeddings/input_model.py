@@ -1,3 +1,5 @@
+"""Input model for geospatial embeddings tool."""
+
 from pydantic import BaseModel, Field
 
 

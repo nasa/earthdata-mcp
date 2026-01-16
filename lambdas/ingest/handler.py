@@ -9,115 +9,68 @@ import json
 import logging
 import os
 
+from pydantic import ValidationError
+
+from util.models import ConceptMessage
 from util.sqs import get_sqs_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-REQUIRED_FIELDS = {"concept-type", "concept-id", "action", "revision-id"}
-VALID_ACTIONS = {"concept-update", "concept-delete"}
 
 
 class InvalidMessageError(Exception):
     """Raised when an SNS message is malformed or missing required fields."""
 
 
-def validate_message(message: dict) -> None:
-    """
-    Validate that the SNS message contains all required fields.
-
-    Args:
-        message: Parsed SNS message body.
-
-    Raises:
-        InvalidMessageError: If required fields are missing or action is invalid.
-    """
-    missing = REQUIRED_FIELDS - message.keys()
-    if missing:
-        raise InvalidMessageError(f"Missing required fields: {missing}")
-
-    if message["action"] not in VALID_ACTIONS:
-        raise InvalidMessageError(
-            f"Invalid action '{message['action']}'. Must be one of: {VALID_ACTIONS}"
-        )
-
-
-def build_fifo_message(message: dict) -> dict:
-    """
-    Build the SQS FIFO message parameters.
-
-    Args:
-        message: Validated SNS message.
-
-    Returns:
-        Dict with MessageBody, MessageGroupId, and MessageDeduplicationId.
-    """
-    concept_type = message["concept-type"]
-    concept_id = message["concept-id"]
-    revision_id = message["revision-id"]
-
-    return {
-        "QueueUrl": os.environ.get("EMBEDDING_QUEUE_URL"),
-        "MessageBody": json.dumps(message),
-        "MessageGroupId": f"{concept_type}:{concept_id}",
-        "MessageDeduplicationId": f"{concept_id}:{revision_id}",
-    }
-
-
 def process_record(record: dict) -> dict:
     """
     Process a single SNS record from the event.
 
-    Args:
-        record: SNS record from the Lambda event.
-
-    Returns:
-        Dict with concept_id and status.
+    Parses and validates the message, then forwards it to the FIFO queue.
     """
     sns_message = record.get("Sns", {})
     message_id = sns_message.get("MessageId", "unknown")
 
     try:
-        message = json.loads(sns_message.get("Message", "{}"))
-        validate_message(message)
-
-        fifo_params = build_fifo_message(message)
-        response = get_sqs_client().send_message(**fifo_params)
-
-        logger.info(
-            "Queued %s for %s:%s (revision %s) -> SQS MessageId: %s",
-            message["action"],
-            message["concept-type"],
-            message["concept-id"],
-            message["revision-id"],
-            response["MessageId"],
-        )
-
-        return {
-            "concept_id": message["concept-id"],
-            "status": "queued",
-            "sqs_message_id": response["MessageId"],
-        }
-
+        raw_message = json.loads(sns_message.get("Message", "{}"))
     except json.JSONDecodeError as e:
         logger.error("Failed to parse SNS message %s: %s", message_id, e)
         raise InvalidMessageError(f"Invalid JSON in SNS message: {e}") from e
 
-    except InvalidMessageError:
-        logger.error("Invalid message %s: %s", message_id, sns_message.get("Message"))
-        raise
+    try:
+        message = ConceptMessage.model_validate(raw_message)
+    except ValidationError as e:
+        logger.error("Invalid message %s: %s", message_id, e)
+        raise InvalidMessageError(f"Message validation failed: {e}") from e
+
+    response = get_sqs_client().send_message(
+        QueueUrl=os.environ.get("EMBEDDING_QUEUE_URL"),
+        MessageBody=message.model_dump_json(by_alias=True),
+        MessageGroupId=f"{message.concept_type}:{message.concept_id}",
+        MessageDeduplicationId=f"{message.concept_id}:{message.revision_id}",
+    )
+
+    logger.info(
+        "Queued %s for %s:%s (revision %s) -> SQS MessageId: %s",
+        message.action,
+        message.concept_type,
+        message.concept_id,
+        message.revision_id,
+        response["MessageId"],
+    )
+
+    return {
+        "concept_id": message.concept_id,
+        "status": "queued",
+        "sqs_message_id": response["MessageId"],
+    }
 
 
-def handler(event: dict, context) -> dict:
+def handler(event: dict, _context) -> dict:
     """
     Lambda handler for processing CMR concept events from SNS.
 
-    Args:
-        event: Lambda event containing SNS records.
-        context: Lambda context (unused).
-
-    Returns:
-        Dict with processing results.
+    Returns dict with processing results including count of processed/failed.
     """
     records = event.get("Records", [])
     logger.info("Processing %d SNS record(s)", len(records))

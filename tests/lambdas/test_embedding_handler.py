@@ -8,20 +8,22 @@ import pytest
 import responses
 
 from lambdas.embedding.handler import (
-    KMSTermRef,
-    extract_citation_data,
-    extract_collection_data,
-    extract_data,
-    extract_variable_data,
+    handle_delete,
+    handle_update,
     handler,
-    process_concept_delete,
-    process_concept_update,
     process_kms_terms,
 )
-from util.cmr import CMRError, fetch_concept
+from util.cmr import (
+    CMRError,
+    extract_data,
+    extract_from_citation,
+    extract_from_collection,
+    extract_from_variable,
+    fetch_concept,
+)
 from util.datastores.postgres import PostgresEmbeddingDatastore
 from util.embeddings import BedrockEmbeddingGenerator
-from util.kms import KMSTerm
+from util.models import ConceptMessage, KMSTerm
 
 
 @pytest.fixture(autouse=True)
@@ -36,14 +38,14 @@ def set_env():
 
 
 class TestExtractCollectionData:
-    """Tests for extract_collection_data function."""
+    """Tests for extract_from_collection function."""
 
     def test_extracts_title(self):
         """Test that title is extracted as a chunk."""
 
         collection = {"EntryTitle": "Test Collection Title"}
 
-        result = extract_collection_data("collection", "C1234-PROV", collection)
+        result = extract_from_collection("C1234-PROV", collection)
 
         assert len(result.chunks) == 1
         assert result.chunks[0].attribute == "title"
@@ -54,7 +56,7 @@ class TestExtractCollectionData:
 
         collection = {"Abstract": "This is the abstract text."}
 
-        result = extract_collection_data("collection", "C1234-PROV", collection)
+        result = extract_from_collection("C1234-PROV", collection)
 
         assert len(result.chunks) == 1
         assert result.chunks[0].attribute == "abstract"
@@ -69,7 +71,7 @@ class TestExtractCollectionData:
             "Purpose": "Test Purpose",
         }
 
-        result = extract_collection_data("collection", "C1234-PROV", collection)
+        result = extract_from_collection("C1234-PROV", collection)
 
         assert len(result.chunks) == 3
         attributes = {c.attribute for c in result.chunks}
@@ -88,7 +90,7 @@ class TestExtractCollectionData:
             ]
         }
 
-        result = extract_collection_data("collection", "C1234-PROV", collection)
+        result = extract_from_collection("C1234-PROV", collection)
 
         # Science keywords go to kms_terms, not chunks
         assert len(result.chunks) == 0
@@ -108,7 +110,7 @@ class TestExtractCollectionData:
             ]
         }
 
-        result = extract_collection_data("collection", "C1234-PROV", collection)
+        result = extract_from_collection("C1234-PROV", collection)
 
         # Platforms and instruments go to kms_terms
         assert len(result.chunks) == 0
@@ -122,14 +124,14 @@ class TestExtractCollectionData:
     def test_empty_collection_returns_empty(self):
         """Test that empty collection returns empty result."""
 
-        result = extract_collection_data("collection", "C1234-PROV", {})
+        result = extract_from_collection("C1234-PROV", {})
 
         assert len(result.chunks) == 0
         assert len(result.kms_terms) == 0
 
 
 class TestExtractVariableData:
-    """Tests for extract_variable_data function."""
+    """Tests for extract_from_variable function."""
 
     def test_extracts_variable_attributes(self):
         """Test that variable attributes are extracted."""
@@ -140,7 +142,7 @@ class TestExtractVariableData:
             "Definition": "Temperature of the sea surface",
         }
 
-        result = extract_variable_data("variable", "V1234-PROV", variable)
+        result = extract_from_variable("V1234-PROV", variable)
 
         assert len(result.chunks) == 3
         attributes = {c.attribute for c in result.chunks}
@@ -148,7 +150,7 @@ class TestExtractVariableData:
 
 
 class TestExtractCitationData:
-    """Tests for extract_citation_data function."""
+    """Tests for extract_from_citation function."""
 
     def test_extracts_citation_attributes(self):
         """Test that citation attributes are extracted."""
@@ -165,7 +167,7 @@ class TestExtractCitationData:
             },
         }
 
-        result = extract_citation_data("citation", "CIT1234-PROV", citation)
+        result = extract_from_citation("CIT1234-PROV", citation)
 
         assert len(result.chunks) == 4
         attributes = {c.attribute for c in result.chunks}
@@ -182,8 +184,14 @@ class TestExtractData:
     def test_dispatches_to_collection_extractor(self):
         """Test that collection type routes correctly."""
 
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
         collection = {"EntryTitle": "Test"}
-        result = extract_data("collection", "C1234-PROV", collection)
+        result = extract_data(message, collection)
 
         assert len(result.chunks) == 1
         assert result.chunks[0].concept_type == "collection"
@@ -191,16 +199,28 @@ class TestExtractData:
     def test_dispatches_to_variable_extractor(self):
         """Test that variable type routes correctly."""
 
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="variable",
+            concept_id="V1234-PROV",
+            revision_id="1",
+        )
         variable = {"Name": "test_var"}
-        result = extract_data("variable", "V1234-PROV", variable)
+        result = extract_data(message, variable)
 
         assert len(result.chunks) == 1
         assert result.chunks[0].concept_type == "variable"
 
     def test_unknown_type_returns_empty(self):
-        """Test that unknown type returns empty result."""
+        """Test that unknown type returns empty result - uses citation as fallback."""
 
-        result = extract_data("unknown", "X1234-PROV", {})
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="citation",
+            concept_id="CIT1234-PROV",
+            revision_id="1",
+        )
+        result = extract_data(message, {})
 
         assert len(result.chunks) == 0
         assert len(result.kms_terms) == 0
@@ -330,8 +350,8 @@ class TestPostgresDatastore:
             assert count == 0
 
 
-class TestProcessConceptUpdate:
-    """Tests for process_concept_update function."""
+class TestHandleUpdate:
+    """Tests for handle_update function."""
 
     def test_processes_collection_update(self):
         """Test processing a collection update message."""
@@ -341,11 +361,12 @@ class TestProcessConceptUpdate:
         mock_embedder = MagicMock()
         mock_embedder.generate.return_value = [0.1] * 1024
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROV",
-            "revision-id": "1",
-        }
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
 
         with patch("lambdas.embedding.handler.fetch_concept") as mock_fetch:
             mock_fetch.return_value = {
@@ -357,7 +378,7 @@ class TestProcessConceptUpdate:
                 with patch("lambdas.embedding.handler.get_langfuse") as mock_langfuse:
                     mock_langfuse.return_value = None
 
-                    process_concept_update(message, mock_repo, mock_embedder)
+                    handle_update(message, mock_repo, mock_embedder)
 
         # Should have upserted chunks
         mock_repo.upsert_chunks.assert_called_once()
@@ -372,11 +393,12 @@ class TestProcessConceptUpdate:
         mock_embedder = MagicMock()
         mock_embedder.generate.return_value = [0.1] * 1024
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROV",
-            "revision-id": "1",
-        }
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
 
         with patch("lambdas.embedding.handler.fetch_concept") as mock_fetch:
             mock_fetch.return_value = {
@@ -389,7 +411,7 @@ class TestProcessConceptUpdate:
                 with patch("lambdas.embedding.handler.get_langfuse") as mock_langfuse:
                     mock_langfuse.return_value = None
 
-                    process_concept_update(message, mock_repo, mock_embedder)
+                    handle_update(message, mock_repo, mock_embedder)
 
         # Should have called generate 3 times (title, abstract, purpose)
         assert mock_embedder.generate.call_count == 3
@@ -408,11 +430,12 @@ class TestProcessConceptUpdate:
         mock_embedder = MagicMock()
         mock_embedder.generate.return_value = [0.1] * 1024
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROV",
-            "revision-id": "1",
-        }
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
 
         with patch("lambdas.embedding.handler.fetch_concept") as mock_fetch:
             mock_fetch.return_value = {"EntryTitle": "Test Title"}
@@ -421,7 +444,7 @@ class TestProcessConceptUpdate:
                 with patch("lambdas.embedding.handler.get_langfuse") as mock_langfuse:
                     mock_langfuse.return_value = None
 
-                    process_concept_update(message, mock_repo, mock_embedder)
+                    handle_update(message, mock_repo, mock_embedder)
 
         # Verify embedder was called with concept_type and attribute
         call_kwargs = mock_embedder.generate.call_args
@@ -441,8 +464,8 @@ class TestProcessKMSTerms:
         mock_embedder.generate.return_value = [0.1] * 1024
 
         kms_terms = [
-            KMSTermRef(term="MODIS", scheme="instruments"),
-            KMSTermRef(term="TERRA", scheme="platforms"),
+            KMSTerm(term="MODIS", scheme="instruments"),
+            KMSTerm(term="TERRA", scheme="platforms"),
         ]
 
         mock_kms_term = KMSTerm(
@@ -470,7 +493,7 @@ class TestProcessKMSTerms:
         mock_embedder = MagicMock()
         mock_embedder.generate.return_value = [0.5] * 1024
 
-        kms_terms = [KMSTermRef(term="MODIS", scheme="instruments")]
+        kms_terms = [KMSTerm(term="MODIS", scheme="instruments")]
 
         mock_kms_term = KMSTerm(
             uuid="modis-uuid",
@@ -503,7 +526,7 @@ class TestProcessKMSTerms:
         mock_repo.get_kms_embedding.return_value = {"embedding": [0.1] * 1024}  # Already exists
         mock_embedder = MagicMock()
 
-        kms_terms = [KMSTermRef(term="MODIS", scheme="instruments")]
+        kms_terms = [KMSTerm(term="MODIS", scheme="instruments")]
 
         mock_kms_term = KMSTerm(
             uuid="modis-uuid",
@@ -534,8 +557,8 @@ class TestProcessKMSTerms:
 
         # Same term twice
         kms_terms = [
-            KMSTermRef(term="MODIS", scheme="instruments"),
-            KMSTermRef(term="MODIS", scheme="instruments"),
+            KMSTerm(term="MODIS", scheme="instruments"),
+            KMSTerm(term="MODIS", scheme="instruments"),
         ]
 
         mock_kms_term = KMSTerm(
@@ -565,11 +588,12 @@ class TestFullEmbeddingFlow:
         mock_embedder = MagicMock()
         mock_embedder.generate.return_value = [0.1] * 1024
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROV",
-            "revision-id": "1",
-        }
+        message = ConceptMessage(
+            action="concept-update",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
 
         # Realistic collection metadata
         collection_metadata = {
@@ -624,7 +648,7 @@ class TestFullEmbeddingFlow:
                     with patch("lambdas.embedding.handler.get_langfuse") as mock_langfuse:
                         mock_langfuse.return_value = None
 
-                        process_concept_update(message, mock_repo, mock_embedder)
+                        handle_update(message, mock_repo, mock_embedder)
 
         # Verify concept chunks were embedded (title + abstract = 2)
         chunk_embed_calls = [
@@ -657,8 +681,8 @@ class TestFullEmbeddingFlow:
         assert set(assoc_call[0][2]) == {"sst-uuid", "terra-uuid", "modis-uuid"}
 
 
-class TestProcessConceptDelete:
-    """Tests for process_concept_delete function."""
+class TestHandleDelete:
+    """Tests for handle_delete function."""
 
     def test_deletes_embeddings_and_associations(self):
         """Test that delete removes chunks and associations."""
@@ -668,9 +692,14 @@ class TestProcessConceptDelete:
         mock_repo.delete_associations.return_value = 2
         mock_repo.delete_concept_kms_associations.return_value = 5
 
-        message = {"concept-id": "C1234-PROV"}
+        message = ConceptMessage(
+            action="concept-delete",
+            concept_type="collection",
+            concept_id="C1234-PROV",
+            revision_id="1",
+        )
 
-        process_concept_delete(message, mock_repo)
+        handle_delete(message, mock_repo)
 
         mock_repo.delete_chunks.assert_called_once_with("C1234-PROV")
         mock_repo.delete_associations.assert_called_once_with("C1234-PROV")
@@ -692,7 +721,7 @@ class TestHandler:
                             "action": "concept-update",
                             "concept-type": "collection",
                             "concept-id": "C1234-PROV",
-                            "revision-id": "1",
+                            "revision-id": 1,
                         }
                     ),
                 }
@@ -730,7 +759,7 @@ class TestHandler:
                             "action": "concept-update",
                             "concept-type": "collection",
                             "concept-id": "C1234-PROV",
-                            "revision-id": "1",
+                            "revision-id": 1,
                         }
                     ),
                 }
@@ -762,7 +791,7 @@ class TestHandler:
                             "action": "concept-update",
                             "concept-type": "collection",
                             "concept-id": "C1234-PROV",
-                            "revision-id": "1",
+                            "revision-id": 1,
                         }
                     ),
                 },
@@ -773,7 +802,7 @@ class TestHandler:
                             "action": "concept-update",
                             "concept-type": "collection",
                             "concept-id": "C5678-PROV",
-                            "revision-id": "1",
+                            "revision-id": 1,
                         }
                     ),
                 },

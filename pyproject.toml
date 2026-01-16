@@ -41,6 +41,11 @@ disable = [
     "global-statement",  # Lambda singleton pattern for connection reuse
     "invalid-name",  # _client vars are intentionally lowercase (mutable singletons)
     "no-name-in-module",  # False positive for collections.abc.Generator
+    "line-too-long",  # Handled by ruff; pylint flags strings/JSON which is unhelpful
+    "protected-access",  # Tests legitimately access protected members
+    "import-outside-toplevel",  # Tests use local imports for patching
+    "too-many-locals",  # Handlers often need many locals
+    "too-many-statements",  # Handlers often need many statements
 ]
 
 [tool.pylint.design]

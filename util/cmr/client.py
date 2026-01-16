@@ -1,4 +1,4 @@
-"""CMR API client utilities."""
+"""CMR API client for fetching concept metadata."""
 
 import logging
 import os
@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 CMR_URL = os.environ.get("CMR_URL", "https://cmr.earthdata.nasa.gov")
 
-# Supported concept types and their CMR endpoints
 CONCEPT_ENDPOINTS = {
     "collection": "/search/collections.umm_json",
     "variable": "/search/variables.umm_json",
@@ -131,39 +130,9 @@ def search_cmr(
 
         yield items
 
-        # Check if we've fetched all results
         hits = data.get("hits", 0)
         if total_fetched >= hits:
             logger.info("Fetched all %d items", total_fetched)
             break
 
         page_num += 1
-
-
-def extract_concept_info(concept_type: str, item: dict[str, Any]) -> dict[str, Any]:
-    """
-    Extract concept ID and revision ID from a CMR item.
-
-    Args:
-        concept_type: Type of concept
-        item: CMR item from search results
-
-    Returns:
-        Dictionary with concept-type, concept-id, revision-id, action
-
-    Raises:
-        CMRError: If concept-id or revision-id is missing.
-    """
-    meta = item.get("meta", {})
-    concept_id = meta.get("concept-id")
-    revision_id = meta.get("revision-id")
-
-    if not concept_id or not revision_id:
-        raise CMRError(f"Missing concept-id or revision-id in item: {meta}")
-
-    return {
-        "concept-type": concept_type,
-        "concept-id": concept_id,
-        "revision-id": revision_id,
-        "action": "concept-update",
-    }

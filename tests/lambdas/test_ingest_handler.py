@@ -7,9 +7,8 @@ import pytest
 
 from lambdas.ingest.handler import (
     InvalidMessageError,
-    build_fifo_message,
     handler,
-    validate_message,
+    process_record,
 )
 
 
@@ -23,144 +22,116 @@ def set_env():
     # Cleanup handled by test isolation
 
 
-class TestBuildFifoMessage:
-    """Tests for build_fifo_message function."""
+class TestMessageValidation:
+    """Tests for message validation through process_record."""
 
-    def test_builds_correct_message_structure(self):
-        """Test that FIFO message has correct structure."""
+    def _make_sns_record(self, message: dict) -> dict:
+        """Helper to wrap a message in SNS record format."""
+        return {"Sns": {"MessageId": "test-msg", "Message": json.dumps(message)}}
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 5,
-            "action": "concept-update",
-        }
-
-        result = build_fifo_message(message)
-
-        assert result["QueueUrl"] == os.environ["EMBEDDING_QUEUE_URL"]
-        assert result["MessageGroupId"] == "collection:C1234-PROVIDER"
-        assert result["MessageDeduplicationId"] == "C1234-PROVIDER:5"
-        assert json.loads(result["MessageBody"]) == message
-
-    def test_message_group_id_format(self):
-        """Test MessageGroupId is concept_type:concept_id."""
-
-        message = {
-            "concept-type": "variable",
-            "concept-id": "V5678-PROVIDER",
-            "revision-id": 1,
-            "action": "concept-update",
-        }
-
-        result = build_fifo_message(message)
-
-        assert result["MessageGroupId"] == "variable:V5678-PROVIDER"
-
-    def test_deduplication_id_format(self):
-        """Test MessageDeduplicationId is concept_id:revision_id."""
-
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 42,
-            "action": "concept-update",
-        }
-
-        result = build_fifo_message(message)
-
-        assert result["MessageDeduplicationId"] == "C1234-PROVIDER:42"
-
-
-class TestValidateMessage:
-    """Tests for validate_message function."""
-
-    def test_valid_update_message_passes(self):
+    def test_valid_update_message_passes(self, mocker):
         """Test that valid update messages pass validation."""
+        mock_sqs = mocker.MagicMock()
+        mocker.patch("util.sqs._client", mock_sqs)
+        mock_sqs.send_message.return_value = {"MessageId": "sqs-123"}
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 1,
-            "action": "concept-update",
-        }
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "concept-id": "C1234-PROVIDER",
+                "revision-id": 1,
+                "action": "concept-update",
+            }
+        )
 
         # Should not raise
-        validate_message(message)
+        result = process_record(record)
+        assert result["status"] == "queued"
 
-    def test_valid_delete_message_passes(self):
+    def test_valid_delete_message_passes(self, mocker):
         """Test that valid delete messages pass validation."""
+        mock_sqs = mocker.MagicMock()
+        mocker.patch("util.sqs._client", mock_sqs)
+        mock_sqs.send_message.return_value = {"MessageId": "sqs-123"}
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 1,
-            "action": "concept-delete",
-        }
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "concept-id": "C1234-PROVIDER",
+                "revision-id": 1,
+                "action": "concept-delete",
+            }
+        )
 
         # Should not raise
-        validate_message(message)
+        result = process_record(record)
+        assert result["status"] == "queued"
 
     def test_missing_concept_type_raises(self):
         """Test that missing concept-type raises InvalidMessageError."""
+        record = self._make_sns_record(
+            {
+                "concept-id": "C1234-PROVIDER",
+                "revision-id": 1,
+                "action": "concept-update",
+            }
+        )
 
-        message = {
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 1,
-            "action": "concept-update",
-        }
-
-        with pytest.raises(InvalidMessageError, match="concept-type"):
-            validate_message(message)
+        with pytest.raises(InvalidMessageError, match="validation failed"):
+            process_record(record)
 
     def test_missing_concept_id_raises(self):
         """Test that missing concept-id raises InvalidMessageError."""
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "revision-id": 1,
+                "action": "concept-update",
+            }
+        )
 
-        message = {
-            "concept-type": "collection",
-            "revision-id": 1,
-            "action": "concept-update",
-        }
-
-        with pytest.raises(InvalidMessageError, match="concept-id"):
-            validate_message(message)
+        with pytest.raises(InvalidMessageError, match="validation failed"):
+            process_record(record)
 
     def test_missing_revision_id_raises(self):
         """Test that missing revision-id raises InvalidMessageError."""
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "concept-id": "C1234-PROVIDER",
+                "action": "concept-update",
+            }
+        )
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "action": "concept-update",
-        }
-
-        with pytest.raises(InvalidMessageError, match="revision-id"):
-            validate_message(message)
+        with pytest.raises(InvalidMessageError, match="validation failed"):
+            process_record(record)
 
     def test_missing_action_raises(self):
         """Test that missing action raises InvalidMessageError."""
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "concept-id": "C1234-PROVIDER",
+                "revision-id": 1,
+            }
+        )
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 1,
-        }
-
-        with pytest.raises(InvalidMessageError, match="action"):
-            validate_message(message)
+        with pytest.raises(InvalidMessageError, match="validation failed"):
+            process_record(record)
 
     def test_invalid_action_raises(self):
         """Test that invalid action raises InvalidMessageError."""
+        record = self._make_sns_record(
+            {
+                "concept-type": "collection",
+                "concept-id": "C1234-PROVIDER",
+                "revision-id": 1,
+                "action": "invalid-action",
+            }
+        )
 
-        message = {
-            "concept-type": "collection",
-            "concept-id": "C1234-PROVIDER",
-            "revision-id": 1,
-            "action": "invalid-action",
-        }
-
-        with pytest.raises(InvalidMessageError, match="Invalid action"):
-            validate_message(message)
+        with pytest.raises(InvalidMessageError, match="validation failed"):
+            process_record(record)
 
 
 class TestHandler:

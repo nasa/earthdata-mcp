@@ -77,7 +77,7 @@ def send_to_queue(queue_url: str, messages: list[dict[str, Any]]) -> int:
     return sent
 
 
-def handler(event: dict[str, Any], context) -> dict[str, Any]:
+def handler(event: dict[str, Any], _context) -> dict[str, Any]:
     """
     Lambda handler for bootstrap processing.
 

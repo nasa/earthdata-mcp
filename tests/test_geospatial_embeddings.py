@@ -87,8 +87,6 @@ class TestCacheOperations:
 
     def test_store_in_cache_success(self, mock_cache):
         """Test successful cache storage with polygon geometry."""
-        mock_cache.set.return_value = True
-
         data = {
             "geoLocation": "Silicon Valley",
             "geometry": (
@@ -98,24 +96,19 @@ class TestCacheOperations:
             "success": True,
         }
 
-        result = store_in_cache("Silicon Valley", data, ttl=1800)
+        store_in_cache("Silicon Valley", data, ttl=1800)
 
-        assert result is True
         mock_cache.set.assert_called_once()
-        # Check the arguments passed to set
         call_args = mock_cache.set.call_args
         assert call_args[0][1] == data
         assert call_args[0][2] == 1800
 
     def test_store_in_cache_default_ttl(self, mock_cache):
         """Test cache storage with default TTL."""
-        mock_cache.set.return_value = True
-
         data = {"geometry": "POLYGON((...))", "test": "data"}
 
-        result = store_in_cache("location", data)
+        store_in_cache("location", data)
 
-        assert result is True
         call_args = mock_cache.set.call_args
         assert call_args[0][2] == 900  # Default TTL
 

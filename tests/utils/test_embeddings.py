@@ -10,8 +10,8 @@ from util.embeddings import (
     RoutingEmbeddingGenerator,
     get_embedding_generator,
 )
-from util.kms import KMSTerm
 from util.kms import clear_cache as kms_clear_cache
+from util.models import KMSTerm
 
 
 class TestKMSEnrichedEmbeddingGenerator:
@@ -37,7 +37,7 @@ class TestKMSEnrichedEmbeddingGenerator:
         """Create a KMSEnrichedEmbeddingGenerator with mocked base."""
         return KMSEnrichedEmbeddingGenerator(mock_base_generator)
 
-    def test_delegates_model_id(self, generator, mock_base_generator):
+    def test_delegates_model_id(self, generator):
         """Should delegate model_id to base generator."""
         assert generator.model_id == "test-model"
 
