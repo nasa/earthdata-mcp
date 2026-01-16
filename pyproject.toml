@@ -40,6 +40,17 @@ disable = [
     "too-few-public-methods"
 ]
 
+[tool.pylint.design]
+max-args = 6
+
+[tool.pylint.main]
+extension-pkg-allow-list = ["psycopg"]
+
+[tool.pylint.typecheck]
+# psycopg3 has type inference issues with pylint - "Class 'value' has no 'cursor' member"
+# This is a known issue: https://github.com/pylint-dev/pylint/issues/7381
+signature-mutators = ["psycopg.connect"]
+
 [tool.pytest.ini_options]
 pythonpath = "."
 testpaths = ["tests"]

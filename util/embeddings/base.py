@@ -40,10 +40,8 @@ class EmbeddingGenerator(ABC):
         Raises:
             EmbeddingError: If embedding generation fails.
         """
-        pass
 
     @property
     @abstractmethod
     def model_id(self) -> str:
         """Return the model identifier."""
-        pass

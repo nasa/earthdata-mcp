@@ -14,8 +14,6 @@ from util.sqs import get_sqs_client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-EMBEDDING_QUEUE_URL = os.environ.get("EMBEDDING_QUEUE_URL")
-
 REQUIRED_FIELDS = {"concept-type", "concept-id", "action", "revision-id"}
 VALID_ACTIONS = {"concept-update", "concept-delete"}
 
@@ -59,7 +57,7 @@ def build_fifo_message(message: dict) -> dict:
     revision_id = message["revision-id"]
 
     return {
-        "QueueUrl": EMBEDDING_QUEUE_URL,
+        "QueueUrl": os.environ.get("EMBEDDING_QUEUE_URL"),
         "MessageBody": json.dumps(message),
         "MessageGroupId": f"{concept_type}:{concept_id}",
         "MessageDeduplicationId": f"{concept_id}:{revision_id}",

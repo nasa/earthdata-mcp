@@ -31,7 +31,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of chunks upserted.
         """
-        pass
 
     @abstractmethod
     def delete_chunks(self, concept_id: str) -> int:
@@ -44,7 +43,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of chunks deleted.
         """
-        pass
 
     @abstractmethod
     def upsert_associations(
@@ -65,7 +63,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of associations stored.
         """
-        pass
 
     @abstractmethod
     def delete_associations(self, concept_id: str) -> int:
@@ -78,7 +75,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of associations deleted.
         """
-        pass
 
     def close(self) -> None:
         """
@@ -107,7 +103,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             List of matching chunks with similarity scores.
         """
-        pass
 
     @abstractmethod
     def get_kms_embedding(self, kms_uuid: str) -> dict[str, Any] | None:
@@ -120,7 +115,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Dict with kms_uuid, scheme, term, definition, embedding, or None if not found.
         """
-        pass
 
     @abstractmethod
     def upsert_kms_embedding(
@@ -144,7 +138,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             True if inserted, False if updated.
         """
-        pass
 
     @abstractmethod
     def upsert_concept_kms_associations(
@@ -164,7 +157,6 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of associations created.
         """
-        pass
 
     @abstractmethod
     def delete_concept_kms_associations(self, concept_id: str) -> int:
@@ -177,4 +169,3 @@ class EmbeddingDatastore(ABC):
         Returns:
             Number of associations deleted.
         """
-        pass

@@ -28,8 +28,7 @@ def get_datastore() -> EmbeddingDatastore:
     """
     if DATASTORE_BACKEND == "postgres":
         return PostgresEmbeddingDatastore()
-    else:
-        raise ValueError(f"Unsupported datastore backend: {DATASTORE_BACKEND}")
+    raise ValueError(f"Unsupported datastore backend: {DATASTORE_BACKEND}")
 
 
 __all__ = [

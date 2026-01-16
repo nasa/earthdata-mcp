@@ -1,5 +1,7 @@
 """PostgreSQL datastore implementation using pgvector."""
 
+# pylint: disable=no-member  # psycopg3 has type inference issues with pylint
+
 import logging
 import os
 import uuid

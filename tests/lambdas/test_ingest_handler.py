@@ -5,6 +5,13 @@ import os
 
 import pytest
 
+from lambdas.ingest.handler import (
+    InvalidMessageError,
+    build_fifo_message,
+    handler,
+    validate_message,
+)
+
 
 @pytest.fixture(autouse=True)
 def set_env():
@@ -21,7 +28,6 @@ class TestBuildFifoMessage:
 
     def test_builds_correct_message_structure(self):
         """Test that FIFO message has correct structure."""
-        from lambdas.ingest.handler import build_fifo_message
 
         message = {
             "concept-type": "collection",
@@ -39,7 +45,6 @@ class TestBuildFifoMessage:
 
     def test_message_group_id_format(self):
         """Test MessageGroupId is concept_type:concept_id."""
-        from lambdas.ingest.handler import build_fifo_message
 
         message = {
             "concept-type": "variable",
@@ -54,7 +59,6 @@ class TestBuildFifoMessage:
 
     def test_deduplication_id_format(self):
         """Test MessageDeduplicationId is concept_id:revision_id."""
-        from lambdas.ingest.handler import build_fifo_message
 
         message = {
             "concept-type": "collection",
@@ -73,7 +77,6 @@ class TestValidateMessage:
 
     def test_valid_update_message_passes(self):
         """Test that valid update messages pass validation."""
-        from lambdas.ingest.handler import validate_message
 
         message = {
             "concept-type": "collection",
@@ -87,7 +90,6 @@ class TestValidateMessage:
 
     def test_valid_delete_message_passes(self):
         """Test that valid delete messages pass validation."""
-        from lambdas.ingest.handler import validate_message
 
         message = {
             "concept-type": "collection",
@@ -101,7 +103,6 @@ class TestValidateMessage:
 
     def test_missing_concept_type_raises(self):
         """Test that missing concept-type raises InvalidMessageError."""
-        from lambdas.ingest.handler import InvalidMessageError, validate_message
 
         message = {
             "concept-id": "C1234-PROVIDER",
@@ -114,7 +115,6 @@ class TestValidateMessage:
 
     def test_missing_concept_id_raises(self):
         """Test that missing concept-id raises InvalidMessageError."""
-        from lambdas.ingest.handler import InvalidMessageError, validate_message
 
         message = {
             "concept-type": "collection",
@@ -127,7 +127,6 @@ class TestValidateMessage:
 
     def test_missing_revision_id_raises(self):
         """Test that missing revision-id raises InvalidMessageError."""
-        from lambdas.ingest.handler import InvalidMessageError, validate_message
 
         message = {
             "concept-type": "collection",
@@ -140,7 +139,6 @@ class TestValidateMessage:
 
     def test_missing_action_raises(self):
         """Test that missing action raises InvalidMessageError."""
-        from lambdas.ingest.handler import InvalidMessageError, validate_message
 
         message = {
             "concept-type": "collection",
@@ -153,7 +151,6 @@ class TestValidateMessage:
 
     def test_invalid_action_raises(self):
         """Test that invalid action raises InvalidMessageError."""
-        from lambdas.ingest.handler import InvalidMessageError, validate_message
 
         message = {
             "concept-type": "collection",
@@ -174,8 +171,6 @@ class TestHandler:
         mock_sqs = mocker.MagicMock()
         mocker.patch("util.sqs._client", mock_sqs)
         mock_sqs.send_message.return_value = {"MessageId": "sqs-msg-123"}
-
-        from lambdas.ingest.handler import handler
 
         sns_message = {
             "concept-type": "collection",
@@ -209,8 +204,6 @@ class TestHandler:
         mock_sqs = mocker.MagicMock()
         mocker.patch("util.sqs._client", mock_sqs)
         mock_sqs.send_message.return_value = {"MessageId": "sqs-msg-123"}
-
-        from lambdas.ingest.handler import handler
 
         event = {
             "Records": [
@@ -254,8 +247,6 @@ class TestHandler:
         mock_sqs = mocker.MagicMock()
         mocker.patch("util.sqs._client", mock_sqs)
 
-        from lambdas.ingest.handler import handler
-
         event = {
             "Records": [
                 {
@@ -277,8 +268,6 @@ class TestHandler:
     def test_handler_handles_malformed_json(self, mocker):
         """Test handler handles malformed JSON gracefully."""
         mocker.patch("util.sqs._client", mocker.MagicMock())
-
-        from lambdas.ingest.handler import handler
 
         event = {
             "Records": [
@@ -302,8 +291,6 @@ class TestHandler:
         mock_sqs = mocker.MagicMock()
         mocker.patch("util.sqs._client", mock_sqs)
         mock_sqs.send_message.return_value = {"MessageId": "sqs-msg-123"}
-
-        from lambdas.ingest.handler import handler
 
         event = {
             "Records": [

@@ -17,5 +17,5 @@ MOCKS_DIR = Path(__file__).parent / "mocks"
 def load_mock(category: str, name: str) -> dict:
     """Load a mock JSON file from tests/mocks/{category}/{name}.json"""
     path = MOCKS_DIR / category / f"{name}.json"
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)

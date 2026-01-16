@@ -7,6 +7,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses
 
+from lambdas.embedding.handler import (
+    KMSTermRef,
+    extract_citation_data,
+    extract_collection_data,
+    extract_data,
+    extract_variable_data,
+    handler,
+    process_concept_delete,
+    process_concept_update,
+    process_kms_terms,
+)
+from util.cmr import CMRError, fetch_concept
+from util.datastores.postgres import PostgresEmbeddingDatastore
+from util.embeddings import BedrockEmbeddingGenerator
+from util.kms import KMSTerm
+
 
 @pytest.fixture(autouse=True)
 def set_env():
@@ -24,7 +40,6 @@ class TestExtractCollectionData:
 
     def test_extracts_title(self):
         """Test that title is extracted as a chunk."""
-        from lambdas.embedding.handler import extract_collection_data
 
         collection = {"EntryTitle": "Test Collection Title"}
 
@@ -36,7 +51,6 @@ class TestExtractCollectionData:
 
     def test_extracts_abstract(self):
         """Test that abstract is extracted as a chunk."""
-        from lambdas.embedding.handler import extract_collection_data
 
         collection = {"Abstract": "This is the abstract text."}
 
@@ -48,7 +62,6 @@ class TestExtractCollectionData:
 
     def test_extracts_multiple_attributes(self):
         """Test that multiple attributes are extracted."""
-        from lambdas.embedding.handler import extract_collection_data
 
         collection = {
             "EntryTitle": "Test Title",
@@ -64,7 +77,6 @@ class TestExtractCollectionData:
 
     def test_extracts_science_keywords_as_kms_terms(self):
         """Test that science keywords are extracted as KMS term references."""
-        from lambdas.embedding.handler import extract_collection_data
 
         collection = {
             "ScienceKeywords": [
@@ -86,7 +98,6 @@ class TestExtractCollectionData:
 
     def test_extracts_platforms_and_instruments_as_kms_terms(self):
         """Test that platforms and instruments are extracted as KMS term references."""
-        from lambdas.embedding.handler import extract_collection_data
 
         collection = {
             "Platforms": [
@@ -110,7 +121,6 @@ class TestExtractCollectionData:
 
     def test_empty_collection_returns_empty(self):
         """Test that empty collection returns empty result."""
-        from lambdas.embedding.handler import extract_collection_data
 
         result = extract_collection_data("collection", "C1234-PROV", {})
 
@@ -123,7 +133,6 @@ class TestExtractVariableData:
 
     def test_extracts_variable_attributes(self):
         """Test that variable attributes are extracted."""
-        from lambdas.embedding.handler import extract_variable_data
 
         variable = {
             "Name": "sea_surface_temp",
@@ -143,7 +152,6 @@ class TestExtractCitationData:
 
     def test_extracts_citation_attributes(self):
         """Test that citation attributes are extracted."""
-        from lambdas.embedding.handler import extract_citation_data
 
         citation = {
             "Name": "Test Paper Title",
@@ -173,7 +181,6 @@ class TestExtractData:
 
     def test_dispatches_to_collection_extractor(self):
         """Test that collection type routes correctly."""
-        from lambdas.embedding.handler import extract_data
 
         collection = {"EntryTitle": "Test"}
         result = extract_data("collection", "C1234-PROV", collection)
@@ -183,7 +190,6 @@ class TestExtractData:
 
     def test_dispatches_to_variable_extractor(self):
         """Test that variable type routes correctly."""
-        from lambdas.embedding.handler import extract_data
 
         variable = {"Name": "test_var"}
         result = extract_data("variable", "V1234-PROV", variable)
@@ -193,7 +199,6 @@ class TestExtractData:
 
     def test_unknown_type_returns_empty(self):
         """Test that unknown type returns empty result."""
-        from lambdas.embedding.handler import extract_data
 
         result = extract_data("unknown", "X1234-PROV", {})
 
@@ -207,7 +212,6 @@ class TestFetchConcept:
     @responses.activate
     def test_fetches_collection(self):
         """Test fetching a collection from CMR."""
-        from util.cmr import fetch_concept
 
         responses.add(
             responses.GET,
@@ -223,7 +227,6 @@ class TestFetchConcept:
     @responses.activate
     def test_raises_on_http_error(self):
         """Test that HTTP errors raise CMRError."""
-        from util.cmr import CMRError, fetch_concept
 
         responses.add(
             responses.GET,
@@ -240,7 +243,6 @@ class TestBedrockEmbeddingGenerator:
 
     def test_generates_embedding(self):
         """Test that embeddings are generated via Bedrock."""
-        from util.embeddings import BedrockEmbeddingGenerator
 
         mock_response = {
             "embedding": [0.1] * 1024,
@@ -258,7 +260,6 @@ class TestBedrockEmbeddingGenerator:
 
     def test_passes_concept_type_and_attribute_to_trace(self):
         """Test that concept_type and attribute are passed to trace."""
-        from util.embeddings import BedrockEmbeddingGenerator
 
         mock_response = {"embedding": [0.1] * 1024, "inputTextTokenCount": 10}
         mock_client = MagicMock()
@@ -284,7 +285,6 @@ class TestPostgresDatastore:
 
     def test_upsert_chunks(self):
         """Test upserting embedding chunks."""
-        from util.datastores.postgres import PostgresEmbeddingDatastore
 
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -305,7 +305,6 @@ class TestPostgresDatastore:
 
     def test_upsert_associations(self):
         """Test upserting concept associations."""
-        from util.datastores.postgres import PostgresEmbeddingDatastore
 
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -323,7 +322,6 @@ class TestPostgresDatastore:
 
     def test_empty_associations_returns_zero(self):
         """Test that empty associations returns 0."""
-        from util.datastores.postgres import PostgresEmbeddingDatastore
 
         with patch("util.datastores.postgres.get_db_connection"):
             datastore = PostgresEmbeddingDatastore()
@@ -337,7 +335,6 @@ class TestProcessConceptUpdate:
 
     def test_processes_collection_update(self):
         """Test processing a collection update message."""
-        from lambdas.embedding.handler import process_concept_update
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -369,7 +366,6 @@ class TestProcessConceptUpdate:
 
     def test_embedder_called_for_each_chunk(self):
         """Test that embedder.generate is called for each extracted chunk."""
-        from lambdas.embedding.handler import process_concept_update
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -406,7 +402,6 @@ class TestProcessConceptUpdate:
 
     def test_embedder_called_with_concept_type_and_attribute(self):
         """Test that embedder receives concept_type and attribute for routing."""
-        from lambdas.embedding.handler import process_concept_update
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -439,8 +434,6 @@ class TestProcessKMSTerms:
 
     def test_looks_up_kms_terms(self):
         """Test that KMS lookup is called for extracted terms."""
-        from lambdas.embedding.handler import KMSTermRef, process_kms_terms
-        from util.kms import KMSTerm
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -471,8 +464,6 @@ class TestProcessKMSTerms:
 
     def test_embeds_new_kms_terms(self):
         """Test that new KMS terms are embedded and stored."""
-        from lambdas.embedding.handler import KMSTermRef, process_kms_terms
-        from util.kms import KMSTerm
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None  # Not in database yet
@@ -507,8 +498,6 @@ class TestProcessKMSTerms:
 
     def test_skips_existing_kms_embeddings(self):
         """Test that existing KMS embeddings are not re-generated."""
-        from lambdas.embedding.handler import KMSTermRef, process_kms_terms
-        from util.kms import KMSTerm
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = {"embedding": [0.1] * 1024}  # Already exists
@@ -537,8 +526,6 @@ class TestProcessKMSTerms:
 
     def test_deduplicates_kms_terms(self):
         """Test that duplicate terms are only processed once."""
-        from lambdas.embedding.handler import KMSTermRef, process_kms_terms
-        from util.kms import KMSTerm
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -572,8 +559,6 @@ class TestFullEmbeddingFlow:
 
     def test_collection_with_kms_terms_full_flow(self):
         """Test full flow: collection metadata -> extraction -> embedding -> storage."""
-        from lambdas.embedding.handler import process_concept_update
-        from util.kms import KMSTerm
 
         mock_repo = MagicMock()
         mock_repo.get_kms_embedding.return_value = None
@@ -677,7 +662,6 @@ class TestProcessConceptDelete:
 
     def test_deletes_embeddings_and_associations(self):
         """Test that delete removes chunks and associations."""
-        from lambdas.embedding.handler import process_concept_delete
 
         mock_repo = MagicMock()
         mock_repo.delete_chunks.return_value = 3
@@ -698,7 +682,6 @@ class TestHandler:
 
     def test_handler_processes_sqs_event(self):
         """Test that handler processes SQS messages."""
-        from lambdas.embedding.handler import handler
 
         event = {
             "Records": [
@@ -733,11 +716,10 @@ class TestHandler:
                             with patch("lambdas.embedding.handler.flush_langfuse"):
                                 result = handler(event, None)
 
-        assert result["batchItemFailures"] == []
+        assert not result["batchItemFailures"]
 
     def test_handler_reports_failures(self):
         """Test that handler reports message failures."""
-        from lambdas.embedding.handler import handler
 
         event = {
             "Records": [
@@ -761,7 +743,7 @@ class TestHandler:
             with patch("lambdas.embedding.handler.get_embedding_generator") as mock_get_gen:
                 mock_get_gen.return_value = MagicMock()
                 with patch("lambdas.embedding.handler.fetch_concept") as mock_fetch:
-                    mock_fetch.side_effect = Exception("CMR error")
+                    mock_fetch.side_effect = CMRError("CMR error")
                     with patch("lambdas.embedding.handler.flush_langfuse"):
                         result = handler(event, None)
 
@@ -770,7 +752,6 @@ class TestHandler:
 
     def test_handler_continues_on_partial_failure(self):
         """Test that handler continues processing after a failure."""
-        from lambdas.embedding.handler import handler
 
         event = {
             "Records": [
@@ -801,10 +782,10 @@ class TestHandler:
 
         call_count = [0]
 
-        def fetch_side_effect(concept_id, revision_id):
+        def fetch_side_effect(concept_id, _revision_id):
             call_count[0] += 1
             if concept_id == "C1234-PROV":
-                raise Exception("CMR error")
+                raise CMRError("CMR error")
             return {"EntryTitle": "Test"}
 
         with patch("lambdas.embedding.handler.get_datastore") as mock_get_repo:

@@ -1,5 +1,7 @@
 """Database utilities for PostgreSQL with pgvector support."""
 
+# pylint: disable=no-member  # psycopg3 has type inference issues with pylint
+
 import json
 import logging
 import os
@@ -15,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 DATABASE_SECRET_ID = os.environ.get("DATABASE_SECRET_ID")
 
-_connection = None
+# Module-level connection pool (reused across Lambda invocations)
+_connection: Any = None
 
 
 @lru_cache(maxsize=1)
@@ -26,7 +29,7 @@ def get_database_credentials() -> dict[str, Any]:
     return json.loads(response["SecretString"])
 
 
-def get_db_connection() -> psycopg.Connection:
+def get_db_connection() -> Any:
     """
     Get the database connection (lazy initialization, reused across Lambda invocations).
 
