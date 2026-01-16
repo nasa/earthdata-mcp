@@ -10,5 +10,5 @@ class CollectionsEmbeddingsInput(BaseModel):
 
     query: str = Field(
         ...,
-        description="A string of text about earth sciences to search collections with using embeddings.",
+        description="Natural language query to search NASA Earth science datasets (e.g., 'atmospheric temperature data' or 'ocean color measurements').",
     )
