@@ -34,4 +34,3 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_secrets_manager" {
   policy_arn = aws_iam_policy.ecs_secrets_manager.arn
   role       = aws_iam_role.ecs_execution_role.name
 }
-

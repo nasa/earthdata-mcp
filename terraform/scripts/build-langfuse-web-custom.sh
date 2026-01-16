@@ -7,11 +7,11 @@
 # Purpose: Builds a custom Langfuse web container with a specific base path
 #          and pushes it to AWS ECR for deployment with ECS.
 #
-# Description: 
+# Description:
 # - Clones the official Langfuse repository
 # - Builds the web container with NEXT_PUBLIC_BASE_PATH build arg
 # - Tags and pushes to your AWS ECR repository
-# - Required when deploying Langfuse on a custom path (e.g., /search/nlp/langfuse)
+# - Required when deploying Langfuse on a custom path (e.g., /langfuse)
 #   instead of the root path
 #
 # Prerequisites:
@@ -23,7 +23,7 @@
 #
 # Examples:
 #   ./build-langfuse-web-custom.sh sit
-#   ./build-langfuse-web-custom.sh sit /search/nlp/langfuse us-east-1
+#   ./build-langfuse-web-custom.sh sit /langfuse us-east-1
 #   ./build-langfuse-web-custom.sh prod /custom/path us-west-2
 #
 #################################################################################
@@ -32,19 +32,19 @@
 if [ $# -eq 0 ]; then
     echo "Usage: $0 <ENVIRONMENT> [BASE_PATH] [AWS_REGION]"
     echo "Example: $0 sit"
-    echo "Example: $0 prod /search/nlp/langfuse us-east-1"
+    echo "Example: $0 prod /langfuse us-east-1"
     exit 1
 fi
 
 # Parameters
 ENVIRONMENT="$1"
-BASE_PATH="${2:-/search/nlp/langfuse}"
+BASE_PATH="${2:-/langfuse}"
 AWS_REGION="${3:-us-east-1}"
 
 # Build variables
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 ECR_URI="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-IMAGE_NAME="langfuse-web-${ENVIRONMENT}"
+IMAGE_NAME="${ENVIRONMENT}-langfuse-web"
 TEMP_TAG="langfuse-web-custom-build"
 
 echo "Building Langfuse web image with custom base path:"

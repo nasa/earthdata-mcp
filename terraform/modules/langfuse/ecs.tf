@@ -58,7 +58,8 @@ resource "aws_security_group" "ecs_tasks" {
 
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_execution_role" {
-  name = "${var.environment_name}-langfuse-ecs-execution-role"
+  name        = "${var.environment_name}-langfuse-ecs-execution-role"
+  description = "ECS task execution role for Langfuse containers"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -86,7 +87,8 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
 
 # IAM Role for ECS Tasks
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.environment_name}-langfuse-ecs-task-role"
+  name        = "${var.environment_name}-langfuse-ecs-task-role"
+  description = "ECS task role for Langfuse application permissions"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -120,7 +122,7 @@ resource "aws_ecs_task_definition" "langfuse_web" {
   container_definitions = jsonencode([
     {
       name  = "langfuse-web"
-      image = var.langfuse_web_image
+      image = "${aws_ecr_repository.langfuse_web.repository_url}:${var.image_tag}"
       portMappings = [
         {
           containerPort = 3000
@@ -146,11 +148,11 @@ resource "aws_ecs_task_definition" "langfuse_web" {
         },
         {
           name  = "NEXT_PUBLIC_BASE_PATH"
-          value = "/search/nlp/langfuse"
+          value = var.base_path
         },
         {
           name  = "NEXTAUTH_URL"
-          value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
+          value = "https://${var.load_balancer_dns}${var.base_path}/api/auth"
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -196,7 +198,7 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           valueFrom = aws_secretsmanager_secret.salt.arn
         }
       ]
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -205,11 +207,11 @@ resource "aws_ecs_task_definition" "langfuse_web" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      
+
       essential = true
     }
   ])
-  
+
 
   tags = {
     Name        = "${var.environment_name}-langfuse-web"
@@ -237,8 +239,8 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
       ]
       name  = "langfuse-worker"
       essential = true
-      
-      image = var.langfuse_worker_image
+
+      image = "${aws_ecr_repository.langfuse_worker.repository_url}:${var.image_tag}"
 
       environment = [
         {
@@ -249,7 +251,7 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           name  = "CLICKHOUSE_MIGRATION_URL"
           value = "clickhouse://${var.environment_name}-langfuse-clickhouse.${var.environment_name}-langfuse.local:9000"
         },
-        
+
         {
           name  = "CLICKHOUSE_USER"
           value = "langfuse"
@@ -260,11 +262,11 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         },
         {
           name  = "NEXT_PUBLIC_BASE_PATH"
-          value = "/search/nlp/langfuse"
+          value = var.base_path
         },
         {
           name  = "NEXTAUTH_URL"
-          value = "https://${var.load_balancer_dns}/search/nlp/langfuse/api/auth"
+          value = "https://${var.load_balancer_dns}${var.base_path}/api/auth"
         },
         {
           name  = "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
@@ -309,7 +311,7 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
         valueFrom = aws_secretsmanager_secret.salt.arn
         }
       ]
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -318,7 +320,7 @@ resource "aws_ecs_task_definition" "langfuse_worker" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      
+
       essential = true
     }
   ])

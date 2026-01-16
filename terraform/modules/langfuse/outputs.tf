@@ -57,3 +57,20 @@ output "s3_bucket_arn" {
   description = "S3 bucket ARN"
   value       = aws_s3_bucket.langfuse.arn
 }
+
+# ECR outputs
+output "langfuse_web_repository_url" {
+  description = "ECR repository URL for Langfuse web"
+  value       = aws_ecr_repository.langfuse_web.repository_url
+}
+
+output "langfuse_worker_repository_url" {
+  description = "ECR repository URL for Langfuse worker"
+  value       = aws_ecr_repository.langfuse_worker.repository_url
+}
+
+# Langfuse host URL
+output "langfuse_host" {
+  description = "Langfuse host URL"
+  value       = "https://${var.load_balancer_dns}${var.base_path}"
+}
