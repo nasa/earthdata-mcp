@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/python:3.13
+
+# System dependencies for psycopg (PostgreSQL client)
+RUN dnf install -y postgresql15-devel gcc python3-devel && \
+    dnf clean all
+
+COPY lambdas/embedding/requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY lambdas/embedding/handler.py ${LAMBDA_TASK_ROOT}/
+COPY util/ ${LAMBDA_TASK_ROOT}/util/
+
+CMD ["handler.handler"]

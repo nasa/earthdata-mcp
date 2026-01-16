@@ -1,0 +1,54 @@
+{
+  "EntryTitle": "MODIS/Terra Sea Surface Temperature Daily L3 Global 4km",
+  "Abstract": "Daily global sea surface temperature measurements from the MODIS instrument aboard the Terra satellite. This dataset provides high-resolution thermal observations of the ocean surface.",
+  "Purpose": "Climate monitoring and oceanographic research",
+  "ScienceKeywords": [
+    {
+      "Category": "EARTH SCIENCE",
+      "Topic": "OCEANS",
+      "Term": "OCEAN TEMPERATURE",
+      "VariableLevel1": "SEA SURFACE TEMPERATURE"
+    },
+    {
+      "Category": "EARTH SCIENCE",
+      "Topic": "OCEANS",
+      "Term": "OCEAN TEMPERATURE",
+      "VariableLevel1": "WATER TEMPERATURE"
+    }
+  ],
+  "Platforms": [
+    {
+      "ShortName": "TERRA",
+      "LongName": "Earth Observing System, TERRA",
+      "Instruments": [
+        {
+          "ShortName": "MODIS",
+          "LongName": "Moderate-Resolution Imaging Spectroradiometer"
+        }
+      ]
+    }
+  ],
+  "TemporalExtents": [
+    {
+      "RangeDateTimes": [
+        {
+          "BeginningDateTime": "2000-02-24T00:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "SpatialExtent": {
+    "HorizontalSpatialDomain": {
+      "Geometry": {
+        "BoundingRectangles": [
+          {
+            "WestBoundingCoordinate": -180.0,
+            "NorthBoundingCoordinate": 90.0,
+            "EastBoundingCoordinate": 180.0,
+            "SouthBoundingCoordinate": -90.0
+          }
+        ]
+      }
+    }
+  }
+}

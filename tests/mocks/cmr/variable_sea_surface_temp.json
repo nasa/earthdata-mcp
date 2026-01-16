@@ -1,0 +1,15 @@
+{
+  "Name": "sea_surface_temperature",
+  "LongName": "Sea Surface Temperature",
+  "Definition": "The temperature of sea water near the surface, measured in Kelvin",
+  "ScienceKeywords": [
+    {
+      "Category": "EARTH SCIENCE",
+      "Topic": "OCEANS",
+      "Term": "OCEAN TEMPERATURE",
+      "VariableLevel1": "SEA SURFACE TEMPERATURE"
+    }
+  ],
+  "Units": "K",
+  "DataType": "float32"
+}
