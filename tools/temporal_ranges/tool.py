@@ -40,7 +40,7 @@ def extract_time_range(
 
     Returns:
         A dict with StartDate and EndDate datetime objects
-        (dictionary representation of TemporalRangeOutput).
+        (dictionary representation of TimeRangeOutput).
     """
     try:
         client = instructor.from_provider(f"{provider}/{model_id}")
