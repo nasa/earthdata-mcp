@@ -8,18 +8,19 @@ Langfuse integration for observability.
 """
 
 import hashlib
+from typing import Any
 
-from typing import Any, Dict
 import redis
-from langfuse import observe, get_client
+from langfuse import get_client, observe
 
+from util.cache import get_cache_client
 from util.natural_language_geocoder import convert_text_to_geom
-from util.redis_client import CacheClient
+
 from .output_model import GeospatialOutput
 
 # Initialize clients
 langfuse = get_client()
-cache = CacheClient()
+cache = get_cache_client()
 
 
 def get_cache_key(location: str) -> str:
@@ -29,7 +30,7 @@ def get_cache_key(location: str) -> str:
 
 
 @observe(name="cache_lookup")
-def get_from_cache(location: str) -> Dict[str, Any]:
+def get_from_cache(location: str) -> dict[str, Any]:
     """Get geocoded result from Redis cache."""
     try:
         cache_key = get_cache_key(location)
@@ -42,7 +43,7 @@ def get_from_cache(location: str) -> Dict[str, Any]:
 
 
 @observe(name="cache_store")
-def store_in_cache(location: str, result: Dict[str, Any], ttl: int = 900) -> None:
+def store_in_cache(location: str, result: dict[str, Any], ttl: int = 900) -> None:
     """Store geocoded result in Redis cache."""
     try:
         cache_key = get_cache_key(location)

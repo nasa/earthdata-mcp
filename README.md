@@ -12,7 +12,7 @@ mcp/
 │   └── <toolname>/        # Each tool is fully self-contained
 │       ├── tool.py        # Python implementation of the tool
 │       ├── manifest.json  # MCP tool metadata (incl. entry function)
-│       ├── input_model.py # Pydantic model for tool inputs 
+│       ├── input_model.py # Pydantic model for tool inputs
 │       └── output.json    # JSON schema for tool outputs
 │
 ├── tests/                 # All Pytest test files live here
@@ -62,7 +62,7 @@ PYTHONPATH=.. uv run server.py http
 - `http` tells the server to run in HTTP mode
 - Server runs at `http://127.0.0.1:5001/mcp`
 
-### STDIO Mode 
+### STDIO Mode
 Follow the [fastmcp integrations](https://gofastmcp.com/integrations) to integrate with you AI of choice
 
 

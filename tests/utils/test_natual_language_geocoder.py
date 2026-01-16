@@ -1,15 +1,15 @@
 """Natural Language Geocoder Util Test"""
 
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import pytest
-
 from shapely.geometry import Polygon
+
 from util.natural_language_geocoder import (
+    convert_geometry_to_geojson,
     convert_text_to_geom,
     fix_geometry,
-    convert_geometry_to_geojson,
     lambda_safe_init,
 )
 
@@ -151,9 +151,7 @@ class TestNaturalLanguageGeocoder:
         assert result == linestring
 
     @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_feature_collection(
-        self, mock_geometry_to_geojson
-    ):
+    def test_convert_geometry_to_geojson_feature_collection(self, mock_geometry_to_geojson):
         """Test convert_geometry_to_geojson with a FeatureCollection."""
         mock_geojson = {
             "type": "FeatureCollection",
@@ -207,9 +205,7 @@ class TestNaturalLanguageGeocoder:
         assert result["type"] == "Polygon"
 
     @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_attribute_error(
-        self, mock_geometry_to_geojson
-    ):
+    def test_convert_geometry_to_geojson_attribute_error(self, mock_geometry_to_geojson):
         """Test convert_geometry_to_geojson with AttributeError."""
         mock_geometry_to_geojson.side_effect = AttributeError("Invalid geometry")
 
@@ -219,9 +215,7 @@ class TestNaturalLanguageGeocoder:
         assert "Failed to convert geometry to GeoJSON" in str(excinfo.value)
 
     @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_json_decode_error(
-        self, mock_geometry_to_geojson
-    ):
+    def test_convert_geometry_to_geojson_json_decode_error(self, mock_geometry_to_geojson):
         """Test convert_geometry_to_geojson with JSONDecodeError."""
         mock_geometry_to_geojson.return_value = "invalid json"
 

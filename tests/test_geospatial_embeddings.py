@@ -1,15 +1,16 @@
 """Test for geospatial embeddings"""
 
-from unittest.mock import patch, Mock
-import redis
-import pytest
+from unittest.mock import Mock, patch
 
+import pytest
+import redis
+
+from tools.geospatial_embeddings.output_model import GeospatialOutput
 from tools.geospatial_embeddings.tool import (
-    natural_language_geocode,
     get_from_cache,
+    natural_language_geocode,
     store_in_cache,
 )
-from tools.geospatial_embeddings.output_model import GeospatialOutput
 
 
 # Pytest fixtures
@@ -156,11 +157,8 @@ class TestNaturalLanguageGeocode:
         with (
             patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
             patch("tools.geospatial_embeddings.tool.store_in_cache") as mock_store,
-            patch(
-                "tools.geospatial_embeddings.tool.convert_text_to_geom"
-            ) as mock_convert,
+            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
         ):
-
             mock_get_cache.return_value = None  # Cache miss
             mock_convert.return_value = sample_geometry
             mock_store.return_value = True
@@ -183,11 +181,8 @@ class TestNaturalLanguageGeocode:
         """Test cache miss with failed geocoding."""
         with (
             patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch(
-                "tools.geospatial_embeddings.tool.convert_text_to_geom"
-            ) as mock_convert,
+            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
         ):
-
             mock_get_cache.return_value = None  # Cache miss
             mock_convert.return_value = None  # Geocoding failed
 
@@ -202,11 +197,8 @@ class TestNaturalLanguageGeocode:
         """Test ValueError exception during geocoding."""
         with (
             patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch(
-                "tools.geospatial_embeddings.tool.convert_text_to_geom"
-            ) as mock_convert,
+            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
         ):
-
             mock_get_cache.return_value = None  # Cache miss
             mock_convert.side_effect = ValueError("Invalid parameter format")
 
@@ -220,11 +212,8 @@ class TestNaturalLanguageGeocode:
         """Test TypeError exception during geocoding."""
         with (
             patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch(
-                "tools.geospatial_embeddings.tool.convert_text_to_geom"
-            ) as mock_convert,
+            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
         ):
-
             mock_get_cache.return_value = None  # Cache miss
             mock_convert.side_effect = TypeError("Expected string, got int")
 
@@ -238,11 +227,8 @@ class TestNaturalLanguageGeocode:
         """Test generic exception during geocoding."""
         with (
             patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch(
-                "tools.geospatial_embeddings.tool.convert_text_to_geom"
-            ) as mock_convert,
+            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
         ):
-
             mock_get_cache.return_value = None  # Cache miss
             mock_convert.side_effect = Exception("Geocoding API Error")
 

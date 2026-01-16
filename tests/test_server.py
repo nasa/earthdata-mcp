@@ -39,56 +39,63 @@ class TestMainFunction:
 
     def test_main_stdio_mode(self):
         """Test main function in stdio mode."""
-        with patch.object(sys, "argv", ["server.py", "stdio"]):
-            with patch("builtins.print") as mock_print:
-                # Mock mcp.run to avoid actually starting the server
-                with patch.object(server.mcp, "run") as mock_run:
-                    server.main()
+        with (
+            patch.object(sys, "argv", ["server.py", "stdio"]),
+            patch("builtins.print") as mock_print,
+            patch.object(server.mcp, "run") as mock_run,
+        ):
+            server.main()
 
-                    mock_print.assert_called_once_with("Running MCP in stdio mode...")
-                    mock_run.assert_called_once_with()
+            mock_print.assert_called_once_with("Running MCP in stdio mode...")
+            mock_run.assert_called_once_with()
 
     @patch("server.uvicorn.run")
     def test_main_http_mode(self, mock_uvicorn):
         """Test main function in HTTP mode."""
-        with patch.object(sys, "argv", ["server.py", "http"]):
-            with patch("builtins.print") as mock_print:
-                server.main()
+        with (
+            patch.object(sys, "argv", ["server.py", "http"]),
+            patch("builtins.print") as mock_print,
+        ):
+            server.main()
 
-                mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
-                # Check that uvicorn was called with correct args (don't check app object identity)
-                assert mock_uvicorn.call_count == 1
-                call_args = mock_uvicorn.call_args
-                assert call_args[1]["host"] == "127.0.0.1"
-                assert call_args[1]["port"] == 5001
+            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            # Check that uvicorn was called with correct args (don't check app object identity)
+            assert mock_uvicorn.call_count == 1
+            call_args = mock_uvicorn.call_args
+            assert call_args[1]["host"] == "127.0.0.1"
+            assert call_args[1]["port"] == 5001
 
     @patch("server.uvicorn.run")
     def test_main_sse_mode(self, mock_uvicorn):
         """Test main function in SSE mode."""
-        with patch.object(sys, "argv", ["server.py", "sse"]):
-            with patch("builtins.print") as mock_print:
-                server.main()
+        with (
+            patch.object(sys, "argv", ["server.py", "sse"]),
+            patch("builtins.print") as mock_print,
+        ):
+            server.main()
 
-                mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
-                # Check that uvicorn was called with correct args
-                assert mock_uvicorn.call_count == 1
-                call_args = mock_uvicorn.call_args
-                assert call_args[1]["host"] == "127.0.0.1"
-                assert call_args[1]["port"] == 5001
+            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            # Check that uvicorn was called with correct args
+            assert mock_uvicorn.call_count == 1
+            call_args = mock_uvicorn.call_args
+            assert call_args[1]["host"] == "127.0.0.1"
+            assert call_args[1]["port"] == 5001
 
     @patch("server.uvicorn.run")
     def test_main_default_mode(self, mock_uvicorn):
         """Test main function defaults to HTTP mode when no args provided."""
-        with patch.object(sys, "argv", ["server.py"]):
-            with patch("builtins.print") as mock_print:
-                server.main()
+        with (
+            patch.object(sys, "argv", ["server.py"]),
+            patch("builtins.print") as mock_print,
+        ):
+            server.main()
 
-                mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
-                # Check that uvicorn was called with correct args
-                assert mock_uvicorn.call_count == 1
-                call_args = mock_uvicorn.call_args
-                assert call_args[1]["host"] == "127.0.0.1"
-                assert call_args[1]["port"] == 5001
+            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            # Check that uvicorn was called with correct args
+            assert mock_uvicorn.call_count == 1
+            call_args = mock_uvicorn.call_args
+            assert call_args[1]["host"] == "127.0.0.1"
+            assert call_args[1]["port"] == 5001
 
     def test_main_invalid_mode(self):
         """Test main function raises error for invalid mode."""
@@ -127,7 +134,6 @@ class TestMainEntryPoint:
             patch("builtins.print") as mock_print,
             patch.object(sys, "argv", ["server.py", "http"]),
         ):
-
             # Load the module as __main__
             spec = importlib.util.spec_from_file_location("__main__", server_path)
             module = importlib.util.module_from_spec(spec)

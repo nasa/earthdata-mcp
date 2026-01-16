@@ -1,11 +1,13 @@
 """Simplified tool loader."""
 
-import json
 import importlib
 import inspect
-from pathlib import Path
-from typing import Any, Callable, Type
+import json
+from collections.abc import Callable
 from functools import wraps
+from pathlib import Path
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -55,7 +57,7 @@ class ToolManifest:
 def create_simple_tool(
     manifest_path: Path,
     func: Callable[..., Any],
-    output_schema: dict | Type[BaseModel] | None = None,
+    output_schema: dict | type[BaseModel] | None = None,
 ) -> Callable:
     """
     Factory function for creating simple tools without a class.
@@ -148,9 +150,7 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
                         and attr is not BaseModel
                     ):
                         output_schema = attr.model_json_schema()
-                        print(
-                            f"[INFO] Using Pydantic model {attr_name} for {tool_name}"
-                        )
+                        print(f"[INFO] Using Pydantic model {attr_name} for {tool_name}")
                         break
             except (ImportError, AttributeError):
                 # Fall back to JSON schema if output_model.py doesn't exist
@@ -161,9 +161,7 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
                             output_schema = json.load(f)
                             print(f"[INFO] Using JSON schema for {tool_name}")
                     except Exception as e:
-                        print(
-                            f"[WARNING] Could not load output schema for {tool_name}: {e}"
-                        )
+                        print(f"[WARNING] Could not load output schema for {tool_name}: {e}")
 
             # Register the tool using create_simple_tool
             register_func = create_simple_tool(tool_folder, tool_func, output_schema)

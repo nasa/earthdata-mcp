@@ -4,8 +4,7 @@ Output model for geospatial/location queries.
 Defines the structure of geocoding results from natural language location queries.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GeospatialOutput(BaseModel):
@@ -23,12 +22,12 @@ class GeospatialOutput(BaseModel):
     )
 
     # Success fields (populated when success=True)
-    geoLocation: Optional[str] = Field(
+    geoLocation: str | None = Field(
         None,
         description="The original location query string (only present on success)",
         examples=["San Francisco Bay Area"],
     )
-    geometry: Optional[str] = Field(
+    geometry: str | None = Field(
         None,
         description="WKT (Well-Known Text) representation of the geometry (only present on success)",
         examples=[
@@ -38,7 +37,7 @@ class GeospatialOutput(BaseModel):
     )
 
     # Error field (populated when success=False)
-    error: Optional[str] = Field(
+    error: str | None = Field(
         None,
         description="Error message describing why geocoding failed (only present on error)",
         examples=[
@@ -52,10 +51,8 @@ class GeospatialOutput(BaseModel):
         description="Whether the result was retrieved from cache",
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "success": True,
@@ -81,3 +78,4 @@ class GeospatialOutput(BaseModel):
                 },
             ]
         }
+    )

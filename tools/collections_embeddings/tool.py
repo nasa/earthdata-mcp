@@ -6,7 +6,9 @@ collections using natural language queries and semantic search capabilities.
 """
 
 from typing import Any
+
 from pydantic import BaseModel
+
 from .input_model import CollectionsEmbeddingsInput
 
 

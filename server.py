@@ -1,10 +1,12 @@
 """Server File - FastMCP server for CMR tools."""
 
-import sys
 import logging
+import sys
+
 import uvicorn
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 

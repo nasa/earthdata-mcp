@@ -1,20 +1,65 @@
-"""Redis client for caching operation"""
+"""Cache client abstractions for caching operations."""
 
-import os
 import json
 import logging
-from typing import Any, Dict, Optional
+import os
+from abc import ABC, abstractmethod
+from typing import Any
+
 import redis
 from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
 
-class CacheClient:
+class CacheClient(ABC):
     """
-    Redis-based cache client with error handling and configuration management.
+    Abstract base class for cache clients.
 
     Provides a consistent interface for caching operations across all tools.
+    Implementations can use different backends (Redis, Memcached, etc.).
+    """
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if the cache client is available and connected."""
+        pass
+
+    @abstractmethod
+    def get(self, key: str) -> dict[str, Any] | None:
+        """
+        Get a value from cache.
+
+        Args:
+            key: Cache key to retrieve
+
+        Returns:
+            Parsed data if found, None if not found or on error
+        """
+        pass
+
+    @abstractmethod
+    def set(self, key: str, value: dict[str, Any], ttl: int = 900) -> bool:
+        """
+        Set a value in cache.
+
+        Args:
+            key: Cache key
+            value: Data to cache
+            ttl: Time to live in seconds (default: 15 minutes)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        pass
+
+
+class RedisCache(CacheClient):
+    """
+    Redis-based cache client implementation.
+
+    Provides caching operations using Redis with error handling
+    and configuration management.
     """
 
     def __init__(self):
@@ -27,10 +72,12 @@ class CacheClient:
         try:
             self.client = redis.Redis(
                 host=os.getenv("REDIS_HOST", "localhost"),
-                port=6379,
+                port=int(os.getenv("REDIS_PORT", "6379")),
                 password=os.getenv("REDIS_PASSWORD"),
-                ssl=True,
+                ssl=os.getenv("REDIS_SSL", "true").lower() == "true",
                 ssl_cert_reqs=None,
+                socket_connect_timeout=2,
+                socket_timeout=2,
             )
 
             # Test connection
@@ -38,9 +85,7 @@ class CacheClient:
             logger.info("Successfully connected to Redis")
 
         except Exception as e:
-            logger.warning(
-                "Failed to connect to Redis: %s. Caching will be disabled.", e
-            )
+            logger.warning("Failed to connect to Redis: %s. Caching will be disabled.", e)
             self.client = None
 
     def is_available(self) -> bool:
@@ -54,7 +99,7 @@ class CacheClient:
         except RedisError:
             return False
 
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         """
         Get a value from Redis cache.
 
@@ -77,7 +122,7 @@ class CacheClient:
             logger.warning("Cache read error for key '%s': %s", key, e)
             return None
 
-    def set(self, key: str, value: Dict[str, Any], ttl: int = 900) -> bool:
+    def set(self, key: str, value: dict[str, Any], ttl: int = 900) -> bool:
         """
         Set a value in Redis cache.
 
@@ -100,3 +145,26 @@ class CacheClient:
         except (RedisError, TypeError, ValueError) as e:
             logger.warning("Cache write error for key '%s': %s", key, e)
             return False
+
+
+_cache_client = None
+
+
+def get_cache_client() -> CacheClient:
+    """
+    Get the cache client (lazy initialization, reused across Lambda invocations).
+
+    Returns:
+        A RedisCache instance.
+    """
+    global _cache_client
+    if _cache_client is None:
+        _cache_client = RedisCache()
+    return _cache_client
+
+
+__all__ = [
+    "CacheClient",
+    "RedisCache",
+    "get_cache_client",
+]

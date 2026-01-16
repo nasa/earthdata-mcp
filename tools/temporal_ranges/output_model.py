@@ -5,8 +5,8 @@ Defines the structure of temporal range query results.
 """
 
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TemporalRangeOutput(BaseModel):
@@ -17,35 +17,32 @@ class TemporalRangeOutput(BaseModel):
     Both dates are optional to support open-ended ranges (e.g., "after 2024" or "before June").
     """
 
-    StartDate: Optional[datetime] = Field(
+    StartDate: datetime | None = Field(
         None,
         alias="start_date",
         description="Start date as datetime object with timezone",
         examples=["2024-06-01T00:00:00+00:00"],
     )
-    EndDate: Optional[datetime] = Field(
+    EndDate: datetime | None = Field(
         None,
         alias="end_date",
         description="End date as datetime object with timezone",
         examples=["2024-08-31T23:59:59+00:00"],
     )
-    reasoning: Optional[str] = Field(
+    reasoning: str | None = Field(
         None,
         description="Explanation of how the temporal range was interpreted",
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        populate_by_name = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
             "examples": [
                 {
                     "StartDate": "2024-06-01T00:00:00+00:00",
                     "EndDate": "2024-08-31T23:59:59+00:00",
                     "reasoning": (
-                        "Query refers to summer 2024, "
-                        "interpreted as June 1st to August 31st"
+                        "Query refers to summer 2024, " "interpreted as June 1st to August 31st"
                     ),
                 },
                 {
@@ -62,4 +59,5 @@ class TemporalRangeOutput(BaseModel):
                     "reasoning": "No specific temporal range mentioned in query",
                 },
             ]
-        }
+        },
+    )

@@ -1,12 +1,14 @@
 """Unit tests for temporal ranges tool with mocked LLM responses."""
 
 import sys
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
 import pytest
-from tools.temporal_ranges.tool import get_temporal_ranges
+
 from tools.temporal_ranges.input_model import TemporalRangeInput
 from tools.temporal_ranges.output_model import TemporalRangeOutput
+from tools.temporal_ranges.tool import get_temporal_ranges
 
 
 class TestTemporalRangesMocked:
@@ -15,9 +17,7 @@ class TestTemporalRangesMocked:
     @pytest.fixture
     def mock_instructor_client(self):
         """Fixture to create a mocked instructor client."""
-        with patch(
-            "tools.temporal_ranges.tool.instructor.from_provider"
-        ) as mock_instructor:
+        with patch("tools.temporal_ranges.tool.instructor.from_provider") as mock_instructor:
             mock_client = MagicMock()
             mock_instructor.return_value = mock_client
             yield mock_instructor, mock_client
@@ -27,22 +27,18 @@ class TestTemporalRangesMocked:
         mock_instructor, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
-            StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+            StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC),
+            EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=UTC),
             reasoning="Year 2024",
         )
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Show me data for 2024")
-        )
+        result = get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
         # Assertions
-        assert result["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        assert result["EndDate"] == datetime(
-            2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
-        )
+        assert result["StartDate"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+        assert result["EndDate"] == datetime(2024, 12, 31, 23, 59, 59, tzinfo=UTC)
 
         # Verify the mock was called correctly
         mock_instructor.assert_called_once_with("bedrock/amazon.nova-pro-v1:0")
@@ -58,9 +54,7 @@ class TestTemporalRangesMocked:
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Show me all data")
-        )
+        result = get_temporal_ranges(TemporalRangeInput(timerange_string="Show me all data"))
 
         # Assertions
         assert result["StartDate"] is None
@@ -71,19 +65,17 @@ class TestTemporalRangesMocked:
         _, mock_client = mock_instructor_client
 
         mock_date_range = TemporalRangeOutput(
-            StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
+            StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=UTC),
             EndDate=None,
             reasoning="From June 2024 onwards",
         )
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="From June 2024 onwards")
-        )
+        result = get_temporal_ranges(TemporalRangeInput(timerange_string="From June 2024 onwards"))
 
         # Assertions
-        assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+        assert result["StartDate"] == datetime(2024, 6, 1, 0, 0, 0, tzinfo=UTC)
         assert result["EndDate"] is None
 
     def test_date_range_only_end(self, mock_instructor_client):
@@ -92,33 +84,25 @@ class TestTemporalRangesMocked:
 
         mock_date_range = TemporalRangeOutput(
             StartDate=None,
-            EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
+            EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=UTC),
             reasoning="Until end of June 2024",
         )
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Until end of June 2024")
-        )
+        result = get_temporal_ranges(TemporalRangeInput(timerange_string="Until end of June 2024"))
 
         # Assertions
         assert result["StartDate"] is None
-        assert result["EndDate"] == datetime(
-            2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc
-        )
+        assert result["EndDate"] == datetime(2024, 6, 30, 23, 59, 59, tzinfo=UTC)
 
     def test_client_initialization_error(self):
         """Test error handling when instructor client fails to initialize."""
-        with patch(
-            "tools.temporal_ranges.tool.instructor.from_provider"
-        ) as mock_instructor:
+        with patch("tools.temporal_ranges.tool.instructor.from_provider") as mock_instructor:
             mock_instructor.side_effect = Exception("Failed to initialize client")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
-                )
+                get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
             assert "Failed to initialize instructor client" in str(exc_info.value)
             assert "bedrock" in str(exc_info.value)
@@ -133,14 +117,10 @@ class TestTemporalRangesMocked:
             mock_prompt_path = MagicMock()
             mock_prompt_path.exists.return_value = False
             mock_path.return_value.parent = MagicMock()
-            mock_path.return_value.parent.__truediv__ = (
-                lambda self, other: mock_prompt_path
-            )
+            mock_path.return_value.parent.__truediv__ = lambda self, other: mock_prompt_path
 
             with pytest.raises(FileNotFoundError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
-                )
+                get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
             assert "Required prompt file not found" in str(exc_info.value)
 
@@ -150,9 +130,7 @@ class TestTemporalRangesMocked:
         mock_client.create.side_effect = Exception("LLM API error")
 
         with pytest.raises(RuntimeError) as exc_info:
-            get_temporal_ranges(
-                TemporalRangeInput(timerange_string="Show me data for 2024")
-            )
+            get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
         assert "Failed to extract temporal ranges" in str(exc_info.value)
         assert "Show me data for 2024" in str(exc_info.value)
@@ -173,9 +151,7 @@ class TestTemporalRangesMocked:
             mock_instructor.side_effect = Exception("Client init failed")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
-                )
+                get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
             assert "Failed to initialize instructor client" in str(exc_info.value)
 
@@ -187,9 +163,7 @@ class TestTemporalRangesMocked:
             mock_client.create.side_effect = Exception("LLM failed")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
-                )
+                get_temporal_ranges(TemporalRangeInput(timerange_string="Show me data for 2024"))
 
             assert "Failed to extract temporal ranges" in str(exc_info.value)
 
@@ -203,17 +177,13 @@ class TestTemporalRangesMocked:
         original_module = sys.modules.get("tools.temporal_ranges.tool")
 
         # Remove the module and its dependencies from sys.modules
-        modules_to_remove = [
-            k for k in sys.modules if "tools.temporal_ranges.tool" in k
-        ]
+        modules_to_remove = [k for k in sys.modules if "tools.temporal_ranges.tool" in k]
         for module in modules_to_remove:
             sys.modules.pop(module, None)
 
         try:
             # Mock get_client to raise an exception at import time
-            with patch(
-                "langfuse.get_client", side_effect=Exception("Langfuse init failed")
-            ):
+            with patch("langfuse.get_client", side_effect=Exception("Langfuse init failed")):
                 # Reimport the module - should catch the exception and set LANGFUSE=None
                 import tools.temporal_ranges.tool as reimported_module  # pylint: disable=import-outside-toplevel
 
