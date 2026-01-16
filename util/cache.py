@@ -23,7 +23,6 @@ class CacheClient(ABC):
     @abstractmethod
     def is_available(self) -> bool:
         """Check if the cache client is available and connected."""
-        pass
 
     @abstractmethod
     def get(self, key: str) -> dict[str, Any] | None:
@@ -36,7 +35,6 @@ class CacheClient(ABC):
         Returns:
             Parsed data if found, None if not found or on error
         """
-        pass
 
     @abstractmethod
     def set(self, key: str, value: dict[str, Any], ttl: int = 900) -> bool:
@@ -51,7 +49,6 @@ class CacheClient(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
 
 
 class RedisCache(CacheClient):

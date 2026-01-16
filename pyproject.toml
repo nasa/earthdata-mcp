@@ -37,7 +37,10 @@ dependencies = [
 disable = [
     "redefined-outer-name",
     "broad-exception-caught",
-    "too-few-public-methods"
+    "too-few-public-methods",
+    "global-statement",  # Lambda singleton pattern for connection reuse
+    "invalid-name",  # _client vars are intentionally lowercase (mutable singletons)
+    "no-name-in-module",  # False positive for collections.abc.Generator
 ]
 
 [tool.pylint.design]
