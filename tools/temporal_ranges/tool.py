@@ -51,6 +51,8 @@ def extract_time_range(
                 metadata={
                     "error_type": "client_init_error",
                     "message": str(e),
+                    "provider": provider,
+                    "model_id": model_id,
                     "success": False,
                 },
             )
@@ -82,7 +84,14 @@ def extract_time_range(
         if LANGFUSE:
             LANGFUSE.update_current_trace(
                 tags=["error", "llm_error"],
-                metadata={"error_type": "llm_error", "message": e, "success": False},
+                metadata={
+                    "error_type": "llm_error",
+                    "message": str(e),
+                    "query": query.query,
+                    "provider": provider,
+                    "model_id": model_id,
+                    "success": False,
+                },
             )
         raise RuntimeError(
             f"Failed to extract temporal ranges from query '{query.query}': {e}"
