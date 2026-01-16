@@ -10,8 +10,8 @@ from pathlib import Path
 import logging
 import instructor
 from langfuse import observe, get_client
-from .input_model import TemporalRangeInput
-from .output_model import TemporalRangeOutput
+from .input_model import TimeRangeInput
+from .output_model import TimeRangeOutput
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +23,24 @@ except Exception as e:
     LANGFUSE = None
 
 
-@observe(name="get_temporal_ranges")
-def get_temporal_ranges(
-    query: TemporalRangeInput,
+@observe(name="extract_time_range")
+def extract_time_range(
+    query: TimeRangeInput,
     provider: str = "bedrock",
     model_id: str = "amazon.nova-pro-v1:0",
 ) -> Dict:
-    """Extract temporal date ranges from a natural language query.
+    """Extract datetime ranges from a natural language query.
 
-     Args:
-        query: A natural language string describing the desired time period.
+    Resolves natural language queries into ISO 8601 start/end datetimes.
+    Handles explicit ranges, relative dates ('since 2020', 'past 5 years'),
+    and seasonal/event terms ('Summer 2023', 'Hurricane Season').
+
+    Args:
+        query: Input containing the full user query with temporal references.
 
     Returns:
         A dict with StartDate and EndDate datetime objects
-        (dictionary representation of TemporalRangeOutput).
+        (dictionary representation of TimeRangeOutput).
     """
     try:
         client = instructor.from_provider(f"{provider}/{model_id}")
@@ -47,6 +51,8 @@ def get_temporal_ranges(
                 metadata={
                     "error_type": "client_init_error",
                     "message": str(e),
+                    "provider": provider,
+                    "model_id": model_id,
                     "success": False,
                 },
             )
@@ -70,18 +76,25 @@ def get_temporal_ranges(
             modelId=model_id,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query.timerange_string},
+                {"role": "user", "content": query.query},
             ],
-            response_model=TemporalRangeOutput,
+            response_model=TimeRangeOutput,
         )
     except Exception as e:
         if LANGFUSE:
             LANGFUSE.update_current_trace(
                 tags=["error", "llm_error"],
-                metadata={"error_type": "llm_error", "message": e, "success": False},
+                metadata={
+                    "error_type": "llm_error",
+                    "message": str(e),
+                    "query": query.query,
+                    "provider": provider,
+                    "model_id": model_id,
+                    "success": False,
+                },
             )
         raise RuntimeError(
-            f"Failed to extract temporal ranges from query '{query.timerange_string}': {e}"
+            f"Failed to extract temporal ranges from query '{query.query}': {e}"
         ) from e
 
     return output.model_dump()

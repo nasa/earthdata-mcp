@@ -4,7 +4,7 @@ Output model for geospatial/location queries.
 Defines the structure of geocoding results from natural language location queries.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 
@@ -52,10 +52,8 @@ class GeospatialOutput(BaseModel):
         description="Whether the result was retrieved from cache",
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "success": True,
@@ -81,3 +79,4 @@ class GeospatialOutput(BaseModel):
                 },
             ]
         }
+    )

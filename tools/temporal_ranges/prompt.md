@@ -27,12 +27,15 @@ The response must look exactly like this:
 - Leap years: If `end_date` is February, use `29` days for leap years.  
 
 ## Relative Dates
-- `since 2002` → `start_date = 2002-01-01T00:00:00Z`, `end_date = null`  
-- `before 2022` → `end_date = 2022-12-31T23:59:59Z`, `start_date = null`  
+- `since YYYY`: Start YYYY-01-01 (Inclusive).
+- `after YYYY`: Start (YYYY+1)-01-01 (Exclusive).
+- `before YYYY`: End (YYYY-1)-12-31 (Exclusive).
+- `between YYYY and YYYY`: Inclusive of both years.
+- Explicit "inclusive" overrides exclusivity.
 
 
 ## Seasonal References
-If a query mentions a **season**, expand it into exact dates.  
+- If a query mentions a **season**, expand it into exact dates.  
 Default hemisphere = **Northern Hemisphere**, unless a **Southern Hemisphere location** is clearly implied.  
 
 ### Northern Hemisphere
