@@ -4,9 +4,9 @@ import sys
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 import pytest
-from tools.temporal_ranges.tool import get_temporal_ranges
-from tools.temporal_ranges.input_model import TemporalRangeInput
-from tools.temporal_ranges.output_model import TemporalRangeOutput
+from tools.temporal_ranges.tool import extract_time_range
+from tools.temporal_ranges.input_model import TimeRangeInput
+from tools.temporal_ranges.output_model import TimeRangeOutput
 
 
 class TestTemporalRangesMocked:
@@ -26,7 +26,7 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning both dates."""
         mock_instructor, mock_client = mock_instructor_client
 
-        mock_date_range = TemporalRangeOutput(
+        mock_date_range = TimeRangeOutput(
             StartDate=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
             EndDate=datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Year 2024",
@@ -34,8 +34,8 @@ class TestTemporalRangesMocked:
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Show me data for 2024")
+        result = extract_time_range(
+            TimeRangeInput(query="Show me data for 2024")
         )
 
         # Assertions
@@ -52,25 +52,27 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning no dates."""
         _, mock_client = mock_instructor_client
 
-        mock_date_range = TemporalRangeOutput(
+        mock_date_range = TimeRangeOutput(
             StartDate=None, EndDate=None, reasoning="No specific dates mentioned"
         )
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Show me all data")
+        result = extract_time_range(
+            TimeRangeInput(query="Show me all data")
         )
 
         # Assertions
         assert result["StartDate"] is None
         assert result["EndDate"] is None
+        # Verify the reasoning was returned from the LLM
+        assert result["reasoning"] == "No specific dates mentioned"
 
     def test_date_range_only_start(self, mock_instructor_client):
         """Test with mocked LLM response returning only start date."""
         _, mock_client = mock_instructor_client
 
-        mock_date_range = TemporalRangeOutput(
+        mock_date_range = TimeRangeOutput(
             StartDate=datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc),
             EndDate=None,
             reasoning="From June 2024 onwards",
@@ -78,8 +80,8 @@ class TestTemporalRangesMocked:
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="From June 2024 onwards")
+        result = extract_time_range(
+            TimeRangeInput(query="From June 2024 onwards")
         )
 
         # Assertions
@@ -90,7 +92,7 @@ class TestTemporalRangesMocked:
         """Test with mocked LLM response returning only end date."""
         _, mock_client = mock_instructor_client
 
-        mock_date_range = TemporalRangeOutput(
+        mock_date_range = TimeRangeOutput(
             StartDate=None,
             EndDate=datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc),
             reasoning="Until end of June 2024",
@@ -98,8 +100,8 @@ class TestTemporalRangesMocked:
         mock_client.create.return_value = mock_date_range
 
         # Call function
-        result = get_temporal_ranges(
-            TemporalRangeInput(timerange_string="Until end of June 2024")
+        result = extract_time_range(
+            TimeRangeInput(query="Until end of June 2024")
         )
 
         # Assertions
@@ -116,8 +118,8 @@ class TestTemporalRangesMocked:
             mock_instructor.side_effect = Exception("Failed to initialize client")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                extract_time_range(
+                    TimeRangeInput(query="Show me data for 2024")
                 )
 
             assert "Failed to initialize instructor client" in str(exc_info.value)
@@ -138,8 +140,8 @@ class TestTemporalRangesMocked:
             )
 
             with pytest.raises(FileNotFoundError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                extract_time_range(
+                    TimeRangeInput(query="Show me data for 2024")
                 )
 
             assert "Required prompt file not found" in str(exc_info.value)
@@ -150,8 +152,8 @@ class TestTemporalRangesMocked:
         mock_client.create.side_effect = Exception("LLM API error")
 
         with pytest.raises(RuntimeError) as exc_info:
-            get_temporal_ranges(
-                TemporalRangeInput(timerange_string="Show me data for 2024")
+            extract_time_range(
+                TimeRangeInput(query="Show me data for 2024")
             )
 
         assert "Failed to extract temporal ranges" in str(exc_info.value)
@@ -173,8 +175,8 @@ class TestTemporalRangesMocked:
             mock_instructor.side_effect = Exception("Client init failed")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                extract_time_range(
+                    TimeRangeInput(query="Show me data for 2024")
                 )
 
             assert "Failed to initialize instructor client" in str(exc_info.value)
@@ -187,8 +189,8 @@ class TestTemporalRangesMocked:
             mock_client.create.side_effect = Exception("LLM failed")
 
             with pytest.raises(RuntimeError) as exc_info:
-                get_temporal_ranges(
-                    TemporalRangeInput(timerange_string="Show me data for 2024")
+                extract_time_range(
+                    TimeRangeInput(query="Show me data for 2024")
                 )
 
             assert "Failed to extract temporal ranges" in str(exc_info.value)

@@ -6,12 +6,12 @@ Defines the structure of temporal range query results.
 
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
-class TemporalRangeOutput(BaseModel):
+class TimeRangeOutput(BaseModel):
     """
-    Output model for temporal range queries.
+    Output model for time range queries.
 
     Contains the extracted start and end dates from natural language queries.
     Both dates are optional to support open-ended ranges (e.g., "after 2024" or "before June").
@@ -34,11 +34,9 @@ class TemporalRangeOutput(BaseModel):
         description="Explanation of how the temporal range was interpreted",
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        populate_by_name = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
             "examples": [
                 {
                     "StartDate": "2024-06-01T00:00:00+00:00",
@@ -63,3 +61,4 @@ class TemporalRangeOutput(BaseModel):
                 },
             ]
         }
+    )

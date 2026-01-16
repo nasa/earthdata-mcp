@@ -1,9 +1,9 @@
 {
-  "name": "get_temporal_ranges",
+  "name": "extract_time_range",
   "module": "tool",
-  "description": "This extracts temporal start and end dates from textural details provided in the user query",
+  "description": "Resolves natural language queries into ISO 8601 start/end datetimes. Handles explicit ranges, relative dates ('since 2020', 'past 5 years'), and seasonal/event terms ('Summer 2023', 'Hurricane Season').",
   "version": "1.0.0",
   "tags": ["temporal", "date", "time", "range", "event"],
-  "entry_function": "get_temporal_ranges",
+  "entry_function": "extract_time_range",
   "enabled": true
 }
