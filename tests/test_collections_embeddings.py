@@ -1,7 +1,7 @@
 """Test for collection embedding tool"""
 
-from tools.collections_embeddings.tool import search_cmr_collections_embeddings
 from tools.collections_embeddings.input_model import CollectionsEmbeddingsInput
+from tools.collections_embeddings.tool import search_cmr_collections_embeddings
 
 
 def test_returns_not_implemented():

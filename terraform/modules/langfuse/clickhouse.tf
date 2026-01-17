@@ -10,7 +10,7 @@ resource "random_password" "clickhouse_password" {
 # Security Group for ClickHouse
 resource "aws_security_group" "clickhouse" {
   name        = "${var.environment_name}-langfuse-clickhouse"
-  description = "Security group for ClickHouse"
+  description = "Security group for Langfuse ClickHouse"
   vpc_id      = var.vpc_id
 
   # HTTP interface
@@ -77,7 +77,7 @@ resource "aws_ecs_task_definition" "clickhouse" {
     {
       name  = "clickhouse"
       image = var.clickhouse_image
-      
+
       cpu       = 1024
       memory    = 8192
       essential = true
@@ -104,7 +104,7 @@ resource "aws_ecs_task_definition" "clickhouse" {
           protocol      = "tcp"
         }
       ]
-      
+
       environment = [
         {
           name  = "CLICKHOUSE_DB"
@@ -135,9 +135,9 @@ resource "aws_ecs_task_definition" "clickhouse" {
         retries     = 10
         startPeriod = 1
       }
-      
-      
-      
+
+
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -146,7 +146,7 @@ resource "aws_ecs_task_definition" "clickhouse" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      
+
       essential = true
     }
   ])

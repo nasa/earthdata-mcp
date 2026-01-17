@@ -6,7 +6,7 @@
 # Purpose: Pulls the official Langfuse worker image and pushes it to AWS ECR
 #          for deployment with ECS.
 #
-# Description: 
+# Description:
 # - Pulls the prebuilt langfuse/langfuse-worker image
 # - Tags and pushes to your AWS ECR repository
 # - No custom build needed for worker (unlike web container)
@@ -41,11 +41,11 @@ AWS_REGION=${3:-"us-east-1"}   # Default region
 # Get AWS Account ID
 ACCOUNT=$(aws sts get-caller-identity --query "[Account][0]" --output text)
 ECR_URI=$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
-IMAGE_NAME="langfuse-worker-$ENVIRONMENT"
+IMAGE_NAME="$ENVIRONMENT-langfuse-worker"
 
 echo "Building Langfuse worker image:"
 echo "  Environment: $ENVIRONMENT"
-echo "  Version: $WORKER_VERSION" 
+echo "  Version: $WORKER_VERSION"
 echo "  Region: $AWS_REGION"
 
 # Pull the official prebuilt worker image

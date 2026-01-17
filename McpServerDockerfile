@@ -1,0 +1,25 @@
+# MCP Server Dockerfile - Fargate deployment
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install uv for faster dependency installation
+RUN pip install uv
+
+# Copy dependency files first for caching
+COPY pyproject.toml uv.lock ./
+
+# Install production dependencies only
+RUN uv sync --no-dev --frozen
+
+# Copy application code
+COPY server.py loader.py ./
+COPY middleware/ middleware/
+COPY tools/ tools/
+COPY util/ util/
+
+# Expose port for health checks and traffic
+EXPOSE 8080
+
+# Run the MCP server
+CMD ["uv", "run", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]

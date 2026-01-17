@@ -35,8 +35,9 @@ resource "random_password" "postgres_password" {
 
 # DB subnet group
 resource "aws_db_subnet_group" "postgres" {
-  name       = "cmr-${var.environment_name}-langfuse-postgres-subnet-group"
-  subnet_ids = var.subnet_ids
+  name        = "cmr-${var.environment_name}-langfuse-postgres-subnet-group"
+  description = "Subnet group for Langfuse PostgreSQL"
+  subnet_ids  = var.subnet_ids
 
   tags = {
     Name        = "${var.environment_name}-langfuse-postgres-subnet-group"
@@ -73,7 +74,7 @@ resource "aws_rds_cluster_instance" "postgres" {
   instance_class     = "db.serverless"
   engine             = aws_rds_cluster.postgres.engine
   engine_version     = aws_rds_cluster.postgres.engine_version
-  
+
   # Enable Performance Insights
   performance_insights_enabled          = true
   performance_insights_retention_period = 7

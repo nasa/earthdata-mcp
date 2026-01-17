@@ -1,7 +1,8 @@
 # Database URL Secret
 resource "aws_secretsmanager_secret" "database_url" {
-  name = "${var.environment_name}-langfuse-database-url"
-  
+  name        = "${var.environment_name}-langfuse-database-url"
+  description = "PostgreSQL connection URL for Langfuse"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-database-url"
     Environment = var.environment_name
@@ -15,8 +16,9 @@ resource "aws_secretsmanager_secret_version" "database_url" {
 
 # Redis Connection String Secret
 resource "aws_secretsmanager_secret" "redis_connection" {
-  name = "${var.environment_name}-langfuse-redis-connection"
-  
+  name        = "${var.environment_name}-langfuse-redis-connection"
+  description = "Redis connection string for Langfuse"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-redis-connection"
     Environment = var.environment_name
@@ -30,8 +32,9 @@ resource "aws_secretsmanager_secret_version" "redis_connection" {
 
 # ClickHouse Password Secret
 resource "aws_secretsmanager_secret" "clickhouse_password" {
-  name = "${var.environment_name}-langfuse-clickhouse-password"
-  
+  name        = "${var.environment_name}-langfuse-clickhouse-password"
+  description = "ClickHouse password for Langfuse"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-clickhouse-password"
     Environment = var.environment_name
@@ -45,8 +48,9 @@ resource "aws_secretsmanager_secret_version" "clickhouse_password" {
 
 # NextAuth Secret
 resource "aws_secretsmanager_secret" "nextauth_secret" {
-  name = "${var.environment_name}-langfuse-nextauth-secret"
-  
+  name        = "${var.environment_name}-langfuse-nextauth-secret"
+  description = "NextAuth secret for Langfuse authentication"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-nextauth-secret"
     Environment = var.environment_name
@@ -60,8 +64,9 @@ resource "aws_secretsmanager_secret_version" "nextauth_secret" {
 
 # Encryption Key Secret
 resource "aws_secretsmanager_secret" "encryption_key" {
-  name = "${var.environment_name}-langfuse-encryption-key"
-  
+  name        = "${var.environment_name}-langfuse-encryption-key"
+  description = "Encryption key for Langfuse data at rest"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-encryption-key"
     Environment = var.environment_name
@@ -75,8 +80,9 @@ resource "aws_secretsmanager_secret_version" "encryption_key" {
 
 # Salt Secret
 resource "aws_secretsmanager_secret" "salt" {
-  name = "${var.environment_name}-langfuse-salt"
-  
+  name        = "${var.environment_name}-langfuse-salt"
+  description = "Salt for Langfuse password hashing"
+
   tags = {
     Name        = "${var.environment_name}-langfuse-salt"
     Environment = var.environment_name

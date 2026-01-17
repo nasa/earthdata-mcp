@@ -4,8 +4,7 @@ Output model for collections embeddings queries.
 Defines the structure of search results from CMR collections.
 """
 
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DatasetSummary(BaseModel):
@@ -37,7 +36,7 @@ class CollectionsEmbeddingsOutput(BaseModel):
     Contains a list of dataset summaries matching the search query.
     """
 
-    results: List[DatasetSummary] = Field(
+    results: list[DatasetSummary] = Field(
         default_factory=list,
         description="List of dataset summaries matching the search query",
     )
@@ -46,10 +45,8 @@ class CollectionsEmbeddingsOutput(BaseModel):
         description="Total number of results returned",
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "results": [
@@ -68,3 +65,4 @@ class CollectionsEmbeddingsOutput(BaseModel):
                 }
             ]
         }
+    )

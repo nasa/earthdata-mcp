@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code 
+    - name: Checkout Code
       uses: actions/checkout@v4
 
     - name: Set up Python 3.13
@@ -29,7 +29,7 @@ jobs:
 
     - name: Install dependencies with uv
       run: |
-        uv sync
+        uv sync --extra dev
 
     - name: Run tests with coverage
       run: |
@@ -39,25 +39,25 @@ jobs:
       uses: codecov/codecov-action@v4
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    
+
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code 
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      
+
       - name: Install uv
         run: |
           pip install uv
 
       - name: Install dependencies with uv
         run: |
-          uv sync
+          uv sync --extra dev
 
       - name: Lint with pylint
         run: |

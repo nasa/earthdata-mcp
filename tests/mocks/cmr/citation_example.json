@@ -1,0 +1,36 @@
+{
+  "Name": "Vegetation Model Calibration with and without Future Climate",
+  "Identifier": "10.3390/land12061121",
+  "IdentifierType": "DOI",
+  "ResolutionAuthority": "https://doi.org",
+  "Abstract": "The calibration of vegetation models is essential for accurate predictions of plant dynamics under changing environmental conditions. This study evaluates model performance using historical climate data and explores the implications of incorporating future climate scenarios.",
+  "CitationMetadata": {
+    "Type": "journal-article",
+    "Title": "Vegetation Model Calibration with and without Future Climate",
+    "Container": "Land",
+    "Volume": "12",
+    "Number": "6",
+    "Pages": "1121",
+    "Year": "2023",
+    "Publisher": "MDPI AG",
+    "Author": [
+      {
+        "Given": "Eva",
+        "Family": "Kutschera",
+        "ORCID": "0000-0002-1234-5678",
+        "Sequence": "first"
+      },
+      {
+        "Given": "John",
+        "Family": "Smith",
+        "Sequence": "additional"
+      },
+      {
+        "Given": "Maria",
+        "Family": "Garcia",
+        "ORCID": "0000-0003-9876-5432",
+        "Sequence": "additional"
+      }
+    ]
+  }
+}

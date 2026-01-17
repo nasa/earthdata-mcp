@@ -4,12 +4,13 @@ This module provides functionality to extract structured date ranges from
 natural language queries using LLM-based parsing.
 """
 
-from datetime import datetime, timezone
-from typing import Dict
-from pathlib import Path
 import logging
+from datetime import UTC, datetime
+from pathlib import Path
+
 import instructor
-from langfuse import observe, get_client
+from langfuse import get_client, observe
+
 from .input_model import TemporalRangeInput
 from .output_model import TemporalRangeOutput
 
@@ -28,7 +29,7 @@ def get_temporal_ranges(
     query: TemporalRangeInput,
     provider: str = "bedrock",
     model_id: str = "amazon.nova-pro-v1:0",
-) -> Dict:
+) -> dict:
     """Extract temporal date ranges from a natural language query.
 
      Args:
@@ -55,14 +56,14 @@ def get_temporal_ranges(
             f"and model '{model_id}': {e}"
         ) from e
 
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     # Load prompt from prompt.md file
     prompt_path = Path(__file__).parent / "prompt.md"
 
     if not prompt_path.exists():
         raise FileNotFoundError(f"Required prompt file not found: {prompt_path}")
 
-    with open(prompt_path, "r", encoding="utf-8") as f:
+    with open(prompt_path, encoding="utf-8") as f:
         system_prompt = f.read().replace("{current_date}", today)
 
     try:

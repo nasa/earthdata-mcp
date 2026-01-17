@@ -31,7 +31,7 @@ This repository contains Terraform code to deploy a self-hosted Langfuse instanc
   - User authentication and authorization
   - Project and organization management
   - Health check endpoint (baseurl/api/public/health)
-  - Access: External via load balancer at /search/nlp/langfuse
+  - Access: External via load balancer at configured base_path (default: /langfuse)
 
 #### Langfuse Worker Container
 - Purpose: Background processing and asynchronous task execution
@@ -81,7 +81,7 @@ First, create the ECR repositories for the custom images:
     ```
     bash
     # For web UI with custom base path
-    ./build-langfuse-web-custom.sh langfuse-web-<environment> /search/nlp/langfuse
+    ./build-langfuse-web-custom.sh langfuse-web-<environment> /langfuse
 
     # For worker image
     ./docker-build.sh <environment>

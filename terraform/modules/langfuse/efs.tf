@@ -22,7 +22,7 @@ resource "aws_efs_mount_target" "langfuse" {
 # Security group for EFS
 resource "aws_security_group" "efs" {
   name        = "${var.environment_name}-langfuse-efs"
-  description = "Security group for EFS"
+  description = "Security group for Langfuse EFS storage"
   vpc_id      = var.vpc_id
 
   ingress {

@@ -19,7 +19,7 @@ resource "aws_security_group" "redis" {
     protocol    = "tcp"
 
     cidr_blocks = [var.vpc_cidr_block]
-  }  
+  }
 
 
   egress {
@@ -37,9 +37,10 @@ resource "aws_security_group" "redis" {
 
 # ElastiCache parameter group
 resource "aws_elasticache_parameter_group" "redis" {
-  family = "redis7"
-  name   = "${var.environment_name}-langfuse-redis-params"
-  
+  family      = "redis7"
+  name        = "${var.environment_name}-langfuse-redis-params"
+  description = "Parameter group for Langfuse Redis"
+
   parameter {
     name  = "maxmemory-policy"
     value = "noeviction"
@@ -64,8 +65,9 @@ resource "aws_cloudwatch_log_group" "redis" {
 
 # ElastiCache subnet group
 resource "aws_elasticache_subnet_group" "redis" {
-  name       = "${var.environment_name}-langfuse-redis-subnet-group"
-  subnet_ids = var.subnet_ids
+  name        = "${var.environment_name}-langfuse-redis-subnet-group"
+  description = "Subnet group for Langfuse Redis"
+  subnet_ids  = var.subnet_ids
 
   tags = {
     Name        = "${var.environment_name}-langfuse-redis-subnet-group"
@@ -89,7 +91,7 @@ resource "aws_elasticache_replication_group" "redis" {
   auth_token                 = random_password.redis_password.result
   transit_encryption_enabled = true
   at_rest_encryption_enabled = var.redis_at_rest_encryption
-  
+
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.redis.name
     destination_type = "cloudwatch-logs"

@@ -5,16 +5,8 @@ https://github.com/Element84/natural-language-geocoding
 https://github.com/Element84/e84-geoai-common
 """
 
-import os
 import json
-
-from shapely.geometry import shape, mapping
-from shapely.ops import orient
-
-from e84_geoai_common.llm.models.nova import BedrockNovaLLM
-from e84_geoai_common.geometry import geometry_to_geojson
-from e84_geoai_common.geometry import simplify_geometry
-
+import os
 
 # TEMPORARY SOLUTION: Monkey-patch for Lambda compatibility
 # This monkey-patch is needed because the current version of the natural_language_geocoding library
@@ -24,11 +16,14 @@ from e84_geoai_common.geometry import simplify_geometry
 # Remove this monkey-patch once the library is updated to handle Lambda environments.
 # Issue: [https://github.com/Element84/natural-language-geocoding/issues/15]
 import natural_language_geocoding.geocode_index.hierachical_place_cache as hpc
-
+from e84_geoai_common.geometry import geometry_to_geojson, simplify_geometry
+from e84_geoai_common.llm.models.nova import BedrockNovaLLM
 from natural_language_geocoding import extract_geometry_from_text
 from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
     GeocodeIndexPlaceLookup,
 )
+from shapely.geometry import mapping, shape
+from shapely.ops import orient
 
 _original_init = hpc.PlaceCache.__init__
 
@@ -77,9 +72,7 @@ def convert_text_to_geom(location_query: str) -> str:
             bedrock_llm, location_query, GeocodeIndexPlaceLookup()
         )
 
-        simplified_geom = simplify_geometry(
-            geom=geometry, max_points=simplify_geom_max_point
-        )
+        simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
         return simplified_geom
     except Exception as e:
         print(f"Error in natural_language_geocoder: {str(e)}")
@@ -113,8 +106,7 @@ def fix_geometry(geom):
     if geom["type"] == "MultiPolygon":
         # Fix each polygon in the MultiPolygon
         fixed_polys = [
-            fix_geometry({"type": "Polygon", "coordinates": poly})
-            for poly in geom["coordinates"]
+            fix_geometry({"type": "Polygon", "coordinates": poly}) for poly in geom["coordinates"]
         ]
         return {
             "type": "MultiPolygon",

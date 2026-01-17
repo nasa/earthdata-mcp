@@ -178,9 +178,7 @@ class TestLoadToolsFromDirectory:
         # Setup: loader imports tool.py successfully, output_model.py fails (doesn't exist)
         mock_import.side_effect = [
             mock_tool_module,  # First call: tools.test_tool.tool
-            ImportError(
-                "No module named 'tools.test_tool.output_model'"
-            ),  # Second call
+            ImportError("No module named 'tools.test_tool.output_model'"),  # Second call
         ]
 
         mock_mcp = Mock()
@@ -277,9 +275,7 @@ class TestLoadToolsFromDirectory:
         # Setup: tool.py imports successfully, output_model.py doesn't exist
         mock_import.side_effect = [
             mock_tool_module,  # First call: tools.schema_tool.tool
-            ImportError(
-                "No module"
-            ),  # Second call: tools.schema_tool.output_model (doesn't exist)
+            ImportError("No module"),  # Second call: tools.schema_tool.output_model (doesn't exist)
         ]
 
         mock_mcp = Mock()
