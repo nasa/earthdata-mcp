@@ -134,7 +134,41 @@ resource "aws_ecr_lifecycle_policy" "bootstrap_lambda" {
   })
 }
 
-# Application infrastructure (Lambdas, SQS, SNS subscription)
+# ECR Repository for MCP server
+resource "aws_ecr_repository" "mcp_server" {
+  name                 = "${var.environment_name}-earthdata-mcp-server"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(var.tags, {
+    Name = "${var.environment_name}-earthdata-mcp-server"
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "mcp_server" {
+  repository = aws_ecr_repository.mcp_server.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep only 5 most recent images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 5
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+# Application infrastructure (Lambdas, SQS, SNS subscription, MCP server)
 module "application" {
   source = "../modules/application"
 
@@ -176,6 +210,16 @@ module "application" {
   # Langfuse
   langfuse_host       = var.langfuse_host
   langfuse_public_key = var.langfuse_public_key
+
+  # MCP Server
+  load_balancer_name       = var.load_balancer_name
+  mcp_server_image         = "${aws_ecr_repository.mcp_server.repository_url}:${var.image_tag}"
+  mcp_server_cpu           = var.mcp_server_cpu
+  mcp_server_memory        = var.mcp_server_memory
+  mcp_server_desired_count = var.mcp_server_desired_count
+  mcp_server_min_count     = var.mcp_server_min_count
+  mcp_server_max_count     = var.mcp_server_max_count
+  mcp_listener_priority    = var.mcp_listener_priority
 
   tags = var.tags
 }

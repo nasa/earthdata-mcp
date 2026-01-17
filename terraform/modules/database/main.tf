@@ -7,24 +7,32 @@ resource "random_password" "master" {
 
 # DB subnet group
 resource "aws_db_subnet_group" "main" {
-  name        = "${var.environment_name}-earthdata-mcp-db"
+  name_prefix = "${var.environment_name}-earthdata-mcp-db-"
   description = "Subnet group for earthdata-mcp database"
   subnet_ids  = var.subnet_ids
 
   tags = merge(var.tags, {
     Name = "${var.environment_name}-earthdata-mcp-db"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Security group for RDS
 resource "aws_security_group" "database" {
-  name        = "${var.environment_name}-earthdata-mcp-db-sg"
+  name_prefix = "${var.environment_name}-earthdata-mcp-db-sg-"
   description = "Security group for earthdata-mcp PostgreSQL database"
   vpc_id      = var.vpc_id
 
   tags = merge(var.tags, {
     Name = "${var.environment_name}-earthdata-mcp-db-sg"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Allow inbound from specified security groups
@@ -55,13 +63,17 @@ resource "aws_security_group_rule" "inbound_from_cidr" {
 
 # Parameter group for pgvector
 resource "aws_db_parameter_group" "pgvector" {
-  name        = "${var.environment_name}-earthdata-mcp-db-params"
+  name_prefix = "${var.environment_name}-earthdata-mcp-db-params-"
   family      = "postgres${split(".", var.engine_version)[0]}"
   description = "Parameter group for earthdata-mcp database with pgvector support"
 
   tags = merge(var.tags, {
     Name = "${var.environment_name}-earthdata-mcp-db-params"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # RDS PostgreSQL instance

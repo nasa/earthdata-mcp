@@ -14,6 +14,8 @@ elif [[ "$DOCKERFILE" == "EmbeddingLambdaDockerfile" ]]; then
     IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-embedding"
 elif [[ "$DOCKERFILE" == "BootstrapLambdaDockerfile" ]]; then
     IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-bootstrap"
+elif [[ "$DOCKERFILE" == "McpServerDockerfile" ]]; then
+    IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-server"
 else
     echo "ERROR: Unknown Dockerfile: $DOCKERFILE"
     exit 1

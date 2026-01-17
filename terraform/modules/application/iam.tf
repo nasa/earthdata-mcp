@@ -152,7 +152,7 @@ resource "aws_iam_role_policy" "embedding_lambda" {
 
 # Security group for embedding lambda (VPC access to RDS)
 resource "aws_security_group" "embedding_lambda" {
-  name        = "${var.environment_name}-earthdata-mcp-embedding-sg"
+  name_prefix = "${var.environment_name}-earthdata-mcp-embedding-sg-"
   description = "Security group for embedding lambda VPC access"
   vpc_id      = var.vpc_id
 
@@ -167,6 +167,10 @@ resource "aws_security_group" "embedding_lambda" {
   tags = merge(var.tags, {
     Name = "${var.environment_name}-earthdata-mcp-embedding-sg"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Allow embedding lambda to connect to database

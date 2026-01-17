@@ -143,3 +143,45 @@ variable "langfuse_public_key" {
   type        = string
   default     = ""
 }
+
+# MCP Server
+variable "load_balancer_name" {
+  description = "Name of the existing public ALB"
+  type        = string
+}
+
+variable "mcp_server_cpu" {
+  description = "CPU units for MCP server task (1024 = 1 vCPU)"
+  type        = number
+  default     = 256
+}
+
+variable "mcp_server_memory" {
+  description = "Memory for MCP server task in MB"
+  type        = number
+  default     = 512
+}
+
+variable "mcp_server_desired_count" {
+  description = "Desired number of MCP server tasks"
+  type        = number
+  default     = 1
+}
+
+variable "mcp_server_min_count" {
+  description = "Minimum number of MCP server tasks for autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "mcp_server_max_count" {
+  description = "Maximum number of MCP server tasks for autoscaling"
+  type        = number
+  default     = 4
+}
+
+variable "mcp_listener_priority" {
+  description = "Priority for MCP ALB listener rule"
+  type        = number
+  default     = 200
+}

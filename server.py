@@ -6,6 +6,8 @@ import sys
 import uvicorn
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # Initialize FastMCP server
-mcp = FastMCP("cmr-mcps")
+mcp = FastMCP("earthdata-mcp")
 
 # Get CORS middleware configuration
 cors = get_cors_middleware()
@@ -30,8 +32,18 @@ except Exception as e:
     logger.error("Failed to load tools: %s", e)
     raise
 
+
+# Health check endpoint for ALB (matches CMR health format)
+async def health(_request):
+    """Health check endpoint for load balancer."""
+    return JSONResponse({"earthdata-mcp": {"ok?": True}})
+
+
 # Build the app with middleware and the intended path
 app = mcp.http_app(path="/mcp", middleware=[cors])
+
+# Add health check route
+app.routes.append(Route("/mcp/health", health))
 
 
 def main():

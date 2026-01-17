@@ -1,198 +1,146 @@
 # earthdata-mcp
-# MCP Server — Project Overview
 
-This repository implements a modular MCP (Model Context Protocol) server with support for multiple transport modes (STDIO, HTTP, SSE). Tools are organized under the `tools/` directory, and each tool is self-contained with its own Python implementation and manifest.
+MCP (Model Context Protocol) server for NASA Earthdata with semantic search capabilities powered by embeddings.
 
 ## Project Structure
 
 ```
-mcp/
-│
-├── tools/                 # All MCP tools live here
-│   └── <toolname>/        # Each tool is fully self-contained
-│       ├── tool.py        # Python implementation of the tool
-│       ├── manifest.json  # MCP tool metadata (incl. entry function)
-│       ├── input_model.py # Pydantic model for tool inputs
-│       └── output.json    # JSON schema for tool outputs
-│
-├── tests/                 # All Pytest test files live here
-│   ├── test_<tool>.py
-│
-├── util/                 # Any utility functions common to all tools.
-│
-├── loader.py              # Discovers tools, loads manifest, registers functions
-├── server.py              # Entry point for STDIO / HTTP / SSE server
-├── pyproject.toml         # Dependencies & project configuration
-└── README.md              # This file
+earthdata-mcp/
+├── tools/                    # MCP tools (self-contained)
+│   └── <toolname>/
+│       ├── tool.py           # Tool implementation
+│       ├── manifest.json     # MCP tool metadata
+│       ├── input_model.py    # Pydantic input model
+│       └── output_model.py   # Pydantic output model
+├── lambdas/                  # AWS Lambda handlers
+│   ├── ingest/               # SNS to SQS message processing
+│   ├── embedding/            # Embedding generation
+│   └── bootstrap/            # Initial data load
+├── util/                     # Shared utilities
+├── middleware/               # Server middleware (CORS)
+├── terraform/                # Infrastructure as code
+│   ├── database/             # RDS PostgreSQL stack
+│   └── application/          # Lambdas, ECS, SQS stack
+├── server.py                 # MCP server entry point
+├── loader.py                 # Tool discovery and registration
+└── pyproject.toml            # Dependencies
 ```
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) package manager
+
 ### Installation
 
-1. **Clone the repository and navigate to the MCP folder:**
-   ```bash
-   cd mcp
-   ```
-
-2. **Create and activate virtual environment:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   uv sync
-   ```
-
-## Running the MCP Server
-
-The server supports three primary modes: **STDIO**, **HTTP**, and **SSE**.
-
-### HTTP Mode (Development & Testing)
-
-Run the server as a web server using Uvicorn:
-
 ```bash
-PYTHONPATH=.. uv run server.py http
+# Clone and enter directory
+git clone <repo-url>
+cd earthdata-mcp
+
+# Install dependencies
+uv sync
+
+# Install dev dependencies (for testing)
+uv sync --extra dev
 ```
 
-- `PYTHONPATH=..` ensures imports work from project root
-- `http` tells the server to run in HTTP mode
-- Server runs at `http://127.0.0.1:5001/mcp`
+### Running Locally
 
-### STDIO Mode
-Follow the [fastmcp integrations](https://gofastmcp.com/integrations) to integrate with you AI of choice
+**HTTP Mode (recommended for development):**
 
+```bash
+uv run server.py http
+```
 
-### SSE Mode
-Note: SSE had been deprecated by fastmcp and been replaced with streamable http
+Server runs at `http://127.0.0.1:5001/mcp`
+
+**STDIO Mode (for AI integrations):**
+
+```bash
+uv run server.py stdio
+```
+
+See [FastMCP integrations](https://gofastmcp.com/integrations) for connecting to Claude, VS Code, etc.
 
 ## Testing
 
-### Run All Tests
-
 ```bash
-pytest
+# Run all tests
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_server.py
 ```
 
-### Test File Structure
+### MCP Inspector (Interactive Testing)
 
-All tests now live in:
-```bash
-mcp/tests/test_*.py
-```
-
-### Example Pytest
-```python
-import pytest
-from mcp.server.fastmcp import FastMCP
-from tools.my_new_tool.tool import my_new_tool, MyInput
-
-@pytest.mark.asyncio
-async def test_my_new_tool_direct():
-    result = await my_new_tool(MyInput(input_text="Hello"))
-    assert "Hello" in result[0]
-
-@pytest.mark.asyncio
-async def test_my_new_tool_via_mcp():
-    mcp = FastMCP("test_server")
-    mcp.register_tool("my_new_tool", my_new_tool)
-
-    result = await mcp.call_tool("my_new_tool", {"input_text": "Test"})
-    assert result
-```
-
-### Test via MCP Inspector (Interactive Testing) (RECOMMENDED)
-
-The MCP Inspector provides a visual interface for testing tools:
-
-1. **Start the MCP server in HTTP mode:**
+1. Start the server:
    ```bash
-   PYTHONPATH=.. uv run server.py http
+   uv run server.py http
    ```
 
-2. **Launch MCP Inspector:**
+2. Launch inspector:
    ```bash
    npx @modelcontextprotocol/inspector
    ```
-   Opens at `http://localhost:6274`
 
-3. **Connect to your MCP server:**
-   * Streamable HTTP
-    - **Transport Type:** Streamable HTTP
-    - **URL:** `http://localhost:5001/mcp`
-    - **Connection Type:** Direct
-   * STDIO
-    - **Transport Type:** STDIO
-    - **Command:** uv
-    - **Arguments:** run server.py stdio
+3. Connect at `http://localhost:6274`:
+   - Transport Type: **Streamable HTTP**
+   - URL: `http://localhost:5001/mcp`
 
-4. **Test your tools:**
-   - Click "List Tools" to see all available tools
-   - Select a tool to test
-   - Enter input parameters
-   - Click "Run Tool"
-   - Debug errors and validate output
+## Adding a New Tool
 
-### Test via Chainlit Application
+1. Create folder under `tools/<toolname>/`
 
-Test your tools in a chat interface:
+2. Add required files:
+   - `manifest.json` - Tool metadata with `"entry"` function name
+   - `tool.py` - Implementation with async function
+   - `input_model.py` - Pydantic input validation
+   - `output_model.py` - Pydantic output model
 
-1. **Navigate to the chat application:**
-   ```bash
-   cd ../chat
-   ```
+3. The tool is automatically discovered by `loader.py`
 
-2. **Activate Chainlit environment:**
-   ```bash
-   source .chainlit/bin/activate
-   ```
+4. Test with MCP Inspector, then add pytest under `tests/`
 
-3. **Run the Chainlit app:**
-   ```bash
-   NOMINATIM_USER_AGENT=chainlit chainlit run app.py -w
-   ```
+## Deployment
 
-4. **Connect to MCP in browser:**
-   - Open `http://localhost:8000`
-   - Click the tools icon (🔧)
-   - Click "Connect an MCP"
-   - Enter settings:
-     - **Type:** streamable-http
-     - **Name:** cmr-mcps
-     - **HTTP URL:** `http://localhost:5001/mcp`
+The application deploys to AWS via Bamboo CI/CD:
 
-5. **Your tools will appear under "Tools" menu**
+- **MCP Server**: ECS Fargate behind ALB at `/mcp`
+- **Lambdas**: Ingest (SNS to SQS), Embedding (Bedrock), Bootstrap
+- **Database**: RDS PostgreSQL with pgvector
 
-## How Tools Get Loaded
+### Environment Variables
 
-`loader.py` automatically:
-1. Scans the `tools/` directory
-2. Validates each `manifest.json`
-3. Imports the tool's `tool.py`
-4. Loads the function specified in "entry"
-5. Registers it with the MCP server
+| Variable | Description |
+|----------|-------------|
+| `ENVIRONMENT_NAME` | Deployment environment (sit, uat, prod) |
+| `CMR_URL` | CMR API base URL |
+| `EMBEDDING_MODEL` | Bedrock model ID |
 
-**No manual configuration needed!** Just add your tool folder and it's automatically discovered.
+## Connecting Clients
+
+Once deployed, connect MCP clients to:
+
+```
+https://cmr.earthdata.nasa.gov/mcp/sse
+```
+
+Works with:
+- Claude Code CLI
+- VS Code MCP extensions
+- Any MCP-compatible client
 
 ## Troubleshooting
 
-### Import Errors
+**Import errors**: Ensure virtual environment is activated
 
-- Ensure `PYTHONPATH=..` is set when running
-- Check all dependencies are installed
-- Verify virtual environment is activated
+**Tool not found**: Check `manifest.json` has valid `"entry"` field
 
-## Contributing
-
-When adding a new tool:
-
-1. ✅ Follow the folder structure
-2. ✅ Include `manifest.json` and `tool.py`
-3. ✅ Create a `input_model.py` and `output.json`
-3. ✅ Ensure manifest specifies "entry"
-4. ✅ Write pytest files under tests/
-5. ✅ Test with MCP Inspector
-6. ✅ Run pytest before committing
+**Connection refused**: Verify server is running on correct port

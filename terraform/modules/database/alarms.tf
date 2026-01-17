@@ -2,6 +2,22 @@
 #
 # These alarms help detect database performance and capacity issues.
 
+locals {
+  # Instance memory in bytes (lookup by instance class)
+  instance_memory_gb = {
+    "db.t3.micro"   = 1
+    "db.t3.small"   = 2
+    "db.t3.medium"  = 4
+    "db.t3.large"   = 8
+    "db.t3.xlarge"  = 16
+    "db.t3.2xlarge" = 32
+    "db.r5.large"   = 16
+    "db.r5.xlarge"  = 32
+    "db.r5.2xlarge" = 64
+  }
+  instance_memory_bytes = lookup(local.instance_memory_gb, var.instance_class, 4) * 1024 * 1024 * 1024
+}
+
 # =============================================================================
 # CPU Alarms
 # =============================================================================
@@ -30,18 +46,17 @@ resource "aws_cloudwatch_metric_alarm" "db_cpu_high" {
 # Memory Alarms
 # =============================================================================
 
-# Alarm: Low freeable memory
-# FreeableMemory is in bytes, alert when below 256MB
+# Alarm: Low freeable memory (10% of instance memory)
 resource "aws_cloudwatch_metric_alarm" "db_memory_low" {
   alarm_name          = "${var.environment_name}-earthdata-mcp-db-memory-low"
-  alarm_description   = "Database freeable memory below 256MB"
+  alarm_description   = "Database freeable memory below 10%"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 3
   metric_name         = "FreeableMemory"
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = 268435456 # 256MB in bytes
+  threshold           = local.instance_memory_bytes * 0.10
   treat_missing_data  = "notBreaching"
 
   dimensions = {
