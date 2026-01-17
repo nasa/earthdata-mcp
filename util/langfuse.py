@@ -1,8 +1,11 @@
 """Langfuse client utility."""
 
 import logging
+import os
 
 from langfuse import Langfuse
+
+from util.ssm import get_parameter
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,12 @@ def get_langfuse() -> Langfuse | None:
         return _langfuse_client
 
     try:
-        _langfuse_client = Langfuse()
+        secret_key = None
+        ssm_parameter = os.environ.get("LANGFUSE_SECRET_KEY_SSM_PARAMETER")
+        if ssm_parameter:
+            secret_key = get_parameter(ssm_parameter)
+
+        _langfuse_client = Langfuse(secret_key=secret_key) if secret_key else Langfuse()
         _initialized = True
     except Exception as e:
         logger.warning("Failed to initialize Langfuse: %s", e)

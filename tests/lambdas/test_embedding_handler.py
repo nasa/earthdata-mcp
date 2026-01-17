@@ -1,7 +1,6 @@
 """Tests for the embedding lambda handler."""
 
 import json
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,14 +26,13 @@ from util.models import ConceptMessage, KMSTerm
 
 
 @pytest.fixture(autouse=True)
-def set_env():
+def set_env(monkeypatch):
     """Set required environment variables."""
-    os.environ["CMR_URL"] = "https://cmr.earthdata.nasa.gov"
-    os.environ["DATABASE_SECRET_ID"] = "test-secret"
-    os.environ["EMBEDDINGS_TABLE"] = "concept_embeddings"
-    os.environ["EMBEDDING_MODEL"] = "amazon.titan-embed-text-v2:0"
-    os.environ["BEDROCK_REGION"] = "us-east-1"
-    yield
+    monkeypatch.setenv("CMR_URL", "https://cmr.earthdata.nasa.gov")
+    monkeypatch.setenv("DATABASE_SECRET_ID", "test-secret")
+    monkeypatch.setenv("EMBEDDINGS_TABLE", "concept_embeddings")
+    monkeypatch.setenv("EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0")
+    monkeypatch.setenv("BEDROCK_REGION", "us-east-1")
 
 
 class TestExtractCollectionData:
@@ -310,6 +308,8 @@ class TestPostgresDatastore:
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=None)
+        mock_conn.transaction.return_value.__enter__ = MagicMock()
+        mock_conn.transaction.return_value.__exit__ = MagicMock(return_value=None)
 
         with patch("util.datastores.postgres.get_db_connection", return_value=mock_conn):
             datastore = PostgresEmbeddingDatastore()
@@ -321,15 +321,18 @@ class TestPostgresDatastore:
             count = datastore.upsert_chunks("collection", "C1234-PROV", chunks)
 
             assert count == 2
-            mock_conn.commit.assert_called_once()
+            mock_conn.transaction.assert_called_once()
 
     def test_upsert_associations(self):
         """Test upserting concept associations."""
 
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        mock_cursor.rowcount = 1  # Each insert affects 1 row
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=None)
+        mock_conn.transaction.return_value.__enter__ = MagicMock()
+        mock_conn.transaction.return_value.__exit__ = MagicMock(return_value=None)
 
         with patch("util.datastores.postgres.get_db_connection", return_value=mock_conn):
             datastore = PostgresEmbeddingDatastore()
@@ -338,7 +341,7 @@ class TestPostgresDatastore:
             count = datastore.upsert_associations("collection", "C1234-PROV", associations)
 
             assert count == 2
-            mock_conn.commit.assert_called_once()
+            mock_conn.transaction.assert_called_once()
 
     def test_empty_associations_returns_zero(self):
         """Test that empty associations returns 0."""

@@ -19,6 +19,7 @@ Example invocation payload:
 import json
 import logging
 import os
+import time
 from typing import Any
 
 from util.cmr import CMRError, extract_concept_info, search_cmr
@@ -26,6 +27,9 @@ from util.sqs import get_sqs_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+MAX_RETRIES = 3
+INITIAL_BACKOFF_SECONDS = 1
 
 
 def send_to_queue(queue_url: str, messages: list[dict[str, Any]]) -> int:
@@ -61,15 +65,46 @@ def send_to_queue(queue_url: str, messages: list[dict[str, Any]]) -> int:
             )
 
         try:
-            response = get_sqs_client().send_message_batch(
-                QueueUrl=queue_url,
-                Entries=entries,
-            )
-            sent += len(response.get("Successful", []))
+            # Retry loop for partial batch failures with exponential backoff.
+            # SQS send_message_batch can succeed as an API call but return
+            # partial failures - some messages succeed, others fail.
+            pending_entries = entries
+            for attempt in range(MAX_RETRIES + 1):
+                response = get_sqs_client().send_message_batch(
+                    QueueUrl=queue_url,
+                    Entries=pending_entries,
+                )
+                sent += len(response.get("Successful", []))
 
-            if failed := response.get("Failed", []):
-                logger.warning("Failed to send %d messages: %s", len(failed), failed)
+                failed = response.get("Failed", [])
+                if not failed:
+                    break
 
+                # Filter to only retry the failed entries
+                failed_ids = {f["Id"] for f in failed}
+                pending_entries = [e for e in pending_entries if e["Id"] in failed_ids]
+
+                if attempt < MAX_RETRIES:
+                    # Exponential backoff: 1s, 2s, 4s
+                    backoff = INITIAL_BACKOFF_SECONDS * (2**attempt)
+                    logger.warning(
+                        "Retry %d/%d: %d messages failed, retrying in %ds. Failed: %s",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        len(failed),
+                        backoff,
+                        [(f["Id"], f["Code"], f.get("Message")) for f in failed],
+                    )
+                    time.sleep(backoff)
+                else:
+                    # Max retries exhausted, raise with details for debugging
+                    failed_details = [(f["Id"], f["Code"], f.get("Message")) for f in failed]
+                    raise RuntimeError(
+                        f"SQS batch send failed after {MAX_RETRIES} retries: {failed_details}"
+                    )
+
+        except RuntimeError:
+            raise
         except Exception as e:
             logger.error("Error sending batch to SQS: %s", e)
             raise

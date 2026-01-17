@@ -2,6 +2,7 @@
 
 import logging
 from functools import lru_cache
+from urllib.parse import quote
 
 import requests
 
@@ -14,19 +15,19 @@ KMS_BASE_URL = "https://cmr.earthdata.nasa.gov/kms"
 
 @lru_cache(maxsize=2000)
 def _lookup_term_cached(term: str, scheme: str) -> KMSTerm | None:
-    """Cached lookup of a KMS term."""
-    search_url = f"{KMS_BASE_URL}/concepts/concept_scheme/{scheme}/pattern/{term}"
+    """
+    Cached lookup of a KMS term.
 
-    try:
-        response = requests.get(search_url, params={"format": "json"}, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException as e:
-        logger.debug("KMS search failed for '%s' in %s: %s", term, scheme, e)
-        return None
-    except ValueError as e:
-        logger.debug("Failed to parse KMS JSON response for '%s': %s", term, e)
-        return None
+    Raises exceptions for network/JSON errors (not cached by lru_cache).
+    Returns None for "not found" (cached).
+    """
+    encoded_term = quote(term, safe="")
+    encoded_scheme = quote(scheme, safe="")
+    search_url = f"{KMS_BASE_URL}/concepts/concept_scheme/{encoded_scheme}/pattern/{encoded_term}"
+
+    response = requests.get(search_url, params={"format": "json"}, timeout=10)
+    response.raise_for_status()
+    data = response.json()
 
     uuid = _extract_uuid_from_search(data, term)
     if not uuid:
@@ -92,9 +93,13 @@ def lookup_term(term: str, scheme: str) -> KMSTerm | None:
         scheme: KMS concept scheme (e.g., "sciencekeywords", "platforms", "instruments")
 
     Returns:
-        KMSTerm or None if not found
+        KMSTerm or None if not found or on error
     """
-    return _lookup_term_cached(term, scheme)
+    try:
+        return _lookup_term_cached(term, scheme)
+    except (requests.RequestException, ValueError) as e:
+        logger.debug("KMS lookup failed for '%s' in %s: %s", term, scheme, e)
+        return None
 
 
 def clear_cache() -> None:

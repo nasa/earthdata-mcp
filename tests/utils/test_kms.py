@@ -199,6 +199,52 @@ class TestLookupTerm:
             url = call_args[0][0]
             assert "concept_scheme/platforms/pattern/TERRA" in url
 
+    def test_url_encodes_special_characters(self):
+        """Should URL-encode special characters in term and scheme."""
+        search_response = {"concepts": []}
+
+        with patch("util.kms.client.requests.get") as mock_get:
+            search_mock = MagicMock(status_code=200)
+            search_mock.json.return_value = search_response
+            search_mock.raise_for_status = MagicMock()
+            mock_get.return_value = search_mock
+
+            lookup_term("TERM/WITH SPACES", "scheme&special")
+
+            call_args = mock_get.call_args
+            url = call_args[0][0]
+            assert "TERM%2FWITH%20SPACES" in url
+            assert "scheme%26special" in url
+
+    def test_does_not_cache_network_errors(self):
+        """Should retry after network errors instead of caching failure."""
+        search_response = {"concepts": [{"prefLabel": "RETRY", "uuid": "retry-uuid"}]}
+        concept_response = {"definition": "Success after retry"}
+
+        with patch("util.kms.client.requests.get") as mock_get:
+            search_mock = MagicMock(status_code=200)
+            search_mock.json.return_value = search_response
+            search_mock.raise_for_status = MagicMock()
+
+            concept_mock = MagicMock(status_code=200)
+            concept_mock.json.return_value = concept_response
+            concept_mock.raise_for_status = MagicMock()
+
+            mock_get.side_effect = [
+                requests.RequestException("Connection refused"),
+                search_mock,
+                concept_mock,
+            ]
+
+            # First call fails
+            result1 = lookup_term("RETRY_TEST", "instruments")
+            assert result1 is None
+
+            # Second call succeeds - should retry, not return cached None
+            result2 = lookup_term("RETRY_TEST", "instruments")
+            assert result2 is not None
+            assert result2.definition == "Success after retry"
+
 
 class TestClearCache:
     """Tests for clear_cache function."""

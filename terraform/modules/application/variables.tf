@@ -151,10 +151,9 @@ variable "langfuse_public_key" {
   default     = ""
 }
 
-variable "langfuse_secret_key" {
-  description = "Langfuse secret key"
+variable "langfuse_secret_key_ssm_parameter" {
+  description = "SSM parameter name containing the Langfuse secret key"
   type        = string
-  sensitive   = true
   default     = ""
 }
 

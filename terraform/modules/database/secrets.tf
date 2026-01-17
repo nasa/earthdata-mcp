@@ -17,7 +17,6 @@ resource "aws_secretsmanager_secret_version" "database" {
     database = aws_db_instance.main.db_name
     username = aws_db_instance.main.username
     password = random_password.master.result
-    # Connection string for convenience
-    url = "postgresql://${aws_db_instance.main.username}:${random_password.master.result}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${aws_db_instance.main.db_name}"
+    url      = "postgresql://${urlencode(aws_db_instance.main.username)}:${urlencode(random_password.master.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${aws_db_instance.main.db_name}"
   })
 }

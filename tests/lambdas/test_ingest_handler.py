@@ -1,7 +1,6 @@
 """Tests for the ingest lambda handler."""
 
 import json
-import os
 
 import pytest
 
@@ -13,13 +12,12 @@ from lambdas.ingest.handler import (
 
 
 @pytest.fixture(autouse=True)
-def set_env():
+def set_env(monkeypatch):
     """Set required environment variables."""
-    os.environ["EMBEDDING_QUEUE_URL"] = (
-        "https://sqs.us-east-1.amazonaws.com/123456789/test-queue.fifo"
+    monkeypatch.setenv(
+        "EMBEDDING_QUEUE_URL",
+        "https://sqs.us-east-1.amazonaws.com/123456789/test-queue.fifo",
     )
-    yield
-    # Cleanup handled by test isolation
 
 
 class TestMessageValidation:

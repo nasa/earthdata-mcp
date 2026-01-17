@@ -24,6 +24,11 @@ _connection: Any = None
 @lru_cache(maxsize=1)
 def get_database_credentials() -> dict[str, Any]:
     """Fetch database credentials from Secrets Manager (cached)."""
+    if not DATABASE_SECRET_ID:
+        raise RuntimeError(
+            "DATABASE_SECRET_ID environment variable is not set. "
+            "Set this to your AWS Secrets Manager secret ID containing database credentials."
+        )
     client = get_secrets_client()
     response = client.get_secret_value(SecretId=DATABASE_SECRET_ID)
     return json.loads(response["SecretString"])

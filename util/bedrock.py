@@ -4,14 +4,14 @@ import os
 
 import boto3
 
-_client = None
+_clients: dict[str, object] = {}
 
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
 
 
 def get_bedrock_client(region: str | None = None):
-    """Get the Bedrock runtime client (lazy initialization, reused across Lambda invocations)."""
-    global _client  # pylint: disable=global-statement  # Lambda singleton pattern
-    if _client is None:
-        _client = boto3.client("bedrock-runtime", region_name=region or BEDROCK_REGION)
-    return _client
+    """Get the Bedrock runtime client (lazy initialization, reused per-region across Lambda invocations)."""
+    effective_region = region or BEDROCK_REGION
+    if effective_region not in _clients:
+        _clients[effective_region] = boto3.client("bedrock-runtime", region_name=effective_region)
+    return _clients[effective_region]

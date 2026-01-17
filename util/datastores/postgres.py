@@ -40,7 +40,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
         if not chunks:
             return 0
 
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             # Delete existing chunks for this concept
             cur.execute(
                 f"DELETE FROM {EMBEDDINGS_TABLE} WHERE concept_id = %s",
@@ -51,11 +51,11 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
             for attribute, text_content, embedding in chunks:
                 cur.execute(
                     f"""
-                    INSERT INTO {EMBEDDINGS_TABLE}
-                        (id, concept_type, concept_id, attribute, text_content, embedding)
-                    VALUES
-                        (%s, %s, %s, %s, %s, %s)
-                    """,
+                        INSERT INTO {EMBEDDINGS_TABLE}
+                            (id, concept_type, concept_id, attribute, text_content, embedding)
+                        VALUES
+                            (%s, %s, %s, %s, %s, %s)
+                        """,
                     (
                         str(uuid.uuid4()),
                         concept_type,
@@ -66,19 +66,17 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
                     ),
                 )
 
-        self.conn.commit()
         logger.info("Upserted %d chunks for %s", len(chunks), concept_id)
         return len(chunks)
 
     def delete_chunks(self, concept_id: str) -> int:
         """Delete all embedding chunks for a concept."""
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             cur.execute(
                 f"DELETE FROM {EMBEDDINGS_TABLE} WHERE concept_id = %s",
                 (concept_id,),
             )
             deleted = cur.rowcount
-        self.conn.commit()
         return deleted
 
     def upsert_associations(
@@ -92,7 +90,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
             return 0
 
         count = 0
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             # Delete existing associations for this concept
             cur.execute(
                 f"DELETE FROM {ASSOCIATIONS_TABLE} WHERE left_concept_id = %s",
@@ -116,23 +114,21 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
                             right_concept_id,
                         ),
                     )
-                    count += 1
+                    count += cur.rowcount
 
-        self.conn.commit()
         return count
 
     def delete_associations(self, concept_id: str) -> int:
         """Delete all associations where this concept is involved."""
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             cur.execute(
                 f"""
-                DELETE FROM {ASSOCIATIONS_TABLE}
-                WHERE left_concept_id = %s OR right_concept_id = %s
-                """,
+                    DELETE FROM {ASSOCIATIONS_TABLE}
+                    WHERE left_concept_id = %s OR right_concept_id = %s
+                    """,
                 (concept_id, concept_id),
             )
             deleted = cur.rowcount
-        self.conn.commit()
         return deleted
 
     def search_similar(
@@ -186,7 +182,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
         with self.conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT kms_uuid, scheme, term, definition
+                SELECT kms_uuid, scheme, term, definition, embedding
                 FROM {KMS_EMBEDDINGS_TABLE}
                 WHERE kms_uuid = %s
                 """,
@@ -199,6 +195,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
                     "scheme": row[1],
                     "term": row[2],
                     "definition": row[3],
+                    "embedding": list(row[4]) if row[4] else None,
                 }
         return None
 
@@ -211,23 +208,22 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
         embedding: list[float],
     ) -> bool:
         """Insert or update a KMS term embedding."""
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             cur.execute(
                 f"""
-                INSERT INTO {KMS_EMBEDDINGS_TABLE}
-                    (kms_uuid, scheme, term, definition, embedding, updated_at)
-                VALUES (%s, %s, %s, %s, %s, NOW())
-                ON CONFLICT (kms_uuid) DO UPDATE SET
-                    definition = EXCLUDED.definition,
-                    embedding = EXCLUDED.embedding,
-                    updated_at = NOW()
-                RETURNING (xmax = 0) as inserted
-                """,
+                    INSERT INTO {KMS_EMBEDDINGS_TABLE}
+                        (kms_uuid, scheme, term, definition, embedding, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (kms_uuid) DO UPDATE SET
+                        definition = EXCLUDED.definition,
+                        embedding = EXCLUDED.embedding,
+                        updated_at = NOW()
+                    RETURNING (xmax = 0) as inserted
+                    """,
                 (kms_uuid, scheme, term, definition, embedding),
             )
             result = cur.fetchone()
             inserted = result[0] if result else False
-        self.conn.commit()
         logger.info(
             "%s KMS embedding for %s/%s",
             "Inserted" if inserted else "Updated",
@@ -246,44 +242,42 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
         if not kms_uuids:
             return 0
 
-        with self.conn.cursor() as cur:
+        count = 0
+        with self.conn.transaction(), self.conn.cursor() as cur:
             # Delete existing KMS associations for this concept
             cur.execute(
                 f"""
-                DELETE FROM {KMS_ASSOCIATIONS_TABLE}
-                WHERE concept_type = %s AND concept_id = %s
-                """,
+                    DELETE FROM {KMS_ASSOCIATIONS_TABLE}
+                    WHERE concept_type = %s AND concept_id = %s
+                    """,
                 (concept_type, concept_id),
             )
 
             # Insert new associations
-            count = 0
             for kms_uuid in kms_uuids:
                 cur.execute(
                     f"""
-                    INSERT INTO {KMS_ASSOCIATIONS_TABLE}
-                        (concept_type, concept_id, kms_uuid)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT DO NOTHING
-                    """,
+                        INSERT INTO {KMS_ASSOCIATIONS_TABLE}
+                            (concept_type, concept_id, kms_uuid)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT DO NOTHING
+                        """,
                     (concept_type, concept_id, kms_uuid),
                 )
                 count += cur.rowcount
 
-        self.conn.commit()
         logger.info("Created %d KMS associations for %s:%s", count, concept_type, concept_id)
         return count
 
     def delete_concept_kms_associations(self, concept_id: str) -> int:
         """Delete all KMS associations for a concept."""
-        with self.conn.cursor() as cur:
+        with self.conn.transaction(), self.conn.cursor() as cur:
             cur.execute(
                 f"""
-                DELETE FROM {KMS_ASSOCIATIONS_TABLE}
-                WHERE concept_id = %s
-                """,
+                    DELETE FROM {KMS_ASSOCIATIONS_TABLE}
+                    WHERE concept_id = %s
+                    """,
                 (concept_id,),
             )
             deleted = cur.rowcount
-        self.conn.commit()
         return deleted

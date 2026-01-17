@@ -69,9 +69,9 @@ resource "aws_lambda_function" "embedding" {
       KMS_ASSOCIATIONS_TABLE = var.kms_associations_table
       EMBEDDING_MODEL        = var.embedding_model
       BEDROCK_REGION         = var.bedrock_region
-      LANGFUSE_HOST          = var.langfuse_host
-      LANGFUSE_PUBLIC_KEY    = var.langfuse_public_key
-      LANGFUSE_SECRET_KEY    = var.langfuse_secret_key
+      LANGFUSE_HOST                     = var.langfuse_host
+      LANGFUSE_PUBLIC_KEY               = var.langfuse_public_key
+      LANGFUSE_SECRET_KEY_SSM_PARAMETER = var.langfuse_secret_key_ssm_parameter
     }
   }
 

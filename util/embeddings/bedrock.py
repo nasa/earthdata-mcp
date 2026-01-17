@@ -86,6 +86,8 @@ class BedrockEmbeddingGenerator(EmbeddingGenerator):
             response = self.client.invoke_model(
                 modelId=self._model_id,
                 body=json.dumps({"inputText": text}),
+                contentType="application/json",
+                accept="application/json",
             )
             result = json.loads(response["body"].read())
             embedding = result["embedding"]

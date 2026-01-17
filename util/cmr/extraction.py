@@ -119,7 +119,7 @@ def extract_science_keywords(metadata: dict[str, Any]) -> list[KMSTerm]:
     We extract the most specific level available for each keyword.
     """
     terms = []
-    for kw in metadata.get("ScienceKeywords", []):
+    for kw in metadata.get("ScienceKeywords") or []:
         term = (
             kw.get("VariableLevel3")
             or kw.get("VariableLevel2")
@@ -134,11 +134,11 @@ def extract_science_keywords(metadata: dict[str, Any]) -> list[KMSTerm]:
 def extract_platforms_and_instruments(metadata: dict[str, Any]) -> list[KMSTerm]:
     """Extract platform and instrument terms from collection metadata."""
     terms = []
-    for platform in metadata.get("Platforms", []):
+    for platform in metadata.get("Platforms") or []:
         if name := platform.get("ShortName"):
             terms.append(KMSTerm(term=name, scheme="platforms"))
 
-        for instrument in platform.get("Instruments", []):
+        for instrument in platform.get("Instruments") or []:
             if name := instrument.get("ShortName"):
                 terms.append(KMSTerm(term=name, scheme="instruments"))
     return terms

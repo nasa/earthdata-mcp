@@ -1,7 +1,5 @@
 """Tests for the bootstrap lambda handler."""
 
-import os
-
 import pytest
 import responses
 
@@ -10,13 +8,13 @@ from util.cmr import CMRError, extract_concept_info, search_cmr
 
 
 @pytest.fixture(autouse=True)
-def set_env():
+def set_env(monkeypatch):
     """Set required environment variables."""
-    os.environ["CMR_URL"] = "https://cmr.earthdata.nasa.gov"
-    os.environ["EMBEDDING_QUEUE_URL"] = (
-        "https://sqs.us-east-1.amazonaws.com/123456789/test-queue.fifo"
+    monkeypatch.setenv("CMR_URL", "https://cmr.earthdata.nasa.gov")
+    monkeypatch.setenv(
+        "EMBEDDING_QUEUE_URL",
+        "https://sqs.us-east-1.amazonaws.com/123456789/test-queue.fifo",
     )
-    yield
 
 
 class TestSearchCmr:
