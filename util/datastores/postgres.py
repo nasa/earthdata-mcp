@@ -9,6 +9,7 @@ from typing import Any
 
 from util.database import get_db_connection
 from util.datastores.base import EmbeddingDatastore
+from util.models import ConceptType
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
 
     def upsert_chunks(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         chunks: list[tuple[str, str, list[float]]],
     ) -> int:
@@ -81,7 +82,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
 
     def upsert_associations(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         associations: dict[str, list[str]],
     ) -> int:
@@ -135,7 +136,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
         self,
         embedding: list[float],
         limit: int = 10,
-        concept_type: str | None = None,
+        concept_type: ConceptType | None = None,
     ) -> list[dict[str, Any]]:
         """Search for similar embeddings using pgvector."""
         with self.conn.cursor() as cur:
@@ -234,7 +235,7 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
 
     def upsert_concept_kms_associations(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         kms_uuids: list[str],
     ) -> int:

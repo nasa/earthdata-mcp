@@ -67,19 +67,17 @@ def _extract_uuid_from_search(data: dict, term: str) -> str | None:
 
 
 def _fetch_concept_definition(uuid: str) -> str | None:
-    """Fetch definition for a concept by UUID."""
+    """
+    Fetch definition for a concept by UUID.
+
+    Raises requests.RequestException or ValueError on failure so callers
+    can decide whether to cache the result.
+    """
     concept_url = f"{KMS_BASE_URL}/concept/{uuid}"
 
-    try:
-        response = requests.get(concept_url, params={"format": "json"}, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException as e:
-        logger.debug("KMS concept fetch failed for '%s': %s", uuid, e)
-        return None
-    except ValueError as e:
-        logger.debug("Failed to parse KMS concept JSON for '%s': %s", uuid, e)
-        return None
+    response = requests.get(concept_url, params={"format": "json"}, timeout=10)
+    response.raise_for_status()
+    data = response.json()
 
     return data.get("definition")
 

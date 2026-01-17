@@ -132,7 +132,7 @@ resource "aws_iam_role_policy" "embedding_lambda" {
         Action = [
           "ssm:GetParameter"
         ]
-        Resource = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.langfuse_secret_key_ssm_parameter}"
+        Resource = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment_name}-langfuse-secret-key"
       },
       {
         Sid    = "VPCNetworkInterfaces"

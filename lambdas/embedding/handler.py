@@ -245,8 +245,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             message_id = record["messageId"]
             try:
                 process_message(record, datastore, embedder)
-            except (ProcessingError, Exception) as e:
-                logger.error("Failed %s: %s", message_id, e)
+            except (ProcessingError, ValidationError, json.JSONDecodeError) as e:
+                logger.exception("Failed message %s: %s", message_id, e)
                 failures.append({"itemIdentifier": message_id})
     finally:
         datastore.close()

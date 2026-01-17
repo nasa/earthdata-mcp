@@ -61,6 +61,7 @@ resource "aws_lambda_function" "embedding" {
 
   environment {
     variables = {
+      ENVIRONMENT_NAME       = var.environment_name
       CMR_URL                = var.cmr_url
       DATABASE_SECRET_ID     = var.database_secret_arn
       EMBEDDINGS_TABLE       = var.embeddings_table
@@ -69,9 +70,8 @@ resource "aws_lambda_function" "embedding" {
       KMS_ASSOCIATIONS_TABLE = var.kms_associations_table
       EMBEDDING_MODEL        = var.embedding_model
       BEDROCK_REGION         = var.bedrock_region
-      LANGFUSE_HOST                     = var.langfuse_host
-      LANGFUSE_PUBLIC_KEY               = var.langfuse_public_key
-      LANGFUSE_SECRET_KEY_SSM_PARAMETER = var.langfuse_secret_key_ssm_parameter
+      LANGFUSE_HOST          = var.langfuse_host
+      LANGFUSE_PUBLIC_KEY    = var.langfuse_public_key
     }
   }
 

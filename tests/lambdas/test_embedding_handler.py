@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import responses
+from pydantic import ValidationError
 
 from lambdas.embedding.handler import (
     handle_delete,
@@ -209,9 +210,18 @@ class TestExtractData:
         assert len(result.chunks) == 1
         assert result.chunks[0].concept_type == "variable"
 
-    def test_unknown_type_returns_empty(self):
-        """Test that unknown type returns empty result - uses citation as fallback."""
+    def test_invalid_concept_type_raises_validation_error(self):
+        """Test that invalid concept type raises ValidationError due to ConceptType enum."""
+        with pytest.raises(ValidationError):
+            ConceptMessage(
+                action="concept-update",
+                concept_type="unknown",
+                concept_id="X1234-PROV",
+                revision_id="1",
+            )
 
+    def test_citation_empty_metadata_returns_empty(self):
+        """Test that citation with empty metadata returns empty result."""
         message = ConceptMessage(
             action="concept-update",
             concept_type="citation",
@@ -776,8 +786,10 @@ class TestHandler:
                 mock_get_gen.return_value = MagicMock()
                 with patch("lambdas.embedding.handler.fetch_concept") as mock_fetch:
                     mock_fetch.side_effect = CMRError("CMR error")
-                    with patch("lambdas.embedding.handler.flush_langfuse"):
-                        result = handler(event, None)
+                    with patch("lambdas.embedding.handler.get_langfuse") as mock_langfuse:
+                        mock_langfuse.return_value = None
+                        with patch("lambdas.embedding.handler.flush_langfuse"):
+                            result = handler(event, None)
 
         assert len(result["batchItemFailures"]) == 1
         assert result["batchItemFailures"][0]["itemIdentifier"] == "msg-1"

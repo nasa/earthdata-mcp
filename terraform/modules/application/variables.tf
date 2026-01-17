@@ -151,12 +151,6 @@ variable "langfuse_public_key" {
   default     = ""
 }
 
-variable "langfuse_secret_key_ssm_parameter" {
-  description = "SSM parameter name containing the Langfuse secret key"
-  type        = string
-  default     = ""
-}
-
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)

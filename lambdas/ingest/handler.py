@@ -43,8 +43,12 @@ def process_record(record: dict) -> dict:
         logger.error("Invalid message %s: %s", message_id, e)
         raise InvalidMessageError(f"Message validation failed: {e}") from e
 
+    queue_url = os.environ.get("EMBEDDING_QUEUE_URL")
+    if not queue_url:
+        raise ValueError("EMBEDDING_QUEUE_URL environment variable not set")
+
     response = get_sqs_client().send_message(
-        QueueUrl=os.environ.get("EMBEDDING_QUEUE_URL"),
+        QueueUrl=queue_url,
         MessageBody=message.model_dump_json(by_alias=True),
         MessageGroupId=f"{message.concept_type}:{message.concept_id}",
         MessageDeduplicationId=f"{message.concept_id}:{message.revision_id}",

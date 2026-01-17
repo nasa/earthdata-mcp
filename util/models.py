@@ -1,8 +1,17 @@
 """Centralized Pydantic models for the embedding pipeline."""
 
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class ConceptType(str, Enum):
+    """Valid concept types in the CMR system."""
+
+    COLLECTION = "collection"
+    VARIABLE = "variable"
+    CITATION = "citation"
 
 
 class ConceptMessage(BaseModel):
@@ -11,7 +20,7 @@ class ConceptMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     action: Literal["concept-update", "concept-delete"]
-    concept_type: Literal["collection", "variable", "citation"] = Field(alias="concept-type")
+    concept_type: ConceptType = Field(alias="concept-type")
     concept_id: str = Field(alias="concept-id")
     revision_id: int = Field(alias="revision-id")
 
@@ -25,7 +34,7 @@ class EmbeddingChunk(BaseModel):
     - Better RAG retrieval (return specific relevant text, not whole record)
     """
 
-    concept_type: str
+    concept_type: ConceptType
     concept_id: str
     attribute: str
     text_content: str

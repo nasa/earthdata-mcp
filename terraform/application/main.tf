@@ -174,9 +174,8 @@ module "application" {
   bootstrap_lambda_memory      = var.bootstrap_lambda_memory
 
   # Langfuse
-  langfuse_host                     = var.langfuse_host
-  langfuse_public_key               = var.langfuse_public_key
-  langfuse_secret_key_ssm_parameter = var.langfuse_secret_key_ssm_parameter
+  langfuse_host       = var.langfuse_host
+  langfuse_public_key = var.langfuse_public_key
 
   tags = var.tags
 }

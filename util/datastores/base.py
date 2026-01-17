@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from util.models import ConceptType
+
 
 class EmbeddingDatastore(ABC):
     """
@@ -14,7 +16,7 @@ class EmbeddingDatastore(ABC):
     @abstractmethod
     def upsert_chunks(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         chunks: list[tuple[str, str, list[float]]],  # (attribute, text_content, embedding)
     ) -> int:
@@ -47,7 +49,7 @@ class EmbeddingDatastore(ABC):
     @abstractmethod
     def upsert_associations(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         associations: dict[str, list[str]],
     ) -> int:
@@ -90,7 +92,7 @@ class EmbeddingDatastore(ABC):
         self,
         embedding: list[float],
         limit: int = 10,
-        concept_type: str | None = None,
+        concept_type: ConceptType | None = None,
     ) -> list[dict[str, Any]]:
         """
         Search for similar embeddings.
@@ -142,7 +144,7 @@ class EmbeddingDatastore(ABC):
     @abstractmethod
     def upsert_concept_kms_associations(
         self,
-        concept_type: str,
+        concept_type: ConceptType,
         concept_id: str,
         kms_uuids: list[str],
     ) -> int:

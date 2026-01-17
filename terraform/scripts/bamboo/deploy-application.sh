@@ -61,13 +61,11 @@ export TF_VAR_cmr_sns_topic_name="${bamboo_CMR_SNS_TOPIC_NAME}"
 
 # Store Langfuse secret in SSM SecureString if provided
 if [ -n "$bamboo_LANGFUSE_SECRET_KEY" ]; then
-    LANGFUSE_SSM_PARAMETER="${ENVIRONMENT}-langfuse-secret-key"
     aws ssm put-parameter \
-        --name "$LANGFUSE_SSM_PARAMETER" \
+        --name "${ENVIRONMENT}-langfuse-secret-key" \
         --value "$bamboo_LANGFUSE_SECRET_KEY" \
         --type SecureString \
         --overwrite
-    export TF_VAR_langfuse_secret_key_ssm_parameter="$LANGFUSE_SSM_PARAMETER"
 fi
 
 SCRIPTS_DIR="scripts"

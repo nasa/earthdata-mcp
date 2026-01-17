@@ -27,8 +27,9 @@ def get_langfuse() -> Langfuse | None:
 
     try:
         secret_key = None
-        ssm_parameter = os.environ.get("LANGFUSE_SECRET_KEY_SSM_PARAMETER")
-        if ssm_parameter:
+        environment = os.environ.get("ENVIRONMENT_NAME")
+        if environment:
+            ssm_parameter = f"{environment}-langfuse-secret-key"
             secret_key = get_parameter(ssm_parameter)
 
         _langfuse_client = Langfuse(secret_key=secret_key) if secret_key else Langfuse()
