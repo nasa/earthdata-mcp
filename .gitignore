@@ -1,10 +1,19 @@
+# Python
 __pycache__/
+
+# Virtual Environment
 .venv
+
+# Secrets
 .env
 
-.pytest_cache/
+# User-specific files
+tmp/
+
+# Test coverage
 .coverage
 coverage.xml
+.pytest_cache/
 
 # Terraform
 *.tfstate
