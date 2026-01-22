@@ -27,9 +27,11 @@ The response must look exactly like this:
 - Leap years: If `end_date` is February, use `29` days for leap years.
 
 ## Relative Dates
-- `since 2002` → `start_date = 2002-01-01T00:00:00Z`, `end_date = null`
-- `before 2022` → `end_date = 2022-12-31T23:59:59Z`, `start_date = null`
-
+- `after 2021` (exclusive) → `start_date = 2022-01-01T00:00:00Z`, `end_date = null`
+- `before 2022` (exclusive) → `start_date = null`, `end_date = 2021-12-31T23:59:59Z`
+- `since 2002` (inclusive) → `start_date = 2002-01-01T00:00:00Z`, `end_date = null`
+- `between 2002 and 2022` (inclusive) → `start_date = 2002-01-01T00:00:00Z`, `end_date = 2022-12-31T23:59:59Z`
+- Explicit "inclusive" overrides exclusivity.
 
 ## Seasonal References
 If a query mentions a **season**, expand it into exact dates.
