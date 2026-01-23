@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 # Set test environment variables before any imports that might use them
 os.environ.setdefault("REDIS_SSL", "false")
@@ -20,6 +21,34 @@ GLOBAL_BOUNDING_BOX = {
     "NorthBoundingCoordinate": 90.0,
     "SouthBoundingCoordinate": -90.0,
 }
+
+
+def generate_spatial_resolution_metadata(
+    x_dim: float, y_dim: float, unit: str, resolution_type: str = "GriddedResolutions"
+) -> dict[str, Any]:
+    """
+    Build nested UMM-C spatial resolution metadata structure.
+
+    Args:
+        x_dim: X dimension value
+        y_dim: Y dimension value
+        unit: Unit string (e.g., "Kilometers", "Meters", "Decimal Degrees")
+        resolution_type: "GriddedResolutions" or "NonGriddedResolutions"
+
+    Returns:
+        Nested metadata dict with SpatialExtent.HorizontalSpatialDomain...
+    """
+    return {
+        "SpatialExtent": {
+            "HorizontalSpatialDomain": {
+                "ResolutionAndCoordinateSystem": {
+                    "HorizontalDataResolution": {
+                        resolution_type: [{"XDimension": x_dim, "YDimension": y_dim, "Unit": unit}]
+                    }
+                }
+            }
+        }
+    }
 
 
 def load_mock(category: str, name: str) -> dict:

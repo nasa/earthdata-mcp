@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from shapely import wkt
 
-from tests.conftest import GLOBAL_BOUNDING_BOX
+from tests.conftest import GLOBAL_BOUNDING_BOX, generate_spatial_resolution_metadata
 from util.enrichment import enrich_collection_metadata
 from util.spatial import extract_spatial_extent, parse_spatial_resolution_from_title
 from util.temporal import extract_temporal_extent, parse_temporal_resolution_from_title
@@ -432,20 +432,8 @@ class TestEnrichMetadata:
 
     def test_preserves_existing_spatial_resolution(self):
         """Test that existing spatial resolution is not overwritten."""
-        metadata = {
-            "EntryTitle": "MODIS/Terra Land Surface Temperature Daily L3 Global 1km",
-            "SpatialExtent": {
-                "HorizontalSpatialDomain": {
-                    "ResolutionAndCoordinateSystem": {
-                        "HorizontalDataResolution": {
-                            "GriddedResolutions": [
-                                {"XDimension": 500, "YDimension": 500, "Unit": "Meters"}
-                            ]
-                        }
-                    }
-                }
-            },
-        }
+        metadata = generate_spatial_resolution_metadata(500, 500, "Meters")
+        metadata["EntryTitle"] = "MODIS/Terra Land Surface Temperature Daily L3 Global 1km"
 
         enriched = enrich_collection_metadata(metadata)
 

@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from util.resolution import check_disambiguation, group_by_resolution
+
 
 @dataclass
 class SpatialResolution:
@@ -205,14 +207,7 @@ def group_by_spatial_resolution(
     Returns:
         Dict mapping resolution string (e.g., "1 km", "250 m") to collections
     """
-    groups: dict[str | None, list[dict[str, Any]]] = {}
-
-    for collection in collections:
-        resolution = extract_spatial_resolution(collection)
-        key = str(resolution) if resolution else None
-        groups.setdefault(key, []).append(collection)
-
-    return groups
+    return group_by_resolution(collections, extract_spatial_resolution)
 
 
 def check_spatial_disambiguation(
@@ -227,16 +222,12 @@ def check_spatial_disambiguation(
     Returns:
         Tuple of (needs_disambiguation, list of distinct resolutions found)
     """
-    resolutions: set[str] = set()
-
-    for collection in collections:
-        resolution = extract_spatial_resolution(collection)
-        if resolution and resolution.unit not in ("Varies", "Point"):
-            resolutions.add(str(resolution))
-
-    # Need disambiguation if more than one distinct resolution
-    needs_disambiguation = len(resolutions) > 1
-    return needs_disambiguation, sorted(resolutions, key=_spatial_resolution_sort_key)
+    return check_disambiguation(
+        collections,
+        extract_spatial_resolution,
+        exclude_units=("Varies", "Point"),
+        sort_key_fn=_spatial_resolution_sort_key,
+    )
 
 
 def _spatial_resolution_sort_key(resolution_str: str) -> float:

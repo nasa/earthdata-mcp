@@ -1,5 +1,6 @@
 """Tests for the spatial utility module."""
 
+from tests.conftest import generate_spatial_resolution_metadata
 from util.spatial import (
     SpatialResolution,
     check_spatial_disambiguation,
@@ -13,19 +14,7 @@ class TestExtractSpatialResolution:
 
     def test_extracts_gridded_resolution(self):
         """Test extraction from GriddedResolutions."""
-        metadata = {
-            "SpatialExtent": {
-                "HorizontalSpatialDomain": {
-                    "ResolutionAndCoordinateSystem": {
-                        "HorizontalDataResolution": {
-                            "GriddedResolutions": [
-                                {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                            ]
-                        }
-                    }
-                }
-            }
-        }
+        metadata = generate_spatial_resolution_metadata(1, 1, "Kilometers")
 
         result = extract_spatial_resolution(metadata)
 
@@ -37,19 +26,9 @@ class TestExtractSpatialResolution:
 
     def test_extracts_non_gridded_resolution(self):
         """Test extraction from NonGriddedResolutions."""
-        metadata = {
-            "SpatialExtent": {
-                "HorizontalSpatialDomain": {
-                    "ResolutionAndCoordinateSystem": {
-                        "HorizontalDataResolution": {
-                            "NonGriddedResolutions": [
-                                {"XDimension": 500, "YDimension": 500, "Unit": "Meters"}
-                            ]
-                        }
-                    }
-                }
-            }
-        }
+        metadata = generate_spatial_resolution_metadata(
+            500, 500, "Meters", resolution_type="NonGriddedResolutions"
+        )
 
         result = extract_spatial_resolution(metadata)
 
@@ -164,45 +143,9 @@ class TestGroupBySpatialResolution:
     def test_groups_by_resolution(self):
         """Test grouping collections by resolution."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 250, "YDimension": 250, "Unit": "Meters"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
+            generate_spatial_resolution_metadata(250, 250, "Meters"),
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
         ]
 
         groups = group_by_spatial_resolution(collections)
@@ -214,19 +157,7 @@ class TestGroupBySpatialResolution:
     def test_groups_none_for_missing_resolution(self):
         """Test that collections without resolution are grouped under None."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
             {"SpatialExtent": {}},
             {},
         ]
@@ -244,32 +175,8 @@ class TestCheckSpatialDisambiguation:
     def test_no_disambiguation_when_same_resolution(self):
         """Test no disambiguation needed when all have same resolution."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
         ]
 
         needs_disambiguation, resolutions = check_spatial_disambiguation(collections)
@@ -280,45 +187,9 @@ class TestCheckSpatialDisambiguation:
     def test_disambiguation_when_different_resolutions(self):
         """Test disambiguation needed when different resolutions."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 250, "YDimension": 250, "Unit": "Meters"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 5, "YDimension": 5, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
+            generate_spatial_resolution_metadata(250, 250, "Meters"),
+            generate_spatial_resolution_metadata(5, 5, "Kilometers"),
         ]
 
         needs_disambiguation, resolutions = check_spatial_disambiguation(collections)
@@ -333,19 +204,7 @@ class TestCheckSpatialDisambiguation:
     def test_ignores_varies_resolution(self):
         """Test that 'Varies' resolution is ignored for disambiguation."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
             {
                 "SpatialExtent": {
                     "HorizontalSpatialDomain": {
@@ -377,49 +236,9 @@ class TestCheckSpatialDisambiguation:
     def test_sorts_resolutions_by_size(self):
         """Test resolutions are sorted by size (smallest first)."""
         collections = [
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {
-                                        "XDimension": 0.25,
-                                        "YDimension": 0.25,
-                                        "Unit": "Decimal Degrees",
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 250, "YDimension": 250, "Unit": "Meters"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "SpatialExtent": {
-                    "HorizontalSpatialDomain": {
-                        "ResolutionAndCoordinateSystem": {
-                            "HorizontalDataResolution": {
-                                "GriddedResolutions": [
-                                    {"XDimension": 1, "YDimension": 1, "Unit": "Kilometers"}
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
+            generate_spatial_resolution_metadata(0.25, 0.25, "Decimal Degrees"),
+            generate_spatial_resolution_metadata(250, 250, "Meters"),
+            generate_spatial_resolution_metadata(1, 1, "Kilometers"),
         ]
 
         _, resolutions = check_spatial_disambiguation(collections)
