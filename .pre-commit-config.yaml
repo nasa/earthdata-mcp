@@ -10,10 +10,10 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: uv run pylint
+        entry: uv run pylint util/ tests/ lambdas/ tools/
         language: system
-        types: [python]
-        args: [--rcfile=pyproject.toml]
+        pass_filenames: false
+        always_run: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
