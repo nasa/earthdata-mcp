@@ -1,9 +1,9 @@
 {
-  "name": "get_geospatial_embeddings",
+  "name": "natural_language_geocode",
   "module": "tool",
-  "description": "Searches CMR's geospatial embedding search with natural langugage. Given a text detailing location, return geometry/geojson",
+  "description": "Convert natural language location descriptions to WKT geometry. Supports cities, regions, countries, and geographic features.",
   "version": "1.0.0",
-  "tags": ["geospatial", "location", "geometry"],
+  "tags": ["geospatial", "location", "geometry", "geocoding"],
   "entry_function": "natural_language_geocode",
-  "enabled": "false"
+  "enabled": true
 }

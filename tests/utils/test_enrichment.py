@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+from shapely import wkt
+
 from tests.conftest import GLOBAL_BOUNDING_BOX
 from util.enrichment import (
     _parse_spatial_resolution_from_title,
@@ -138,12 +140,22 @@ class TestExtractSpatialExtent:
             }
         }
 
-        wkt, is_global = extract_spatial_extent(metadata)
+        wkt_str, is_global = extract_spatial_extent(metadata)
 
-        assert wkt is not None
-        assert "POLYGON" in wkt
-        assert "-125.0" in wkt
+        assert wkt_str is not None
         assert is_global is False
+
+        # Parse and validate the WKT
+        polygon = wkt.loads(wkt_str)
+        assert polygon.geom_type == "Polygon"
+        assert polygon.is_valid
+
+        # Check bounds match input coordinates
+        minx, miny, maxx, maxy = polygon.bounds
+        assert minx == -125.0
+        assert maxx == -65.0
+        assert miny == 24.0
+        assert maxy == 50.0
 
     def test_extracts_gpolygon(self):
         """Test extraction from GPolygons."""
@@ -169,12 +181,22 @@ class TestExtractSpatialExtent:
             }
         }
 
-        wkt, is_global = extract_spatial_extent(metadata)
+        wkt_str, is_global = extract_spatial_extent(metadata)
 
-        assert wkt is not None
-        assert "POLYGON" in wkt
-        assert "-122.0" in wkt
+        assert wkt_str is not None
         assert is_global is False
+
+        # Parse and validate the WKT
+        polygon = wkt.loads(wkt_str)
+        assert polygon.geom_type == "Polygon"
+        assert polygon.is_valid
+
+        # Check bounds match input coordinates
+        minx, miny, maxx, maxy = polygon.bounds
+        assert minx == -122.0
+        assert maxx == -121.0
+        assert miny == 37.0
+        assert maxy == 38.0
 
     def test_prefers_gpolygon_over_bounding_rectangle(self):
         """Test that GPolygons are preferred over BoundingRectangles."""
@@ -207,11 +229,21 @@ class TestExtractSpatialExtent:
             }
         }
 
-        wkt, is_global = extract_spatial_extent(metadata)
+        wkt_str, is_global = extract_spatial_extent(metadata)
 
-        # Should use GPolygon coordinates, not bounding rectangle
-        assert "-122.0" in wkt
         assert is_global is False
+
+        # Parse and validate - should use GPolygon, not bounding rectangle
+        polygon = wkt.loads(wkt_str)
+        minx, miny, maxx, maxy = polygon.bounds
+
+        # GPolygon bounds: -122 to -121, 37 to 38
+        # BoundingRect bounds would be: -180 to 180, -90 to 90
+        assert minx == -122.0
+        assert maxx == -121.0
+        assert miny == 37.0
+        # Note: max lat is 37.0 because the polygon is a triangle (point 4 = point 1)
+        assert maxy == 38.0
 
     def test_detects_global_coverage(self):
         """Test detection of global coverage."""
@@ -307,13 +339,13 @@ class TestParseTemporalResolutionFromTitle:
 
 
 class TestParseSpatialResolutionFromTitle:
-    """Tests for _parse_spatial_resolution_from_title function."""
+    """Tests for parse_spatial_resolution_from_title function."""
 
     def test_parses_km(self):
         """Test parsing 'km' resolution from title."""
         title = "MODIS/Terra Land Surface Temperature Daily L3 Global 1km"
 
-        result = _parse_spatial_resolution_from_title(title)
+        result = parse_spatial_resolution_from_title(title)
 
         assert result == {"XDimension": 1.0, "YDimension": 1.0, "Unit": "Kilometers"}
 
@@ -321,7 +353,7 @@ class TestParseSpatialResolutionFromTitle:
         """Test parsing 'm' resolution from title."""
         title = "MODIS/Terra Vegetation Indices 8-Day L3 Global 250m"
 
-        result = _parse_spatial_resolution_from_title(title)
+        result = parse_spatial_resolution_from_title(title)
 
         assert result == {"XDimension": 250.0, "YDimension": 250.0, "Unit": "Meters"}
 
@@ -329,7 +361,7 @@ class TestParseSpatialResolutionFromTitle:
         """Test parsing 'degree' resolution from title."""
         title = "Global 0.25 Degree Precipitation"
 
-        result = _parse_spatial_resolution_from_title(title)
+        result = parse_spatial_resolution_from_title(title)
 
         assert result == {"XDimension": 0.25, "YDimension": 0.25, "Unit": "Decimal Degrees"}
 
@@ -337,7 +369,7 @@ class TestParseSpatialResolutionFromTitle:
         """Test that year-like numbers are skipped."""
         title = "MODIS Collection 2000 Data Product"
 
-        result = _parse_spatial_resolution_from_title(title)
+        result = parse_spatial_resolution_from_title(title)
 
         assert result is None
 
@@ -345,13 +377,13 @@ class TestParseSpatialResolutionFromTitle:
         """Test returns None when no resolution found."""
         title = "MODIS/Terra Land Surface Temperature"
 
-        result = _parse_spatial_resolution_from_title(title)
+        result = parse_spatial_resolution_from_title(title)
 
         assert result is None
 
 
 class TestEnrichMetadata:
-    """Tests for enrich_metadata function."""
+    """Tests for enrich_collection_metadata function."""
 
     def test_enriches_temporal_resolution_from_title(self):
         """Test that temporal resolution is enriched from title when missing."""
@@ -362,7 +394,7 @@ class TestEnrichMetadata:
             ],
         }
 
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         assert "TemporalResolution" in enriched["TemporalExtents"][0]
         assert enriched["TemporalExtents"][0]["TemporalResolution"]["Value"] == 1
@@ -380,7 +412,7 @@ class TestEnrichMetadata:
             ],
         }
 
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         # Should preserve the original 8-Day, not override with Daily from title
         assert enriched["TemporalExtents"][0]["TemporalResolution"]["Value"] == 8
@@ -392,7 +424,7 @@ class TestEnrichMetadata:
             "SpatialExtent": {"HorizontalSpatialDomain": {}},
         }
 
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         horiz_res = enriched["SpatialExtent"]["HorizontalSpatialDomain"][
             "ResolutionAndCoordinateSystem"
@@ -418,7 +450,7 @@ class TestEnrichMetadata:
             },
         }
 
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         # Should preserve the original 500m, not override with 1km from title
         horiz_res = enriched["SpatialExtent"]["HorizontalSpatialDomain"][
@@ -433,7 +465,7 @@ class TestEnrichMetadata:
             "TemporalExtents": [{}],
         }
 
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         # Original should not have TemporalResolution
         assert "TemporalResolution" not in metadata["TemporalExtents"][0]

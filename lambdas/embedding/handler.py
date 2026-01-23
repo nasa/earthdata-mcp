@@ -190,7 +190,7 @@ def _handle_update_core(
     if message.concept_type == "collection":
         temporal_start, temporal_end, is_ongoing = extract_temporal_extent(metadata)
         spatial_wkt, is_global = extract_spatial_extent(metadata)
-        enriched = enrich_metadata(metadata)
+        enriched = enrich_collection_metadata(metadata)
 
         collection_data = CollectionData(
             metadata=metadata,
