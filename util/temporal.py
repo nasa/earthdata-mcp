@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from util.resolution import check_disambiguation, group_by_resolution
+
 
 @dataclass
 class TemporalResolution:
@@ -191,14 +193,7 @@ def group_by_temporal_resolution(
     Returns:
         Dict mapping resolution string (e.g., "Daily", "8-Day") to collections
     """
-    groups: dict[str | None, list[dict[str, Any]]] = {}
-
-    for collection in collections:
-        resolution = extract_temporal_resolution(collection)
-        key = str(resolution) if resolution else None
-        groups.setdefault(key, []).append(collection)
-
-    return groups
+    return group_by_resolution(collections, extract_temporal_resolution)
 
 
 def check_temporal_disambiguation(
@@ -213,16 +208,12 @@ def check_temporal_disambiguation(
     Returns:
         Tuple of (needs_disambiguation, list of distinct resolutions found)
     """
-    resolutions: set[str] = set()
-
-    for collection in collections:
-        resolution = extract_temporal_resolution(collection)
-        if resolution and resolution.unit not in ("Varies", "Constant"):
-            resolutions.add(str(resolution))
-
-    # Need disambiguation if more than one distinct resolution
-    needs_disambiguation = len(resolutions) > 1
-    return needs_disambiguation, sorted(resolutions, key=_resolution_sort_key)
+    return check_disambiguation(
+        collections,
+        extract_temporal_resolution,
+        exclude_units=("Varies", "Constant"),
+        sort_key_fn=_resolution_sort_key,
+    )
 
 
 def _resolution_sort_key(resolution_str: str) -> float:
