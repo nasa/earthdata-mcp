@@ -9,6 +9,7 @@ Derives enriched_metadata from raw CMR UMM-C metadata by:
 import copy
 from typing import Any
 
+from util.spatial import parse_spatial_resolution_from_title
 from util.temporal import parse_temporal_resolution_from_title
 
 

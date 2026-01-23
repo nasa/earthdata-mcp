@@ -20,10 +20,11 @@ from pydantic import ValidationError
 from util.cmr import CMRError, extract_data, fetch_associations, fetch_concept
 from util.datastores import EmbeddingDatastore, get_datastore
 from util.embeddings import EmbeddingError, EmbeddingGenerator, get_embedding_generator
-from util.enrichment import enrich_metadata, extract_spatial_extent
+from util.enrichment import enrich_collection_metadata
 from util.kms import lookup_terms
 from util.langfuse import flush_langfuse, get_langfuse
 from util.models import CollectionData, ConceptMessage, EmbeddingChunk, KMSTerm
+from util.spatial import extract_spatial_extent
 from util.temporal import extract_temporal_extent
 
 logging.getLogger().setLevel(logging.INFO)

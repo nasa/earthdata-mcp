@@ -5,11 +5,8 @@ from datetime import UTC, datetime
 from shapely import wkt
 
 from tests.conftest import GLOBAL_BOUNDING_BOX
-from util.enrichment import (
-    _parse_spatial_resolution_from_title,
-    enrich_metadata,
-    extract_spatial_extent,
-)
+from util.enrichment import enrich_collection_metadata
+from util.spatial import extract_spatial_extent, parse_spatial_resolution_from_title
 from util.temporal import extract_temporal_extent, parse_temporal_resolution_from_title
 
 
