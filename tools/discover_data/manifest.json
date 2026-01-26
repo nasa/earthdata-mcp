@@ -1,0 +1,9 @@
+{
+  "name": "discover_data",
+  "module": "tool",
+  "description": "Discover NASA Earth science data collections using natural language queries. Searches across collections, variables, instruments, and citations to find relevant datasets. Supports temporal and spatial filtering with intelligent constraint extraction.",
+  "version": "1.0.0",
+  "tags": ["discovery", "earth-science", "nasa", "collections", "search", "nlp"],
+  "entry_function": "discover_data",
+  "enabled": true
+}

@@ -1,9 +1,0 @@
-{
-  "name": "natural_language_geocode",
-  "module": "tool",
-  "description": "Convert natural language location descriptions to WKT geometry. Supports cities, regions, countries, and geographic features.",
-  "version": "1.0.0",
-  "tags": ["geospatial", "location", "geometry", "geocoding"],
-  "entry_function": "natural_language_geocode",
-  "enabled": true
-}

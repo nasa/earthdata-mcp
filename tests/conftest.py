@@ -1,9 +1,14 @@
 """Pytest configuration and fixtures."""
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+import responses
 
 # Set test environment variables before any imports that might use them
 os.environ.setdefault("REDIS_SSL", "false")
@@ -56,3 +61,14 @@ def load_mock(category: str, name: str) -> dict:
     path = MOCKS_DIR / category / f"{name}.json"
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+@pytest.fixture(autouse=True)
+def mock_all_requests():
+    """Block all real HTTP requests; fail loudly if any slip through.
+    
+    Tests can register mock responses explicitly for KMS, CMR, or other APIs.
+    Any requests.get/post/etc without a registered response will raise.
+    """
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        yield rsps

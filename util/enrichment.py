@@ -6,11 +6,17 @@ Derives enriched_metadata from raw CMR UMM-C metadata by:
 2. Filling in missing fields where we can compute them (e.g., resolution from title)
 """
 
+import logging
 import copy
 from typing import Any
 
 from util.spatial import parse_spatial_resolution_from_title
 from util.temporal import parse_temporal_resolution_from_title
+
+# This import might need to move somewhere better
+from tools.discover_data.output_model import CollectionMatch
+
+logger = logging.getLogger(__name__)
 
 
 def enrich_collection_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -80,3 +86,117 @@ def _enrich_spatial_resolution(metadata: dict[str, Any]) -> None:
 
     if resolution:
         res_sys["HorizontalDataResolution"] = {"GriddedResolutions": [resolution]}
+
+
+def _parse_spatial_resolution_from_title(title: str) -> dict[str, Any] | None:
+    """
+    Parse spatial resolution from collection title.
+
+    Returns UMM-C compliant GriddedResolution object.
+    """
+    # Patterns: "1km", "250m", "0.25 degree", "500 m", "1 km"
+    patterns = [
+        (r"\b(\d+(?:\.\d+)?)\s*km\b", "Kilometers"),
+        (r"\b(\d+(?:\.\d+)?)\s*m\b", "Meters"),
+        (r"\b(\d+(?:\.\d+)?)\s*(?:deg|degree)s?\b", "Decimal Degrees"),
+    ]
+
+    for pattern, unit in patterns:
+        match = re.search(pattern, title, re.IGNORECASE)
+        if match:
+            value = float(match.group(1))
+            # Skip if it looks like a version number or year
+            if 1900 < value < 2100:
+                continue
+            return {
+                "XDimension": value,
+                "YDimension": value,
+                "Unit": unit,
+            }
+
+    return None
+
+
+def filter_by_temporal_constraint(
+    collections: list[CollectionMatch],
+    start_date: Any | None,
+    end_date: Any | None,
+) -> list[CollectionMatch]:
+    """
+    Filter collections by temporal overlap with constraint.
+
+    A collection is included if its temporal range overlaps with
+    the constraint range.
+
+    Args:
+        collections: List of collection matches with temporal_coverage
+        start_date: Constraint start date
+        end_date: Constraint end date
+
+    Returns:
+        Filtered list of collections with temporal overlap
+    """
+    if start_date is None and end_date is None:
+        return collections
+
+    filtered = []
+
+    for collection in collections:
+        if collection.temporal_coverage is None:
+            # No temporal info - include by default
+            filtered.append(collection)
+            continue
+
+        cov = collection.temporal_coverage
+
+        # Check for overlap
+        # Overlap exists if: collection_start <= constraint_end AND collection_end >= constraint_start
+        overlaps = True
+
+        if start_date and cov.end_date:
+            # Collection must end after constraint starts
+            if cov.end_date < start_date:
+                overlaps = False
+
+        if end_date and cov.start_date:
+            # Collection must start before constraint ends
+            if cov.start_date > end_date:
+                overlaps = False
+
+        if overlaps:
+            filtered.append(collection)
+
+    return filtered
+
+
+def filter_by_spatial_constraint(
+    collections: list[CollectionMatch],
+    wkt_geometry: str | None,
+) -> list[CollectionMatch]:
+    """
+    Filter collections by spatial intersection with constraint.
+
+    NOTE: Currently a stub - full implementation would require
+    geometric intersection testing with collection bounding boxes.
+
+    Args:
+        collections: List of collection matches
+        wkt_geometry: WKT geometry constraint
+
+    Returns:
+        Filtered list (currently returns all - needs implementation)
+
+    TODO: Implement spatial filtering:
+        1. Fetch SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles from CMR
+        2. Parse WKT geometry
+        3. Test for intersection
+    """
+    if wkt_geometry is None:
+        return collections
+
+    # STUB: Return all collections until spatial filtering is implemented
+    logger.warning(
+        "Spatial filtering is not yet implemented - returning all %d collections",
+        len(collections),
+    )
+    return collections

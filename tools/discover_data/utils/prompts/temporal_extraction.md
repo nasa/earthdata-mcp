@@ -34,7 +34,7 @@ The response must look exactly like this:
 - Explicit "inclusive" overrides exclusivity.
 
 ## Seasonal References
-If a query mentions a **season**, expand it into exact dates.
+If a query mentions a **season**, expand ipt into exact dates.
 Default hemisphere = **Northern Hemisphere**, unless a **Southern Hemisphere location** is clearly implied.
 
 ### Northern Hemisphere

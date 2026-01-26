@@ -1,16 +1,11 @@
-"""Test for geospatial embeddings"""
+"""Test for geospatial embeddings utility"""
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-import redis
 
-from tools.geospatial_embeddings.output_model import GeospatialOutput
-from tools.geospatial_embeddings.tool import (
-    get_from_cache,
-    natural_language_geocode,
-    store_in_cache,
-)
+from tools.discover_data.input_model import SpatialConstraint
+from tools.discover_data.utils.extract_spatial_constraint import extract_spatial_constraint
 
 
 # Pytest fixtures
@@ -31,235 +26,118 @@ def sample_geometry():
 def sample_cache_data():
     """Sample cached data with polygon geometry for testing."""
     return {
-        "geoLocation": "San Francisco Bay Area",
         "geometry": (
             "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, "
             "-122.5150 37.8150, -122.5150 37.7050))"
         ),
-        "success": True,
     }
 
 
-@pytest.fixture
-def mock_cache():
-    """Mock Cache client."""
-    with patch("tools.geospatial_embeddings.tool.cache") as mock_cache:
-        mock_cache.get.return_value = None
-        mock_cache.set.return_value = True
-        yield mock_cache
-
-
-@pytest.fixture
-def mock_geocoder():
-    """Mock geocoding function."""
-    with patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock:
-        yield mock
-
-
-class TestCacheOperations:
-    """Test Redis Cache operations."""
-
-    def test_get_from_cache_hit(self, mock_cache, sample_cache_data):
-        """Test successful cache retrieval"""
-        mock_cache.get.return_value = sample_cache_data
-
-        result = get_from_cache("San Francisco Bay Area")
-
-        assert result == sample_cache_data
-        mock_cache.get.assert_called_once()
-
-    def test_get_from_cache_miss(self, mock_cache):
-        """Test cache miss."""
-        mock_cache.get.return_value = None
-
-        result = get_from_cache("Unknown Metropolitan Area")
-
-        assert result is None
-        mock_cache.get.assert_called_once()
-
-    def test_get_from_cache_redis_error(self, mock_cache):
-        """Test cache retrieval with Redis error."""
-        mock_cache.get.side_effect = redis.RedisError("Redis connection failed")
-
-        result = get_from_cache("San Francisco Bay Area")
-
-        assert result is None
-
-    def test_store_in_cache_success(self, mock_cache):
-        """Test successful cache storage with polygon geometry."""
-        data = {
-            "geoLocation": "Silicon Valley",
-            "geometry": (
-                "POLYGON((-122.2000 37.3000, -121.8000 37.3000, -121.8000 37.5000, "
-                "-122.2000 37.5000, -122.2000 37.3000))"
-            ),
-            "success": True,
-        }
-
-        store_in_cache("Silicon Valley", data, ttl=1800)
-
-        mock_cache.set.assert_called_once()
-        call_args = mock_cache.set.call_args
-        assert call_args[0][1] == data
-        assert call_args[0][2] == 1800
-
-    def test_store_in_cache_default_ttl(self, mock_cache):
-        """Test cache storage with default TTL."""
-        data = {"geometry": "POLYGON((...))", "test": "data"}
-
-        store_in_cache("location", data)
-
-        call_args = mock_cache.set.call_args
-        assert call_args[0][2] == 900  # Default TTL
-
-    def test_store_in_cache_redis_error(self, mock_cache):
-        """Test cache storage with Redis error."""
-        mock_cache.set.side_effect = redis.RedisError("Redis connection failed")
-
-        # Should not raise exception, should return None
-        result = store_in_cache("San Francisco Bay Area", {"test": "data"})
-
-        assert result is None
-
-
-class TestNaturalLanguageGeocode:
-    """Test the main geocoding function."""
+class TestExtractSpatialConstraint:
+    """Test the main geospatial constraint extraction function."""
 
     @pytest.mark.parametrize("location", ["", None])
     def test_empty_or_none_location(self, location):
         """Test with empty or None location."""
 
-        result = natural_language_geocode(location)
-        assert result.success is False
-        assert "No location query provided" in result.error
+        result = extract_spatial_constraint(location)
+        # Empty strings are treated as None by the utility
+        assert result.location is None
+        assert result.wkt_geometry is None
+
+    def test_successful_geocoding(self, sample_geometry):
+        """Test successful geocoding returning polygon."""
+        with (
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
+            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+        ):
+            mock_cache.get.return_value = None  # Cache miss
+            mock_convert.return_value = sample_geometry
+            mock_cache.set.return_value = True
+
+            result = extract_spatial_constraint("San Francisco Bay Area")
+
+            assert result.location == "San Francisco Bay Area"
+            assert result.wkt_geometry is not None
+            assert "POLYGON" in result.wkt_geometry
+            mock_convert.assert_called_once_with("San Francisco Bay Area")
+            mock_cache.set.assert_called_once()
 
     def test_cache_hit(self, sample_cache_data):
         """Test successful cache hit with polygon geometry."""
-        with patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache:
-            mock_get_cache.return_value = sample_cache_data
+        with patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache:
+            # The geospatial utility stores the geometry string directly in cache
+            # (not wrapped in a dict)
+            cached_geometry = sample_cache_data["geometry"]
+            mock_cache.get.return_value = cached_geometry
 
-            result = natural_language_geocode("San Francisco Bay Area")
+            result = extract_spatial_constraint("San Francisco Bay Area")
 
-            assert result.from_cache is True
-            assert result.success is True
-            assert result.geoLocation == "San Francisco Bay Area"
-            mock_get_cache.assert_called_once_with("San Francisco Bay Area")
+            assert result.location == "San Francisco Bay Area"
+            assert result.wkt_geometry == cached_geometry
+            mock_cache.get.assert_called_once()
 
-    def test_cache_miss_successful_geocoding(self, sample_geometry):
-        """Test cache miss with successful geocoding returning polygon."""
+    def test_failed_geocoding(self):
+        """Test failed geocoding."""
         with (
-            patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch("tools.geospatial_embeddings.tool.store_in_cache") as mock_store,
-            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
+            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
         ):
-            mock_get_cache.return_value = None  # Cache miss
-            mock_convert.return_value = sample_geometry
-            mock_store.return_value = True
-
-            result = natural_language_geocode("Silicon Valley")
-
-            assert result.success is True
-            assert result.geoLocation == "Silicon Valley"
-            assert result.geometry is not None
-            geometry_str = str(result.geometry)
-            assert "POLYGON" in geometry_str
-            assert geometry_str.startswith("POLYGON")
-            assert result.from_cache is False
-
-            mock_get_cache.assert_called_once_with("Silicon Valley")
-            mock_convert.assert_called_once_with("Silicon Valley")
-            mock_store.assert_called_once()
-
-    def test_cache_miss_failed_geocoding(self):
-        """Test cache miss with failed geocoding."""
-        with (
-            patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
-        ):
-            mock_get_cache.return_value = None  # Cache miss
+            mock_cache.get.return_value = None  # Cache miss
             mock_convert.return_value = None  # Geocoding failed
+            # Mock the LLM to return a result with location
+            mock_result = MagicMock()
+            mock_result.location_name = "Nonexistent Metropolitan Area XYZ123"
+            mock_result.location_with_context = "Nonexistent Metropolitan Area XYZ123"
+            mock_result.reasoning = "Extracted from query"
+            mock_result.cache_key = "test_key"
+            mock_llm.return_value = mock_result
 
-            result = natural_language_geocode("Nonexistent Metropolitan Area XYZ123")
+            result = extract_spatial_constraint("Nonexistent Metropolitan Area XYZ123")
 
-            assert result.success is False
-            assert "Unable to geocode" in result.error
-            assert "Nonexistent Metropolitan Area XYZ123" in result.error
-            assert result.from_cache is False
+            assert result.location == "Nonexistent Metropolitan Area XYZ123"
+            assert result.wkt_geometry is None
 
     def test_geocoding_value_error_exception(self):
         """Test ValueError exception during geocoding."""
         with (
-            patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
+            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
         ):
-            mock_get_cache.return_value = None  # Cache miss
+            mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = ValueError("Invalid parameter format")
 
-            result = natural_language_geocode("San Francisco Bay Area")
+            result = extract_spatial_constraint("San Francisco Bay Area")
 
-            assert result.success is False
-            assert "Invalid location format" in result.error
-            assert "Invalid parameter format" in result.error
+            assert result.location == "San Francisco Bay Area"
+            assert result.wkt_geometry is None
 
     def test_geocoding_type_error_exception(self):
         """Test TypeError exception during geocoding."""
         with (
-            patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
+            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
         ):
-            mock_get_cache.return_value = None  # Cache miss
+            mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = TypeError("Expected string, got int")
 
-            result = natural_language_geocode("San Francisco Bay Area")
+            result = extract_spatial_constraint("San Francisco Bay Area")
 
-            assert result.success is False
-            assert "Invalid location format" in result.error
-            assert "Expected string, got int" in result.error
+            assert result.location == "San Francisco Bay Area"
+            assert result.wkt_geometry is None
 
     def test_geocoding_generic_exception(self):
         """Test generic exception during geocoding."""
         with (
-            patch("tools.geospatial_embeddings.tool.get_from_cache") as mock_get_cache,
-            patch("tools.geospatial_embeddings.tool.convert_text_to_geom") as mock_convert,
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
+            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
         ):
-            mock_get_cache.return_value = None  # Cache miss
+            mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = Exception("Geocoding API Error")
 
-            result = natural_language_geocode("San Francisco Bay Area")
+            result = extract_spatial_constraint("San Francisco Bay Area")
 
-            assert result.success is False
-            assert "Unexpected error" in result.error
-            assert "Geocoding API Error" in result.error
+            assert result.location == "San Francisco Bay Area"
+            assert result.wkt_geometry is None
 
-
-class TestPydanticModels:
-    """Test Pydantic model functionality."""
-
-    def test_geospatial_output_success_model(self):
-        """Test GeospatialOutput model creation for success case."""
-        success_response = GeospatialOutput(
-            success=True,
-            geoLocation="Test Location",
-            geometry="POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))",
-            from_cache=True,
-        )
-
-        assert success_response.success is True
-        assert success_response.geoLocation == "Test Location"
-        assert success_response.geometry == "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
-        assert success_response.from_cache is True
-        assert success_response.error is None
-
-    def test_geospatial_output_error_model(self):
-        """Test GeospatialOutput model creation for error case."""
-        error_response = GeospatialOutput(
-            success=False,
-            error="Test error message",
-            from_cache=False,
-        )
-
-        assert error_response.success is False
-        assert error_response.error == "Test error message"
-        assert error_response.from_cache is False
-        assert error_response.geoLocation is None
-        assert error_response.geometry is None

@@ -334,6 +334,38 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
             )
             return cur.rowcount > 0
 
+    def get_collections_for_entities(
+        self, entities: list[tuple[str, str]]
+    ) -> dict[str, list[str]]:
+        """
+        Get all collections associated with given entities.
+
+        Args:
+            entities: List of (entity_id, entity_type) tuples
+
+        Returns:
+            Dict mapping entity_id to list of collection IDs
+        """
+        if not entities:
+            return {}
+
+        results: dict[str, list[str]] = {eid: [] for eid, _ in entities}
+
+        # Query associations to find collections linked to these entities
+        with self.conn.cursor() as cur:
+            for entity_id, entity_type in entities:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT right_id FROM {ASSOCIATIONS_TABLE}
+                    WHERE left_id = %s AND left_type = %s AND right_type = 'collection'
+                    """,
+                    (entity_id, entity_type),
+                )
+                collection_ids = [row[0] for row in cur.fetchall()]
+                results[entity_id] = collection_ids
+
+        return results
+
     def close(self) -> None:
         """Close the database connection."""
         if self.conn:

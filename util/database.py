@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -35,6 +36,24 @@ def get_database_credentials() -> dict[str, Any]:
     return json.loads(response["SecretString"])
 
 
+def _get_connection_url() -> str:
+    """Get database connection URL, optionally overriding host for local testing."""
+    creds = get_database_credentials()
+    url = creds["url"]
+    
+    # For local testing, allow overriding the host via DB_HOST environment variable
+    # Converts: postgresql://user:password@original-host:port/db
+    #      to: postgresql://user:password@localhost:port/db
+    db_host = os.getenv("DB_HOST")
+    if db_host:
+        # Replace the hostname in the connection string
+        # Pattern: user:password@host:port -> user:password@new_host:port
+        url = re.sub(r"@([^:]+):", f"@{db_host}:", url)
+        logger.info("Using DB_HOST override: %s", db_host)
+    
+    return url
+
+
 def _is_connection_healthy(conn: Any) -> bool:
     """Check if connection is still usable."""
     if conn is None or conn.closed:
@@ -55,6 +74,9 @@ def get_db_connection() -> Any:
 
     The connection is cached at module level for reuse during warm starts.
     If the connection is closed or broken, a new one will be created.
+    
+    For local testing, set the DB_HOST environment variable to override the hostname
+    (e.g., DB_HOST=localhost python server.py).
     """
     global _connection
     if not _is_connection_healthy(_connection):
@@ -62,8 +84,8 @@ def get_db_connection() -> Any:
         if _connection is not None:
             with contextlib.suppress(Exception):
                 _connection.close()
-        creds = get_database_credentials()
-        _connection = psycopg.connect(creds["url"], autocommit=True)
+        url = _get_connection_url()
+        _connection = psycopg.connect(url, autocommit=True)
         register_vector(_connection)
         logger.info("Created new database connection")
     return _connection
