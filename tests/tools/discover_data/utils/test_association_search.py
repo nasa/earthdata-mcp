@@ -19,6 +19,7 @@ def test_get_associated_collections_uses_datastore(monkeypatch):
         """Mock datastore for testing associated collections."""
 
         def get_associated_collections(self, entity_id: str, entity_type: str):
+            """Mock get_associated_collections method."""
             calls.append((entity_id, entity_type))
             return ["C1", "C2"]
 
@@ -41,6 +42,7 @@ def test_get_collections_for_entities_uses_datastore(monkeypatch):
         """Mock datastore for testing collections for entities."""
 
         def get_collections_for_entities(self, entities):
+            """Mock get_collections_for_entities method."""
             calls.append(list(entities))
             return {"cit-1": ["C1"], "var-1": ["C2", "C3"]}
 

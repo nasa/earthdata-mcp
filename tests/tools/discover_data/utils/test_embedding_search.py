@@ -6,10 +6,12 @@ from tools.discover_data.utils import embedding_search
 class _FakeGenerator:
     """Mock embedding generator for testing."""
     def __init__(self, vector):
+        """Initialize with test vector."""
         self.vector = vector
         self.received = None
 
     def generate(self, query_text: str):
+        """Generate embedding for query text."""
         self.received = query_text
         return self.vector
 
@@ -17,10 +19,12 @@ class _FakeGenerator:
 class _FakeDatastore:
     """Mock datastore for testing similarity searches."""
     def __init__(self, results):
+        """Initialize with test results."""
         self.results = results
         self.calls = []
 
     def search_similar(self, *, embedding, limit, entity_type):
+        """Mock search similar method."""
         self.calls.append({"embedding": embedding, "limit": limit, "entity_type": entity_type})
         return self.results
 
