@@ -36,9 +36,6 @@ from tools.discover_data.utils.query_expansion import (
     generate_expansion_questions,
     should_expand_query,
 )
-from util.temporal import (
-    check_temporal_disambiguation,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +123,32 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
                 },
             )
 
-        filtered_collections = ranked_collections
+        # === PHASE 4: Transform to CollectionMatch Objects ===
+        # Convert scored embedding results into CollectionMatch objects
+        # 
+        # TODO: Once embedding results include pre-enriched metadata:
+        # - Remove _transform_to_collection_matches helper
+        # - Transform inline, populating CollectionMatch with enriched fields
+        # - Enriched metadata will enable constraint filtering (Phase 5) and disambiguation (Phase 6)
+        #
+        # For now, using lightweight transformation without enriched metadata
+        filtered_collections = _transform_to_collection_matches(ranked_collections)
+
+        if langfuse:
+            langfuse.update_current_trace(
+                metadata={
+                    "phase4_collection_matches": len(filtered_collections),
+                },
+            )
+
+        # === PHASE 5: Apply Constraint Filtering ===
+        # Filter collections that don't meet temporal/spatial constraints
+        # 
+        # TODO: Once enriched metadata is available in Phase 4:
+        # - Apply temporal/spatial constraint filtering
+        # - Requires enriched metadata from embedding results
+        #
+        # For now, all collections pass through without filtering
 
         # Apply user refinements from previous context
         if query.previous_context and query.previous_context.user_refinements:
@@ -135,27 +157,42 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
                 query.previous_context.user_refinements,
             )
 
+        if langfuse:
+            langfuse.update_current_trace(
+                metadata={
+                    "phase5_after_filtering": len(filtered_collections),
+                },
+            )
+
         # === PHASE 6: Query Expansion or Disambiguation ===
         questions = []
 
-        if should_expand_query(ranked_collections, all_results, query.similarity_threshold):
+        if should_expand_query(filtered_collections, all_results, query.similarity_threshold):
             discovery_context = analyze_embedding_results(all_results)
             questions = generate_expansion_questions(query.query, discovery_context)
             status = DiscoveryStatus.REFINEMENT_SUGGESTED
             needs_disambiguation = False
         else:
-            # Temporal resolution-based disambiguation using util.temporal
-            # Use raw metadata only (no enriched_metadata)
-            collection_metas = [
-                c.metadata
-                for c in filtered_collections
-                if getattr(c, "metadata", None) and isinstance(c.metadata, dict)
-            ]
-
-            if collection_metas:
-                needs_temporal_disambiguation, resolution_options = check_temporal_disambiguation(collection_metas)
-            else:
-                needs_temporal_disambiguation, resolution_options = False, []
+            # Temporal resolution-based disambiguation
+            # 
+            # TODO: Once enriched metadata is available in Phase 4:
+            # - Extract metadata from CollectionMatch objects
+            # - Check for temporal disambiguation needs
+            # - Generate clarifying questions if needed
+            #
+            # collection_metas = [
+            #     c.metadata
+            #     for c in filtered_collections
+            #     if getattr(c, "metadata", None) and isinstance(c.metadata, dict)
+            # ]
+            #
+            # if collection_metas:
+            #     needs_temporal_disambiguation, resolution_options = check_temporal_disambiguation(collection_metas)
+            # else:
+            #     needs_temporal_disambiguation, resolution_options = False, []
+            # For now, skip temporal disambiguation since metadata is not available
+            needs_temporal_disambiguation = False
+            resolution_options = []
 
             # Convert resolution options to clarifying questions format
             questions = []
@@ -242,6 +279,50 @@ def _extract_or_use_constraints(
         explicit_temporal=query.temporal_constraint,
         explicit_spatial=query.spatial_constraint,
     )
+
+
+def _transform_to_collection_matches(
+    ranked_collections: list[dict],
+) -> list[CollectionMatch]:
+    """
+    Transform scored embedding results into CollectionMatch objects.
+
+    This is a lightweight transformation without CMR enrichment.
+
+    Args:
+        ranked_collections: Scored collection results from embedding search
+
+    Returns:
+        List of CollectionMatch objects (non-enriched)
+    """
+    matches = []
+
+    for result in ranked_collections:
+        # Only process collection results
+        if result.get("type") != "collection":
+            continue
+
+        # Create minimal CollectionMatch from embedding result
+        # Field mapping from embedding results:
+        # - external_id -> concept_id
+        # - text_content -> title
+        # - attribute -> matched_attribute
+        # - similarity -> similarity_score
+        match = CollectionMatch(
+            concept_id=result["external_id"],
+            title=result.get("text_content", ""),
+            short_name="",  # Not available in embedding results
+            score=result.get("score", 0.0),
+            match_type=result.get("match_type", "direct"),
+            similarity_score=result.get("similarity", 0.0),
+            matched_attribute=result.get("attribute"),
+            related_entity_id=result.get("related_entity_id"),
+            related_entity_text=result.get("related_entity_text"),
+            metadata=result.get("metadata"),  # Pass through any metadata we have
+        )
+        matches.append(match)
+
+    return matches
 
 
 def _determine_status(

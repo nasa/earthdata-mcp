@@ -33,6 +33,30 @@ def _make_collection(concept_id: str, match_type: str = "direct", metadata: dict
     )
 
 
+def _make_collection_dict(concept_id: str, match_type: str = "direct", metadata: dict | None = None) -> dict:
+    """Create a dict result like score_and_rank_collections returns.
+    
+    This should match the structure of embedding results with:
+    - external_id: CMR concept ID
+    - text_content: Matched text (title)
+    - attribute: Which attribute matched
+    - similarity: Semantic similarity score
+    - match_type: How collection was found
+    """
+    result = {
+        "type": "collection",
+        "external_id": concept_id,
+        "text_content": f"Title {concept_id}",
+        "attribute": "title",
+        "score": 0.9,
+        "match_type": match_type,
+        "similarity": 0.9,
+    }
+    if metadata is not None:
+        result["metadata"] = metadata
+    return result
+
+
 def _load_tool(monkeypatch):
     """Load tool module with stubbed dependencies to avoid import errors."""
     # Stub util.enrichment before importing tool
@@ -71,7 +95,7 @@ def test_discover_data_expansion_path(monkeypatch):
 
     monkeypatch.setattr(tool, "extract_constraints", lambda q, explicit_temporal, explicit_spatial: (temporal, spatial))
     monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "variable", "similarity": 0.6}])
-    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection("C1")])
+    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")])
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
@@ -99,12 +123,9 @@ def test_discover_data_disambiguation_path(monkeypatch):
     monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "collection", "similarity": 0.8, "match_type": "direct"}])
 
     # Return two collections so filtered_collections not empty
-    collections = [_make_collection("C1", metadata={"TemporalExtents": []}), _make_collection("C2", metadata={"TemporalExtents": []})]
+    collections = [_make_collection_dict("C1", metadata={"TemporalExtents": []}), _make_collection_dict("C2", metadata={"TemporalExtents": []})]
     monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: collections)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
-
-    # No temporal disambiguation
-    monkeypatch.setattr(tool, "check_temporal_disambiguation", lambda metas: (False, []))
 
     # Ensure user refinements are applied
     applied = {}
@@ -184,10 +205,9 @@ def test_discover_data_with_langfuse(monkeypatch):
 
     monkeypatch.setattr(tool, "extract_constraints", lambda q, explicit_temporal, explicit_spatial: (temporal, spatial))
     monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "collection", "similarity": 0.8, "match_type": "direct"}])
-    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection("C1")])
+    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")])
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
-    monkeypatch.setattr(tool, "check_temporal_disambiguation", lambda metas: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
     query = DiscoverDataInput(query="test collection")
