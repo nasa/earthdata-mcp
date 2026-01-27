@@ -16,6 +16,8 @@ def test_get_associated_collections_uses_datastore(monkeypatch):
     calls: list[tuple[str, str]] = []
 
     class FakeDatastore:
+        """Mock datastore for testing associated collections."""
+
         def get_associated_collections(self, entity_id: str, entity_type: str):
             calls.append((entity_id, entity_type))
             return ["C1", "C2"]
@@ -36,6 +38,8 @@ def test_get_collections_for_entities_uses_datastore(monkeypatch):
     calls: list[list[tuple[str, str]]] = []
 
     class FakeDatastore:
+        """Mock datastore for testing collections for entities."""
+
         def get_collections_for_entities(self, entities):
             calls.append(list(entities))
             return {"cit-1": ["C1"], "var-1": ["C2", "C3"]}
@@ -56,7 +60,9 @@ def test_get_collections_for_entities_empty(monkeypatch):
     calls: list[list[tuple[str, str]]] = []
 
     class FakeDatastore:
+        """Mock datastore for testing empty entities handling."""
         def get_collections_for_entities(self, entities):
+            """Mock implementation for testing."""
             calls.append(list(entities))
             return {"cit-1": ["C1"]}
 
@@ -66,7 +72,7 @@ def test_get_collections_for_entities_empty(monkeypatch):
     result = association_search.get_collections_for_entities([])
 
     assert result == {}
-    assert calls == []
+    assert not calls
     assert association_search._datastore is None
 
 

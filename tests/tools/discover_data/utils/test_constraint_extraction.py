@@ -111,13 +111,13 @@ def test_extract_constraints_uses_explicit_temporal_if_provided(monkeypatch):
     monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint_from_query", fake_temporal)
     monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint_from_query", fake_spatial)
 
-    temporal, spatial = constraint_extraction.extract_constraints(
+    temporal, _ = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
         explicit_temporal=explicit_temporal,
     )
 
     assert temporal == explicit_temporal
-    assert temporal_calls == []  # Should not have called the wrapper
+    assert not temporal_calls  # Should not have called the wrapper
     assert spatial_calls == ["data from 2020 in Denver"]
 
 
@@ -140,13 +140,13 @@ def test_extract_constraints_uses_explicit_spatial_if_provided(monkeypatch):
     monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint_from_query", fake_temporal)
     monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint_from_query", fake_spatial)
 
-    temporal, spatial = constraint_extraction.extract_constraints(
+    _, spatial = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
         explicit_spatial=explicit_spatial,
     )
 
     assert spatial == explicit_spatial
-    assert spatial_calls == []  # Should not have called the wrapper
+    assert not spatial_calls  # Should not have called the wrapper
     assert temporal_calls == ["data from 2020 in Denver"]
 
 
@@ -177,5 +177,5 @@ def test_extract_constraints_uses_both_explicit_if_provided(monkeypatch):
 
     assert temporal == explicit_temporal
     assert spatial == explicit_spatial
-    assert temporal_calls == []
-    assert spatial_calls == []
+    assert not temporal_calls
+    assert not spatial_calls

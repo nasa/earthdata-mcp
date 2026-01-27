@@ -50,6 +50,9 @@ disable = [
     "import-outside-toplevel",  # Tests use local imports for patching
     "too-many-locals",  # Handlers often need many locals
     "too-many-statements",  # Handlers often need many statements
+    "fixme",  # TODO comments are acceptable during development
+    "no-member",  # False positives with Pydantic FieldInfo and dynamic attributes
+    "consider-iterating-dictionary",  # Sometimes explicit .keys() is clearer
 ]
 
 [tool.pylint.design]

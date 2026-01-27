@@ -108,7 +108,7 @@ class TestTemporalRangesMocked:
 
     def test_prompt_file_missing(self, mock_instructor_client):
         """Test that extraction still works even if internal path operations occur."""
-        mock_instructor, mock_client = mock_instructor_client
+        _, mock_client = mock_instructor_client
 
         # Create a mock output object
         mock_output = MagicMock()
@@ -169,4 +169,3 @@ class TestTemporalRangesMocked:
         finally:
             # Restore original LANGFUSE
             tool_module.LANGFUSE = original_langfuse
-

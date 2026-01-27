@@ -186,4 +186,3 @@ class TestExtractSpatialConstraint:
 
             assert result.location == "San Francisco Bay Area"
             assert result.wkt_geometry is None
-

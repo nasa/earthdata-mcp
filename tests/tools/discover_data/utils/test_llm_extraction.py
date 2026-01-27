@@ -54,23 +54,27 @@ class TestLoadExtractionPrompt:
 
     def test_prompt_file_not_found(self):
         """Raise FileNotFoundError if prompt file doesn't exist."""
-        with patch("pathlib.Path.exists", return_value=False):
-            with pytest.raises(FileNotFoundError, match="Required prompt file not found"):
-                llm_extraction.load_extraction_prompt("nonexistent.md", "2024-01-01")
+        with (
+            patch("pathlib.Path.exists", return_value=False),
+            pytest.raises(FileNotFoundError, match="Required prompt file not found"),
+        ):
+            llm_extraction.load_extraction_prompt("nonexistent.md", "2024-01-01")
 
     def test_prompt_path_construction(self):
         """Verify prompt path is constructed correctly relative to module."""
         mock_file = mock_open(read_data="test content")
 
-        with patch("builtins.open", mock_file) as mock_open_call:
-            with patch("pathlib.Path.exists", return_value=True):
-                llm_extraction.load_extraction_prompt("test.md", "2024-01-01")
+        with (
+            patch("builtins.open", mock_file) as mock_open_call,
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            llm_extraction.load_extraction_prompt("test.md", "2024-01-01")
 
-                # Verify the constructed path
-                opened_path = mock_open_call.call_args[0][0]
-                assert isinstance(opened_path, Path)
-                assert opened_path.name == "test.md"
-                assert opened_path.parent.name == "prompts"
+            # Verify the constructed path
+            opened_path = mock_open_call.call_args[0][0]
+            assert isinstance(opened_path, Path)
+            assert opened_path.name == "test.md"
+            assert opened_path.parent.name == "prompts"
 
     def test_empty_prompt_file(self):
         """Handle empty prompt files gracefully."""

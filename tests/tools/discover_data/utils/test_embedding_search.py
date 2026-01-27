@@ -4,6 +4,7 @@ from tools.discover_data.utils import embedding_search
 
 
 class _FakeGenerator:
+    """Mock embedding generator for testing."""
     def __init__(self, vector):
         self.vector = vector
         self.received = None
@@ -14,6 +15,7 @@ class _FakeGenerator:
 
 
 class _FakeDatastore:
+    """Mock datastore for testing similarity searches."""
     def __init__(self, results):
         self.results = results
         self.calls = []
@@ -24,6 +26,7 @@ class _FakeDatastore:
 
 
 def test_get_embedding_generator_lazy_init(monkeypatch):
+    """Verify embedding generator is created once and reused on subsequent calls."""
     class _FakeGen:
         def __init__(self):
             self.created = True
@@ -39,6 +42,7 @@ def test_get_embedding_generator_lazy_init(monkeypatch):
 
 
 def test_get_datastore_lazy_init(monkeypatch):
+    """Verify datastore is created once and reused on subsequent calls."""
     class _FakeStore:
         def __init__(self):
             self.created = True
@@ -54,6 +58,7 @@ def test_get_datastore_lazy_init(monkeypatch):
 
 
 def test_generate_query_embedding_uses_generator(monkeypatch):
+    """Verify query embedding generation delegates to the embedding generator."""
     fake_generator = _FakeGenerator([0.1, 0.2, 0.3])
     monkeypatch.setattr(embedding_search, "get_embedding_generator", lambda: fake_generator)
 
@@ -64,6 +69,7 @@ def test_generate_query_embedding_uses_generator(monkeypatch):
 
 
 def test_search_collections_filters_by_threshold_and_entity(monkeypatch):
+    """Verify collection search filters by similarity threshold and entity type."""
     fake_generator = _FakeGenerator([0.1, 0.2])
     fake_results = [
         {"type": "collection", "external_id": "C1", "similarity": 0.7},
@@ -83,6 +89,7 @@ def test_search_collections_filters_by_threshold_and_entity(monkeypatch):
 
 
 def test_search_all_entity_types_filters_and_logs(monkeypatch):
+    """Verify all-entity search filters results by similarity threshold."""
     fake_generator = _FakeGenerator([0.9])
     fake_results = [
         {"type": "variable", "external_id": "V1", "similarity": 0.8},
@@ -101,6 +108,7 @@ def test_search_all_entity_types_filters_and_logs(monkeypatch):
 
 
 def test_search_by_entity_type_respects_type(monkeypatch):
+    """Verify entity type search filters by specified entity type."""
     fake_generator = _FakeGenerator([0.5])
     fake_results = [
         {"type": "platforms", "external_id": "P1", "similarity": 0.9},
@@ -124,6 +132,7 @@ def test_search_by_entity_type_respects_type(monkeypatch):
 
 
 def test_deduplicate_by_external_id_keeps_highest_and_sorts():
+    """Verify deduplication keeps highest similarity score and sorts by similarity."""
     results = [
         {"external_id": "C1", "similarity": 0.5},
         {"external_id": "C2", "similarity": 0.4},

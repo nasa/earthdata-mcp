@@ -49,6 +49,7 @@ def _load_tool(monkeypatch):
 
 
 def test_extract_or_use_constraints_prefers_previous_context(monkeypatch):
+    """Test that previous context constraints are preferred over extracting new ones."""
     tool = _load_tool(monkeypatch)
     prior_temporal = TemporalConstraint(reasoning="prev")
     prior_spatial = SpatialConstraint(reasoning="prev")
@@ -62,6 +63,7 @@ def test_extract_or_use_constraints_prefers_previous_context(monkeypatch):
 
 
 def test_discover_data_expansion_path(monkeypatch):
+    """Test that query expansion path suggests refinement questions."""
     tool = _load_tool(monkeypatch)
 
     temporal = TemporalConstraint()
@@ -88,6 +90,7 @@ def test_discover_data_expansion_path(monkeypatch):
 
 
 def test_discover_data_disambiguation_path(monkeypatch):
+    """Test that disambiguation path presents clarifying questions."""
     tool = _load_tool(monkeypatch)
 
     temporal = TemporalConstraint()
@@ -122,6 +125,7 @@ def test_discover_data_disambiguation_path(monkeypatch):
 
 
 def test_determine_status_variants():
+    """Test that discovery status is determined correctly for different result scenarios."""
     tool = importlib.import_module("tools.discover_data.tool")
     direct = _make_collection("C1", match_type="direct")
     indirect = _make_collection("C2", match_type="via_variable")
@@ -133,6 +137,7 @@ def test_determine_status_variants():
 
 
 def test_describe_search_strategy_counts():
+    """Test that search strategy description includes correct match type counts."""
     tool = importlib.import_module("tools.discover_data.tool")
     temporal = TemporalConstraint(start_date=None, end_date=None)
     spatial = SpatialConstraint(wkt_geometry="POLYGON(...)" )
