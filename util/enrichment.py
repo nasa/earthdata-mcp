@@ -6,15 +6,15 @@ Derives enriched_metadata from raw CMR UMM-C metadata by:
 2. Filling in missing fields where we can compute them (e.g., resolution from title)
 """
 
-import logging
 import copy
+import logging
+import re
 from typing import Any
 
+# TODO: This import might need to move somewhere better
+from tools.discover_data.output_model import CollectionMatch
 from util.spatial import parse_spatial_resolution_from_title
 from util.temporal import parse_temporal_resolution_from_title
-
-# This import might need to move somewhere better
-from tools.discover_data.output_model import CollectionMatch
 
 logger = logging.getLogger(__name__)
 
@@ -153,15 +153,13 @@ def filter_by_temporal_constraint(
         # Overlap exists if: collection_start <= constraint_end AND collection_end >= constraint_start
         overlaps = True
 
-        if start_date and cov.end_date:
+        if start_date and cov.end_date and cov.end_date < start_date:
             # Collection must end after constraint starts
-            if cov.end_date < start_date:
-                overlaps = False
+            overlaps = False
 
-        if end_date and cov.start_date:
+        if end_date and cov.start_date and cov.start_date > end_date:
             # Collection must start before constraint ends
-            if cov.start_date > end_date:
-                overlaps = False
+            overlaps = False
 
         if overlaps:
             filtered.append(collection)

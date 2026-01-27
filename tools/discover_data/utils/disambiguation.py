@@ -8,7 +8,6 @@ platforms/instruments.
 
 import logging
 import re
-from typing import Any
 
 from tools.discover_data.output_model import ClarifyingQuestion, CollectionMatch
 from util.kms.client import lookup_term
@@ -21,7 +20,7 @@ def check_disambiguation(
 ) -> tuple[bool, list[ClarifyingQuestion]]:
     """
     Detect and generate clarifying questions for ambiguous results.
-    
+
     Strategy:
     1. Group collections by normalized topic (e.g., "sea_surface_temperature")
     2. Within each group, detect:
@@ -29,7 +28,7 @@ def check_disambiguation(
        - Spatial resolution differences
        - Platform/instrument differences (e.g., MODIS vs VIIRS)
     3. If multiple resolutions exist, generate a select question for the user
-    
+
     Returns:
         (needs_disambiguation, questions) where questions is empty if no
         ambiguity detected.
@@ -192,7 +191,7 @@ def _generate_resolution_question(
         question_id=f"{resolution_type}_res_{hash(topic) % 100000}",
         question_text=question_text,
         question_type="resolution_preference",
-        options=sorted(list(resolutions)),
+        options=sorted(resolutions),
         explanations=None,  # No KMS definitions for resolution values
         recommendation=None,
         related_collection_ids=[c.concept_id for c in collections],
@@ -230,7 +229,7 @@ def _generate_platform_question(
         question_id=f"platform_{hash(topic) % 100000}",
         question_text=f"'{readable_topic}' data is available from multiple satellites. Which platform?",
         question_type="platform_preference",
-        options=sorted(list(platforms)),
+        options=sorted(platforms),
         explanations=explanations if explanations else None,
         recommendation=None,
         related_collection_ids=[c.concept_id for c in collections],

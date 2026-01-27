@@ -30,14 +30,14 @@ from tools.discover_data.utils.constraint_extraction import extract_constraints
 from tools.discover_data.utils.disambiguation import (
     filter_by_user_refinements,
 )
-from util.temporal import (
-    check_temporal_disambiguation,
-)
 from tools.discover_data.utils.embedding_search import search_all_entity_types
 from tools.discover_data.utils.query_expansion import (
     analyze_embedding_results,
     generate_expansion_questions,
     should_expand_query,
+)
+from util.temporal import (
+    check_temporal_disambiguation,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ except Exception as e:
 
 
 @observe(name="discover_data")
-def discover_data(query: DiscoverDataInput) -> dict:
+def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many-branches
     """
     Discover NASA earth science data collections using natural language.
 

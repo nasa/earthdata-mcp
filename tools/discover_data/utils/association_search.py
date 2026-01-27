@@ -45,7 +45,7 @@ def get_associated_collections(
         List of collection concept IDs associated with this entity
     """
     datastore = get_datastore()
-    collection_ids = datastore.get_associated_collections(entity_id, entity_type)
+    collection_ids = datastore.get_associated_collections(entity_id, entity_type)  # pylint: disable=no-member
 
     logger.debug(
         "Found %d collections associated with %s:%s",

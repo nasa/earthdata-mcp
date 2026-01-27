@@ -70,7 +70,7 @@ class DiscoverDataInput(BaseModel):
 
     Accepts natural language queries about earth science data,
     with optional explicit constraints and context for iterative refinement.
-    
+
     **Constraint Priority:** Explicit constraints (temporal_constraint, spatial_constraint)
     take precedence over extraction from the query text.
     """

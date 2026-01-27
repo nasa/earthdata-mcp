@@ -72,6 +72,8 @@ def convert_text_to_geom(location_query: str) -> str:
             bedrock_llm, location_query, GeocodeIndexPlaceLookup()
         )
 
+        print(f"Extracted geometry: {geometry}")
+
         simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
         return simplified_geom
     except Exception as e:

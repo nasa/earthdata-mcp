@@ -60,7 +60,7 @@ MODEL_ID = "amazon.nova-pro-v1:0"
 
 
 @observe(name="extract_spatial_from_query")
-def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
+def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # pylint: disable=too-many-branches,too-many-return-statements
     """LLM-only spatial extraction used by the public wrapper.
 
     Args:
@@ -95,6 +95,7 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
         from pydantic import BaseModel
 
         class SpatialExtractionOutput(BaseModel):
+            """Output model for spatial extraction from LLM."""
             location_name: str | None = None
             location_with_context: str | None = None
             reasoning: str | None = None
@@ -132,7 +133,7 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
 
 
 @observe(name="extract_spatial_constraint")
-def extract_spatial_constraint(query: str) -> SpatialConstraint:
+def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disable=too-many-branches,too-many-return-statements
     """Convert natural language location query to spatial constraint with caching.
 
     Args:

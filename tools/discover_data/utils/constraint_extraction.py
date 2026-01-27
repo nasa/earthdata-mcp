@@ -16,8 +16,9 @@ extract_spatial_constraint.py for testability and reusability.
 import logging
 
 from tools.discover_data.input_model import SpatialConstraint, TemporalConstraint
-from .extract_temporal_constraint import extract_temporal_constraint
+
 from .extract_spatial_constraint import extract_spatial_constraint
+from .extract_temporal_constraint import extract_temporal_constraint
 
 logger = logging.getLogger(__name__)
 

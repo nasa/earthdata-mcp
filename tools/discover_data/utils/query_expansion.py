@@ -118,10 +118,10 @@ def generate_expansion_questions(
 
     # Question 2: What instrument/sensor?
     if context.instruments and len(context.instruments) > 1:
-        instrument_names = list(set(
+        instrument_names = sorted({
             _extract_name_from_text(inst["text"])
             for inst in context.instruments
-        ))[:4]
+        })[:4]
         if len(instrument_names) > 1:
             questions.append(ClarifyingQuestion(
                 question_id="instrument_preference",
@@ -139,7 +139,7 @@ def generate_expansion_questions(
             question_id="temporal_resolution",
             question_text="What time interval works for your analysis?",
             question_type="resolution_preference",
-            options=sorted(list(context.available_temporal_resolutions))[:4],
+            options=sorted(context.available_temporal_resolutions)[:4],
             explanations={
                 "Daily": "Best for studying individual events or short-term changes",
                 "8-Day": "Good balance of detail and data volume",
@@ -151,10 +151,10 @@ def generate_expansion_questions(
 
     # Question 4: What variable specifically?
     if context.variables and len(context.variables) > 1:
-        variable_names = list(set(
+        variable_names = sorted({
             _extract_name_from_text(var["text"])
             for var in context.variables
-        ))[:4]
+        })[:4]
         if len(variable_names) > 1:
             questions.append(ClarifyingQuestion(
                 question_id="variable_preference",
@@ -184,7 +184,7 @@ def _extract_keyword_options(science_keywords: list[dict]) -> list[str]:
             # Use first few words
             words = text.split()[:3]
             options.add(" ".join(words))
-    return sorted(list(options))
+    return sorted(options)
 
 
 def _extract_name_from_text(text: str) -> str:
@@ -202,7 +202,7 @@ def _extract_name_from_text(text: str) -> str:
 def should_expand_query(
     scored_collections: list[dict[str, Any]],
     embedding_results: list[dict[str, Any]],
-    confidence_threshold: float = 0.5,
+    confidence_threshold: float = 0.5,  # pylint: disable=unused-argument
 ) -> bool:
     """
     Determine if we should offer query expansion instead of no_results.

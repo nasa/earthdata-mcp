@@ -299,23 +299,23 @@ def _extract_spatial_from_title(title: str) -> str | None:
     return None
 
 
-def _normalize_spatial_to_meters(value: float, unit: str) -> float | None:
+def _normalize_spatial_to_meters(value: float, unit: str) -> float | None:  # pylint: disable=too-many-return-statements
     """Convert spatial resolution to meters for comparison."""
     unit_lower = unit.lower()
 
     if unit_lower in ("m", "meter", "meters"):
         return value
-    elif unit_lower in ("km", "kilometer", "kilometers"):
+    if unit_lower in ("km", "kilometer", "kilometers"):
         return value * 1000
-    elif "degree" in unit_lower or "deg" in unit_lower:
+    if "degree" in unit_lower or "deg" in unit_lower:
         # Approximate: 1 degree ~ 111km at equator
         return value * 111000
-    elif "arc" in unit_lower and "sec" in unit_lower:
+    if "arc" in unit_lower and "sec" in unit_lower:
         # Arc-second: ~30m at equator
         return value * 30
-    elif "nautical" in unit_lower:
+    if "nautical" in unit_lower:
         return value * 1852
-    elif "statute" in unit_lower or "mile" in unit_lower:
+    if "statute" in unit_lower or "mile" in unit_lower:
         return value * 1609
 
     return None

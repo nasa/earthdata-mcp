@@ -70,6 +70,7 @@ def _extract_temporal_with_llm(query: str) -> TemporalConstraint:
         from pydantic import BaseModel
 
         class TemporalRangeOutput(BaseModel):
+            """Output model for temporal range extraction from LLM."""
             start_date: datetime | None = None
             end_date: datetime | None = None
             reasoning: str | None = None

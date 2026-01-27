@@ -40,7 +40,7 @@ def _get_connection_url() -> str:
     """Get database connection URL, optionally overriding host for local testing."""
     creds = get_database_credentials()
     url = creds["url"]
-    
+
     # For local testing, allow overriding the host via DB_HOST environment variable
     # Converts: postgresql://user:password@original-host:port/db
     #      to: postgresql://user:password@localhost:port/db
@@ -50,7 +50,7 @@ def _get_connection_url() -> str:
         # Pattern: user:password@host:port -> user:password@new_host:port
         url = re.sub(r"@([^:]+):", f"@{db_host}:", url)
         logger.info("Using DB_HOST override: %s", db_host)
-    
+
     return url
 
 
@@ -74,7 +74,7 @@ def get_db_connection() -> Any:
 
     The connection is cached at module level for reuse during warm starts.
     If the connection is closed or broken, a new one will be created.
-    
+
     For local testing, set the DB_HOST environment variable to override the hostname
     (e.g., DB_HOST=localhost python server.py).
     """
