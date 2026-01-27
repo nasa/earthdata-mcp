@@ -6,6 +6,8 @@ Derives enriched_metadata from raw CMR UMM-C metadata by:
 2. Filling in missing fields where we can compute them (e.g., resolution from title)
 """
 
+# pylint: disable=duplicate-code  # Intentional code patterns shared with util/spatial.py
+
 import copy
 import logging
 import re
@@ -88,7 +90,7 @@ def _enrich_spatial_resolution(metadata: dict[str, Any]) -> None:
         res_sys["HorizontalDataResolution"] = {"GriddedResolutions": [resolution]}
 
 
-def _parse_spatial_resolution_from_title(title: str) -> dict[str, Any] | None:
+def _parse_spatial_resolution_from_title(title: str) -> dict[str, Any] | None:  # pylint: disable=duplicate-code
     """
     Parse spatial resolution from collection title.
 

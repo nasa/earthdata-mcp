@@ -152,16 +152,16 @@ def test_describe_search_strategy_counts():
 def test_discover_data_error_handling(monkeypatch):
     """Discover data should catch exceptions and return error status."""
     tool = _load_tool(monkeypatch)
-    
+
     # Create a mock that raises an exception
     def raise_error(*args, **kwargs):
         raise RuntimeError("Extraction failed")
-    
+
     monkeypatch.setattr(tool, "extract_constraints", raise_error)
     query = DiscoverDataInput(query="test")
-    
+
     output = tool.discover_data(query)
-    
+
     assert output["status"] == "error"
     assert "Extraction failed" in output["error_message"]
 
@@ -169,14 +169,14 @@ def test_discover_data_error_handling(monkeypatch):
 def test_discover_data_with_langfuse(monkeypatch):
     """Discover data should log to Langfuse when available."""
     tool = _load_tool(monkeypatch)
-    
+
     # Create a mock Langfuse client
     mock_langfuse = MagicMock()
     monkeypatch.setattr(tool, "langfuse", mock_langfuse)
-    
+
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
-    
+
     monkeypatch.setattr(tool, "extract_constraints", lambda q, explicit_temporal, explicit_spatial: (temporal, spatial))
     monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "collection", "similarity": 0.8, "match_type": "direct"}])
     monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection("C1")])
@@ -184,10 +184,10 @@ def test_discover_data_with_langfuse(monkeypatch):
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
     monkeypatch.setattr(tool, "check_temporal_disambiguation", lambda metas: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
-    
+
     query = DiscoverDataInput(query="test collection")
     output = tool.discover_data(query)
-    
+
     # Verify Langfuse methods were called
     assert mock_langfuse.update_current_trace.called
     assert output["status"] == "collections_found"

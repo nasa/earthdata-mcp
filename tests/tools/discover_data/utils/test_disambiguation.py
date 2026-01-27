@@ -1,11 +1,10 @@
 """Tests for disambiguation utility module."""
 
-from types import SimpleNamespace
 
 import pytest
 import responses
 
-from tools.discover_data.output_model import CollectionMatch, ClarifyingQuestion, ResolutionInfo
+from tools.discover_data.output_model import CollectionMatch, ResolutionInfo
 from tools.discover_data.utils import disambiguation
 
 
@@ -282,7 +281,7 @@ def test_generate_resolution_question_options_sorted(mock_collection):
         collections=collections,
     )
 
-    assert question.options == sorted(list(resolutions))
+    assert question.options == sorted(resolutions)
 
 
 def test_generate_platform_question_text(mock_collection):

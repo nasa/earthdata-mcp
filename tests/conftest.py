@@ -1,11 +1,9 @@
 """Pytest configuration and fixtures."""
 
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 import responses
@@ -66,7 +64,7 @@ def load_mock(category: str, name: str) -> dict:
 @pytest.fixture(autouse=True)
 def mock_all_requests():
     """Block all real HTTP requests; fail loudly if any slip through.
-    
+
     Tests can register mock responses explicitly for KMS, CMR, or other APIs.
     Any requests.get/post/etc without a registered response will raise.
     """

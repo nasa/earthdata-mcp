@@ -1,6 +1,5 @@
 """Unit tests for temporal range extraction utility with mocked LLM responses."""
 
-import sys
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -104,7 +103,7 @@ class TestTemporalRangesMocked:
         with patch("tools.discover_data.utils.extract_temporal_constraint.instructor.from_provider") as mock_instructor:
             mock_instructor.side_effect = Exception("Failed to initialize client")
 
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError):
                 extract_temporal_constraint("Show me data for 2024")
 
     def test_prompt_file_missing(self, mock_instructor_client):
@@ -171,27 +170,3 @@ class TestTemporalRangesMocked:
             # Restore original LANGFUSE
             tool_module.LANGFUSE = original_langfuse
 
-    def test_langfuse_initialization_exception(self):
-        """Test the exception handler when Langfuse client fails to initialize at import time."""
-        # Save original module state
-        original_module = sys.modules.get("tools.discover_data.utils.extract_temporal_constraint")
-
-        # Remove the module and its dependencies from sys.modules
-        modules_to_remove = [k for k in sys.modules if "tools.discover_data.utils.extract_temporal_constraint" in k]
-        for module in modules_to_remove:
-            sys.modules.pop(module, None)
-
-        try:
-            # Mock get_client to raise an exception at import time
-            with patch("langfuse.get_client", side_effect=Exception("Langfuse init failed")):
-                # Reimport the module - should catch the exception and set LANGFUSE=None
-                import tools.discover_data.utils.extract_temporal_constraint as reimported_module  # pylint: disable=import-outside-toplevel
-
-                # Verify LANGFUSE was set to None after the exception
-                assert reimported_module.LANGFUSE is None
-        finally:
-            # Restore original module state
-            if original_module:
-                sys.modules["tools.discover_data.utils.extract_temporal_constraint"] = original_module
-            else:
-                sys.modules.pop("tools.discover_data.utils.extract_temporal_constraint", None)

@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.discover_data.input_model import SpatialConstraint
 from tools.discover_data.utils import extract_spatial_constraint
 
 
@@ -22,12 +21,11 @@ class TestExtractSpatialWithLLM:
         """LLM extraction should return SpatialExtractionResult with location info."""
         with (
             patch("tools.discover_data.utils.extract_spatial_constraint.instructor.from_provider") as mock_instructor,
-            patch("tools.discover_data.utils.extract_spatial_constraint.Path"),
-            patch("builtins.open", create=True) as mock_file,
+            patch("tools.discover_data.utils.extract_spatial_constraint.load_extraction_prompt") as mock_prompt,
         ):
             mock_client = MagicMock()
             mock_instructor.return_value = mock_client
-            mock_file.return_value.__enter__.return_value.read.return_value = "System prompt"
+            mock_prompt.return_value = "System prompt"
 
             # Mock response with string values (not MagicMock to avoid buffer issues)
             mock_response = MagicMock()
@@ -47,12 +45,11 @@ class TestExtractSpatialWithLLM:
         """LLM extraction should return None when location not found."""
         with (
             patch("tools.discover_data.utils.extract_spatial_constraint.instructor.from_provider") as mock_instructor,
-            patch("tools.discover_data.utils.extract_spatial_constraint.Path"),
-            patch("builtins.open", create=True) as mock_file,
+            patch("tools.discover_data.utils.extract_spatial_constraint.load_extraction_prompt") as mock_prompt,
         ):
             mock_client = MagicMock()
             mock_instructor.return_value = mock_client
-            mock_file.return_value.__enter__.return_value.read.return_value = "System prompt"
+            mock_prompt.return_value = "System prompt"
 
             # Mock response with empty location
             mock_response = MagicMock()
@@ -69,12 +66,11 @@ class TestExtractSpatialWithLLM:
         """LLM extraction should propagate errors from LLM."""
         with (
             patch("tools.discover_data.utils.extract_spatial_constraint.instructor.from_provider") as mock_instructor,
-            patch("tools.discover_data.utils.extract_spatial_constraint.Path"),
-            patch("builtins.open", create=True) as mock_file,
+            patch("tools.discover_data.utils.extract_spatial_constraint.load_extraction_prompt") as mock_prompt,
         ):
             mock_client = MagicMock()
             mock_instructor.return_value = mock_client
-            mock_file.return_value.__enter__.return_value.read.return_value = "System prompt"
+            mock_prompt.return_value = "System prompt"
             mock_client.create.side_effect = ValueError("LLM API error")
 
             with pytest.raises(RuntimeError, match="Failed to extract spatial info from query"):
@@ -314,7 +310,7 @@ class TestExtractSpatialInitialization:
             patch("tools.discover_data.utils.extract_spatial_constraint.LANGFUSE", None),
         ):
             mock_instructor.side_effect = RuntimeError("Bedrock service unavailable")
-            
+
             with pytest.raises(RuntimeError, match="Failed to initialize instructor client"):
                 extract_spatial_constraint._extract_spatial_with_llm("test query")
 
@@ -326,10 +322,10 @@ class TestExtractSpatialInitialization:
         ):
             mock_langfuse.update_current_trace = MagicMock()
             mock_instructor.side_effect = ValueError("Bedrock error")
-            
+
             with pytest.raises(RuntimeError, match="Failed to initialize instructor client"):
                 extract_spatial_constraint._extract_spatial_with_llm("test query")
-            
+
             # Verify Langfuse was called to log the error
             assert mock_langfuse.update_current_trace.called
 
@@ -340,7 +336,7 @@ class TestExtractSpatialInitialization:
             location_with_context="Denver, CO",
             reasoning="City",
         )
-        
+
         assert result.location_name == "Denver"
         assert result.location_with_context == "Denver, CO"
         assert result.reasoning == "City"
@@ -354,7 +350,7 @@ class TestExtractSpatialInitialization:
             location_with_context="Some Place",
             reasoning="No location",
         )
-        
+
         assert result.cache_key is None
 
     def test_cache_key_normalization(self):
@@ -364,12 +360,12 @@ class TestExtractSpatialInitialization:
             location_with_context="Denver, CO",
             reasoning="City",
         )
-        
+
         result2 = extract_spatial_constraint.SpatialExtractionResult(
             location_name="DENVER",
             location_with_context="Denver, CO",
             reasoning="City",
         )
-        
+
         # Both should generate the same cache key (case-insensitive)
         assert result1.cache_key == result2.cache_key

@@ -1,6 +1,6 @@
 """Tests for resolution_parsing utilities."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tools.discover_data.utils import resolution_parsing
 
@@ -130,8 +130,8 @@ def test_parse_temporal_coverage_handles_start_end_and_ongoing():
 
     coverage = resolution_parsing.parse_temporal_coverage(umm)
 
-    assert coverage.start_date == datetime(2019, 6, 1, tzinfo=timezone.utc)
-    assert coverage.end_date == datetime(2024, 1, 1, tzinfo=timezone.utc)
+    assert coverage.start_date == datetime(2019, 6, 1, tzinfo=UTC)
+    assert coverage.end_date == datetime(2024, 1, 1, tzinfo=UTC)
     assert coverage.is_ongoing is True
 
 

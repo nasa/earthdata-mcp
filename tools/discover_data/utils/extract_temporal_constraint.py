@@ -8,26 +8,21 @@ Two-layer design:
   - extract_temporal_constraint_from_query: Public wrapper with guards + error handling
 """
 
+# pylint: disable=duplicate-code  # Intentional code patterns shared with extract_spatial_constraint.py
+
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 import instructor
-from langfuse import get_client, observe
+from langfuse import observe
 
 from tools.discover_data.input_model import TemporalConstraint
+from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
+from util.langfuse import initialize_langfuse_client
 
 logger = logging.getLogger(__name__)
 
-try:
-    LANGFUSE = get_client()
-except Exception as e:
-    logger.warning("Failed to initialize Langfuse client: %s", e)
-    LANGFUSE = None
-
-
-PROVIDER = "bedrock"
-MODEL_ID = "amazon.nova-pro-v1:0"
+LANGFUSE = initialize_langfuse_client()
 
 
 @observe(name="extract_temporal_from_query")
@@ -58,13 +53,7 @@ def _extract_temporal_with_llm(query: str) -> TemporalConstraint:
         ) from e
 
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    prompt_path = Path(__file__).parent / "prompts" / "temporal_extraction.md"
-
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"Required prompt file not found: {prompt_path}")
-
-    with open(prompt_path, encoding="utf-8") as f:
-        system_prompt = f.read().replace("{current_date}", today)
+    system_prompt = load_extraction_prompt("temporal_extraction.md", today)
 
     try:
         from pydantic import BaseModel

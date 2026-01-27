@@ -11,26 +11,25 @@ Cache keys use canonical location names from the LLM to ensure "Paris",
 as the canonical key for stronger normalization.)
 """
 
+# pylint: disable=duplicate-code  # Intentional code patterns shared with extract_temporal_constraint.py
+
 import hashlib
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 import instructor
 import redis
-from langfuse import get_client, observe
+from langfuse import observe
 
 from tools.discover_data.input_model import SpatialConstraint
+from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from util.cache import get_cache_client
+from util.langfuse import initialize_langfuse_client
 from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)
 
-try:
-    LANGFUSE = get_client()
-except Exception as e:
-    logger.warning("Failed to initialize Langfuse client: %s", e)
-    LANGFUSE = None
+LANGFUSE = initialize_langfuse_client()
 
 try:
     cache = get_cache_client()
@@ -53,10 +52,6 @@ class SpatialExtractionResult:
         """Generate a standardized cache key from a canonical location name."""
         normalized = location_name.lower().strip()
         return f"geocode:{hashlib.md5(normalized.encode()).hexdigest()}"
-
-
-PROVIDER = "bedrock"
-MODEL_ID = "amazon.nova-pro-v1:0"
 
 
 @observe(name="extract_spatial_from_query")
@@ -83,13 +78,7 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # 
         ) from e
 
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    prompt_path = Path(__file__).parent / "prompts" / "spatial_extraction.md"
-
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"Required prompt file not found: {prompt_path}")
-
-    with open(prompt_path, encoding="utf-8") as f:
-        system_prompt = f.read().replace("{current_date}", today)
+    system_prompt = load_extraction_prompt("spatial_extraction.md", today)
 
     try:
         from pydantic import BaseModel

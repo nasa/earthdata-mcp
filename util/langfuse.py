@@ -54,3 +54,17 @@ def flush_langfuse() -> None:
         client.flush()
     except Exception:
         pass
+
+
+def initialize_langfuse_client() -> Langfuse | None:
+    """
+    Initialize module-level Langfuse client for use in utility modules.
+
+    This function is designed to be called at module level in extraction utilities
+    to avoid code duplication and follow the singleton pattern.
+
+    Returns:
+        Langfuse client instance, or None if initialization fails.
+    """
+    _configure_langfuse()
+    return get_langfuse()

@@ -2,8 +2,6 @@
 
 from datetime import UTC, datetime
 
-import pytest
-
 from tools.discover_data.input_model import SpatialConstraint, TemporalConstraint
 from tools.discover_data.utils import constraint_extraction
 

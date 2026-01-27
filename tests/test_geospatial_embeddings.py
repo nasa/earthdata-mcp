@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from tools.discover_data.input_model import SpatialConstraint
 from tools.discover_data.utils.extract_spatial_constraint import extract_spatial_constraint
 
 
@@ -59,7 +58,7 @@ class TestExtractSpatialConstraint:
             mock_result.reasoning = "Extracted from query"
             mock_result.cache_key = "test_key"
             mock_llm.return_value = mock_result
-            
+
             mock_cache.get.return_value = None  # Cache miss
             mock_convert.return_value = sample_geometry
             mock_cache.set.return_value = True
@@ -85,7 +84,7 @@ class TestExtractSpatialConstraint:
             mock_result.reasoning = "Extracted from query"
             mock_result.cache_key = "test_key"
             mock_llm.return_value = mock_result
-            
+
             # The geospatial utility stores the geometry string directly in cache
             # (not wrapped in a dict)
             cached_geometry = sample_cache_data["geometry"]
@@ -133,7 +132,7 @@ class TestExtractSpatialConstraint:
             mock_result.reasoning = "Extracted from query"
             mock_result.cache_key = "test_key"
             mock_llm.return_value = mock_result
-            
+
             mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = ValueError("Invalid parameter format")
 
@@ -156,7 +155,7 @@ class TestExtractSpatialConstraint:
             mock_result.reasoning = "Extracted from query"
             mock_result.cache_key = "test_key"
             mock_llm.return_value = mock_result
-            
+
             mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = TypeError("Expected string, got int")
 
@@ -179,7 +178,7 @@ class TestExtractSpatialConstraint:
             mock_result.reasoning = "Extracted from query"
             mock_result.cache_key = "test_key"
             mock_llm.return_value = mock_result
-            
+
             mock_cache.get.return_value = None  # Cache miss
             mock_convert.side_effect = Exception("Geocoding API Error")
 
