@@ -78,25 +78,35 @@ def convert_text_to_geom(location_query: str) -> str:
         # Log geometry metadata instead of full coordinates to avoid log bloat
         shp = shape(geometry) if isinstance(geometry, dict) else geometry
         bounds = shp.bounds if hasattr(shp, "bounds") else None
-        # Get coordinate count safely - polygons need exterior.coords
-        if hasattr(shp, "exterior"):
-            num_coords = len(list(shp.exterior.coords)) if hasattr(shp.exterior, "coords") else None
-        elif hasattr(shp, "coords"):
-            num_coords = len(list(shp.coords))
-        else:
-            num_coords = None
-
+        
+        # Get geometry details based on type
+        geom_type = shp.geom_type if hasattr(shp, "geom_type") else type(geometry).__name__
+        geom_info = {"type": geom_type, "bounds": bounds}
+        
+        if geom_type in ("Point",):
+            geom_info["num_coords"] = 1
+        elif geom_type in ("LineString", "LinearRing"):
+            geom_info["num_coords"] = len(shp.coords)
+        elif geom_type == "Polygon":
+            geom_info["num_coords"] = len(shp.exterior.coords)
+        elif geom_type.startswith("Multi"):
+            geom_info["num_parts"] = len(shp.geoms)
+        
         logger.debug(
-            "Extracted geometry for '%s': type=%s, bounds=%s, num_coords=%s",
+            "Extracted geometry for '%s': %s",
             location_query,
-            shp.geom_type if hasattr(shp, "geom_type") else type(geometry).__name__,
-            bounds,
-            num_coords,
+            geom_info,
         )
 
         simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
-    except Exception:
-        logger.exception("Error geocoding location '%s'", location_query)
+    except Exception as e:
+        logger.warning(
+            "Error geocoding location '%s': %s (%s)",
+            location_query,
+            str(e),
+            type(e).__name__,
+        )
+        logger.debug("Full traceback:", exc_info=True)
         return None
     else:
         return simplified_geom

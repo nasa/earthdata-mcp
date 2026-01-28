@@ -76,15 +76,31 @@ def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
             logger.debug("LLM returned no spatial information for query: %s", query)
             return None
 
+        # Capitalize location names properly while preserving acronyms
+        # Only capitalize first letter, preserve acronyms and lowercase prepositions
+        def capitalize_location(location: str) -> str:
+            """Capitalize location name: first letter capitalized, preserve acronyms."""
+            if not location:
+                return location
+            # Capitalize first letter, keep rest as-is (preserves "of", "USA", etc.)
+            return location[0].upper() + location[1:] if len(location) > 1 else location.upper()
+
+        location_name = capitalize_location(output.location_name) if output.location_name else None
+        location_with_context = (
+            capitalize_location(output.location_with_context)
+            if output.location_with_context
+            else None
+        )
+
         logger.debug(
             "LLM extracted location: %s (canonical: %s)",
-            output.location_with_context,
-            output.location_name,
+            location_with_context,
+            location_name,
         )
 
         return SpatialExtractionResult(
-            location_name=output.location_name,
-            location_with_context=output.location_with_context,
+            location_name=location_name,
+            location_with_context=location_with_context,
             reasoning=output.reasoning,
         )
     except Exception as e:
@@ -150,7 +166,10 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
         geom = convert_text_to_geom(location_to_geocode)
 
         if geom is None:
-            logger.warning("Failed to geocode location: %s", location_to_geocode)
+            logger.warning(
+                "Failed to geocode location: %s (check Redis/OpenSearch connectivity)",
+                location_to_geocode,
+            )
             trace_update(
                 tags=["cache_miss", "error", "geocoding_failed"],
                 metadata={"error_type": "geocoding_failed", "success": False},
