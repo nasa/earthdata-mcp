@@ -15,37 +15,6 @@ from util.datastores import get_datastore
 logger = logging.getLogger(__name__)
 
 
-@observe(name="get_associated_collections")
-def get_associated_collections(
-    entity_id: str,
-    entity_type: str,
-) -> list[str]:
-    """
-    Get collection IDs associated with a non-collection entity.
-
-    For example, given a citation or science keyword ID, find all
-    collections that are associated with it.
-
-    Args:
-        entity_id: The external ID of the non-collection entity
-        entity_type: The type of entity (citation, variable, instruments, platforms, sciencekeywords)
-
-    Returns:
-        List of collection concept IDs associated with this entity
-    """
-    datastore = get_datastore()
-    collection_ids = datastore.get_associated_collections(entity_id, entity_type)
-
-    logger.debug(
-        "Found %d collections associated with %s:%s",
-        len(collection_ids),
-        entity_type,
-        entity_id,
-    )
-
-    return collection_ids
-
-
 @observe(name="get_collections_for_entities")
 def get_collections_for_entities(
     entities: list[tuple[str, str]],

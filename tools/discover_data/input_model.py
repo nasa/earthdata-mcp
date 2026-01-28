@@ -13,12 +13,8 @@ from pydantic import BaseModel, Field
 class TemporalConstraint(BaseModel):
     """Extracted or user-provided temporal constraint."""
 
-    start_date: datetime | None = Field(
-        None, description="Start of temporal range (inclusive)"
-    )
-    end_date: datetime | None = Field(
-        None, description="End of temporal range (inclusive)"
-    )
+    start_date: datetime | None = Field(None, description="Start of temporal range (inclusive)")
+    end_date: datetime | None = Field(None, description="End of temporal range (inclusive)")
     reasoning: str | None = Field(
         None, description="Explanation of how the constraint was extracted"
     )
@@ -27,12 +23,8 @@ class TemporalConstraint(BaseModel):
 class SpatialConstraint(BaseModel):
     """Extracted or user-provided spatial constraint."""
 
-    location: str | None = Field(
-        None, description="Original location text from user query"
-    )
-    wkt_geometry: str | None = Field(
-        None, description="WKT representation of the spatial area"
-    )
+    location: str | None = Field(None, description="Original location text from user query")
+    wkt_geometry: str | None = Field(None, description="WKT representation of the spatial area")
     reasoning: str | None = Field(
         None, description="Explanation of how the constraint was extracted"
     )
@@ -59,9 +51,7 @@ class SearchContext(BaseModel):
         default_factory=dict,
         description="User's answers to clarifying questions (question_id -> selected option)",
     )
-    search_iteration: int = Field(
-        default=0, description="Number of search iterations performed"
-    )
+    search_iteration: int = Field(default=0, description="Number of search iterations performed")
 
 
 class DiscoverDataInput(BaseModel):

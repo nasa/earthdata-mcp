@@ -68,3 +68,30 @@ def initialize_langfuse_client() -> Langfuse | None:
     """
     _configure_langfuse()
     return get_langfuse()
+
+
+def trace_update(
+    metadata: dict | None = None,
+    tags: list[str] | None = None,
+) -> None:
+    """
+    Update the current Langfuse trace with metadata and/or tags.
+
+    Safely handles the case where Langfuse is not available.
+
+    Args:
+        metadata: Key-value pairs to add to the trace
+        tags: Tags to add to the trace
+    """
+    client = get_langfuse()
+    if client is None:
+        return
+
+    kwargs = {}
+    if metadata is not None:
+        kwargs["metadata"] = metadata
+    if tags is not None:
+        kwargs["tags"] = tags
+
+    if kwargs:
+        client.update_current_trace(**kwargs)

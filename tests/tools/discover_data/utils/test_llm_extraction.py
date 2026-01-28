@@ -90,7 +90,9 @@ class TestLoadExtractionPrompt:
 
     def test_prompt_with_special_characters(self):
         """Handle prompts with special characters and unicode."""
-        mock_prompt_content = "Current date: {current_date}\nExtract locations like: Paris, 北京, São Paulo"
+        mock_prompt_content = (
+            "Current date: {current_date}\nExtract locations like: Paris, 北京, São Paulo"
+        )
         mock_file = mock_open(read_data=mock_prompt_content)
 
         with (
@@ -99,7 +101,9 @@ class TestLoadExtractionPrompt:
         ):
             result = llm_extraction.load_extraction_prompt("unicode_prompt.md", "2024-06-15")
 
-            assert result == "Current date: 2024-06-15\nExtract locations like: Paris, 北京, São Paulo"
+            assert (
+                result == "Current date: 2024-06-15\nExtract locations like: Paris, 北京, São Paulo"
+            )
 
     def test_date_format_preserved(self):
         """Date string is used exactly as provided without validation."""

@@ -7,16 +7,25 @@ from tools.discover_data.utils import collection_scoring
 
 def test_direct_collection_scores_and_ranks(monkeypatch):
     """Direct collection matches should carry through with direct match_type."""
+
     def fake_lookup(_entities):
         return {}
 
     monkeypatch.setattr(collection_scoring, "get_collections_for_entities", fake_lookup)
 
     embedding_results = [
-        {"type": "collection", "external_id": "C1", "similarity": 0.9, "attribute": "title", "text_content": "foo"}
+        {
+            "type": "collection",
+            "external_id": "C1",
+            "similarity": 0.9,
+            "attribute": "title",
+            "text_content": "foo",
+        }
     ]
 
-    ranked = collection_scoring.score_and_rank_collections(embedding_results, similarity_threshold=0.1)
+    ranked = collection_scoring.score_and_rank_collections(
+        embedding_results, similarity_threshold=0.1
+    )
 
     assert [r["external_id"] for r in ranked] == ["C1"]
     assert ranked[0]["match_type"] == "direct"
@@ -40,7 +49,9 @@ def test_indirect_scores_apply_weights_and_diminishing(monkeypatch):
         {"type": "citation", "external_id": "cit-1", "similarity": 0.5, "text_content": "cit text"},
     ]
 
-    ranked = collection_scoring.score_and_rank_collections(embedding_results, similarity_threshold=0.0)
+    ranked = collection_scoring.score_and_rank_collections(
+        embedding_results, similarity_threshold=0.0
+    )
 
     assert [r["external_id"] for r in ranked] == ["C1"]
     # weighted scores: 1.0*1.0, 0.5*0.8=0.4; diminishing: 1.0 + 0.4/2 = 1.2; * INDIRECT_WEIGHT (0.8) = 0.96
@@ -64,7 +75,9 @@ def test_direct_and_indirect_combined_and_threshold(monkeypatch):
         {"type": "variable", "external_id": "var-1", "similarity": 1.0, "text_content": "var"},
     ]
 
-    ranked = collection_scoring.score_and_rank_collections(embedding_results, similarity_threshold=0.5)
+    ranked = collection_scoring.score_and_rank_collections(
+        embedding_results, similarity_threshold=0.5
+    )
 
     # indirect weighted: 1.0 * 1.0 =1.0 -> diminishing 1.0 -> *0.8 =0.8; direct 0.2*1=0.2; combined=1.0
     assert [r["external_id"] for r in ranked] == ["C1"]
@@ -74,8 +87,12 @@ def test_direct_and_indirect_combined_and_threshold(monkeypatch):
 
 def test_explain_collection_ranking_includes_components():
     """Explanation should mention direct, indirect signals, and combined score."""
-    score = collection_scoring.CollectionScore(collection_id="C1", direct_score=0.5, direct_text="foo", direct_attribute="title")
-    score.add_indirect_signal(entity_id="var-1", entity_type="variable", entity_text="bar", similarity=0.8)
+    score = collection_scoring.CollectionScore(
+        collection_id="C1", direct_score=0.5, direct_text="foo", direct_attribute="title"
+    )
+    score.add_indirect_signal(
+        entity_id="var-1", entity_type="variable", entity_text="bar", similarity=0.8
+    )
     score.compute_combined_score()
 
     explanation = collection_scoring.explain_collection_ranking(score)

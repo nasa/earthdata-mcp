@@ -15,7 +15,9 @@ class TestTemporalRangesMocked:
     @pytest.fixture
     def mock_instructor_client(self):
         """Fixture to create a mocked instructor client."""
-        with patch("tools.discover_data.utils.extract_temporal_constraint.instructor.from_provider") as mock_instructor:
+        with patch(
+            "tools.discover_data.utils.extract_temporal_constraint.instructor.from_provider"
+        ) as mock_instructor:
             mock_client = MagicMock()
             mock_instructor.return_value = mock_client
             yield mock_instructor, mock_client
@@ -100,7 +102,9 @@ class TestTemporalRangesMocked:
 
     def test_client_initialization_error(self):
         """Test error handling when instructor client fails to initialize."""
-        with patch("tools.discover_data.utils.extract_temporal_constraint.instructor.from_provider") as mock_instructor:
+        with patch(
+            "tools.discover_data.utils.extract_temporal_constraint.instructor.from_provider"
+        ) as mock_instructor:
             mock_instructor.side_effect = Exception("Failed to initialize client")
 
             with pytest.raises(RuntimeError):
@@ -133,39 +137,3 @@ class TestTemporalRangesMocked:
 
         assert "Failed to extract temporal ranges" in str(exc_info.value)
         assert "Show me data for 2024" in str(exc_info.value)
-
-    def test_langfuse_none_during_error(self, mock_instructor_client):
-        """Test that errors are handled gracefully when LANGFUSE is None."""
-        # This tests the conditional `if LANGFUSE:` checks in the error handlers
-        mock_instructor, mock_client = mock_instructor_client
-
-        # Temporarily set LANGFUSE to None to simulate failed initialization
-        import tools.discover_data.utils.extract_temporal_constraint as tool_module  # pylint: disable=import-outside-toplevel
-
-        original_langfuse = tool_module.LANGFUSE
-        tool_module.LANGFUSE = None
-
-        try:
-            # Test client initialization error with langfuse=None
-            mock_instructor.side_effect = Exception("Client init failed")
-
-            with pytest.raises(RuntimeError) as exc_info:
-                extract_temporal_constraint("Show me data for 2024")
-
-            assert "Failed to initialize instructor client" in str(exc_info.value)
-
-            # Reset for next test
-            mock_instructor.side_effect = None
-            mock_instructor.return_value = mock_client
-
-            # Test LLM error with langfuse=None
-            mock_client.create.side_effect = Exception("LLM failed")
-
-            with pytest.raises(RuntimeError) as exc_info:
-                extract_temporal_constraint("Show me data for 2024")
-
-            assert "Failed to extract temporal ranges" in str(exc_info.value)
-
-        finally:
-            # Restore original LANGFUSE
-            tool_module.LANGFUSE = original_langfuse

@@ -1,6 +1,5 @@
 """Tests for disambiguation utility module."""
 
-
 import pytest
 import responses
 
@@ -11,6 +10,7 @@ from tools.discover_data.utils import disambiguation
 @pytest.fixture
 def mock_collection():
     """Factory fixture for creating test CollectionMatch objects."""
+
     def _create(
         concept_id: str = "G1234567890",
         title: str = "Test Collection",
@@ -18,6 +18,12 @@ def mock_collection():
         temporal_resolution: str | None = None,
         spatial_resolution: str | None = None,
     ) -> CollectionMatch:
+        resolution = None
+        if temporal_resolution or spatial_resolution:
+            resolution = ResolutionInfo(
+                temporal_resolution=temporal_resolution,
+                spatial_resolution=spatial_resolution,
+            )
         return CollectionMatch(
             concept_id=concept_id,
             title=title,
@@ -25,16 +31,14 @@ def mock_collection():
             similarity_score=0.9,
             match_type="direct",
             matched_attribute="title",
-            resolution=ResolutionInfo(
-                temporal_resolution=temporal_resolution,
-                spatial_resolution=spatial_resolution,
-            ) if temporal_resolution or spatial_resolution else None,
+            resolution=resolution,
             temporal_coverage=None,
             platforms=platforms or [],
             instruments=[],
         )
 
     return _create
+
 
 def test_normalize_title_remove_version_patterns():
     """Remove V001, v6.1, Version patterns."""
@@ -262,7 +266,10 @@ def test_generate_resolution_question_spatial(mock_collection):
         collections=collections,
     )
 
-    assert "spatial" in question.question_text.lower() or "resolution" in question.question_text.lower()
+    assert (
+        "spatial" in question.question_text.lower()
+        or "resolution" in question.question_text.lower()
+    )
     assert question.question_type == "resolution_preference"
 
 
@@ -358,7 +365,9 @@ def test_generate_platform_question_with_kms_definitions(mock_collection, mock_a
     assert question.explanations.get("Unknown") is None
 
 
-def test_generate_platform_question_no_explanations_when_none_found(mock_collection, mock_all_requests):
+def test_generate_platform_question_no_explanations_when_none_found(
+    mock_collection, mock_all_requests
+):
     """Should not include explanations dict if no KMS definitions found."""
 
     # Register mock KMS response with no definitions

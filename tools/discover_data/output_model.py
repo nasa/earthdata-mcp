@@ -43,9 +43,7 @@ class TemporalCoverage(BaseModel):
     """Temporal coverage of a collection."""
 
     start_date: datetime | None = Field(None, description="Start of data coverage")
-    end_date: datetime | None = Field(
-        None, description="End of data coverage (None if ongoing)"
-    )
+    end_date: datetime | None = Field(None, description="End of data coverage (None if ongoing)")
     is_ongoing: bool = Field(
         default=False, description="Whether the collection is still being updated"
     )
@@ -126,16 +124,10 @@ class ExtractedConstraints(BaseModel):
 
     temporal_start: datetime | None = Field(None, description="Extracted start date")
     temporal_end: datetime | None = Field(None, description="Extracted end date")
-    temporal_reasoning: str | None = Field(
-        None, description="Explanation of temporal extraction"
-    )
+    temporal_reasoning: str | None = Field(None, description="Explanation of temporal extraction")
 
-    spatial_location: str | None = Field(
-        None, description="Original location text from query"
-    )
-    spatial_wkt: str | None = Field(
-        None, description="WKT geometry for the spatial area"
-    )
+    spatial_location: str | None = Field(None, description="Original location text from query")
+    spatial_wkt: str | None = Field(None, description="WKT geometry for the spatial area")
 
     extraction_notes: list[str] = Field(
         default_factory=list, description="Notes about the extraction process"
@@ -170,13 +162,9 @@ class DiscoverDataOutput(BaseModel):
         description="Serialized SearchContext for follow-up queries",
     )
 
-    error_message: str | None = Field(
-        None, description="Error message if status is ERROR"
-    )
+    error_message: str | None = Field(None, description="Error message if status is ERROR")
 
-    search_strategy: str | None = Field(
-        None, description="Description of the search strategy used"
-    )
+    search_strategy: str | None = Field(None, description="Description of the search strategy used")
 
     model_config = ConfigDict(
         json_schema_extra={

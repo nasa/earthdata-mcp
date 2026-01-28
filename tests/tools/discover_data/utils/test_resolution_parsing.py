@@ -95,9 +95,7 @@ def test_parse_spatial_resolution_handles_varies_and_point():
         umm = {
             "SpatialExtent": {
                 "HorizontalSpatialDomain": {
-                    "ResolutionAndCoordinateSystem": {
-                        "HorizontalDataResolution": {key: True}
-                    }
+                    "ResolutionAndCoordinateSystem": {"HorizontalDataResolution": {key: True}}
                 }
             }
         }
@@ -131,7 +129,10 @@ def test_parse_temporal_coverage_handles_start_end_and_ongoing():
             {
                 "EndsAtPresentFlag": True,
                 "RangeDateTimes": [
-                    {"BeginningDateTime": "2020-01-01T00:00:00Z", "EndingDateTime": "2024-01-01T00:00:00Z"},
+                    {
+                        "BeginningDateTime": "2020-01-01T00:00:00Z",
+                        "EndingDateTime": "2024-01-01T00:00:00Z",
+                    },
                     {"BeginningDateTime": "2019-06-01T00:00:00Z"},
                 ],
             }

@@ -61,7 +61,7 @@ def _make_collection_dict(
     return result
 
 
-def _load_tool(monkeypatch):
+def _load_tool():
     """Load tool module with stubbed dependencies to avoid import errors."""
     # Stub util.enrichment before importing tool
     if "util.enrichment" not in sys.modules:
@@ -71,14 +71,12 @@ def _load_tool(monkeypatch):
         mod.filter_by_temporal_constraint = lambda cols, *a, **k: cols
         sys.modules["util.enrichment"] = mod
 
-    tool = importlib.import_module("tools.discover_data.tool")
-    monkeypatch.setattr(tool, "langfuse", None)
-    return tool
+    return importlib.import_module("tools.discover_data.tool")
 
 
-def test_extract_or_use_constraints_prefers_previous_context(monkeypatch):
+def test_extract_or_use_constraints_prefers_previous_context():
     """Test that previous context constraints are preferred over extracting new ones."""
-    tool = _load_tool(monkeypatch)
+    tool = _load_tool()
     prior_temporal = TemporalConstraint(reasoning="prev")
     prior_spatial = SpatialConstraint(reasoning="prev")
     prev_ctx = SearchContext(temporal=prior_temporal, spatial=prior_spatial)
@@ -92,7 +90,7 @@ def test_extract_or_use_constraints_prefers_previous_context(monkeypatch):
 
 def test_discover_data_expansion_path(monkeypatch):
     """Test that query expansion path suggests refinement questions."""
-    tool = _load_tool(monkeypatch)
+    tool = _load_tool()
 
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
@@ -109,6 +107,9 @@ def test_discover_data_expansion_path(monkeypatch):
     )
     monkeypatch.setattr(
         tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")]
+    )
+    monkeypatch.setattr(
+        tool, "hydrate_collections", lambda *_args, **_kwargs: [_make_collection("C1")]
     )
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
@@ -129,7 +130,7 @@ def test_discover_data_expansion_path(monkeypatch):
 
 def test_discover_data_disambiguation_path(monkeypatch):
     """Test that disambiguation path presents clarifying questions."""
-    tool = _load_tool(monkeypatch)
+    tool = _load_tool()
 
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
@@ -143,11 +144,18 @@ def test_discover_data_disambiguation_path(monkeypatch):
     )
 
     # Return two collections so filtered_collections not empty
-    collections = [
+    collections_dict = [
         _make_collection_dict("C1", metadata={"TemporalExtents": []}),
         _make_collection_dict("C2", metadata={"TemporalExtents": []}),
     ]
-    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: collections)
+    collections_match = [
+        _make_collection("C1"),
+        _make_collection("C2"),
+    ]
+    monkeypatch.setattr(
+        tool, "score_and_rank_collections", lambda *_args, **_kwargs: collections_dict
+    )
+    monkeypatch.setattr(tool, "hydrate_collections", lambda *_args, **_kwargs: collections_match)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
     # Ensure user refinements are applied
@@ -205,7 +213,7 @@ def test_describe_search_strategy_counts():
 
 def test_discover_data_error_handling(monkeypatch):
     """Discover data should catch exceptions and return error status."""
-    tool = _load_tool(monkeypatch)
+    tool = _load_tool()
 
     # Create a mock that raises an exception
     def raise_error(*args, **kwargs):
@@ -222,11 +230,13 @@ def test_discover_data_error_handling(monkeypatch):
 
 def test_discover_data_with_langfuse(monkeypatch):
     """Discover data should log to Langfuse when available."""
-    tool = _load_tool(monkeypatch)
+    import util.langfuse
+
+    tool = _load_tool()
 
     # Create a mock Langfuse client
     mock_langfuse = MagicMock()
-    monkeypatch.setattr(tool, "langfuse", mock_langfuse)
+    monkeypatch.setattr(util.langfuse, "get_langfuse", lambda: mock_langfuse)
 
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
@@ -245,6 +255,9 @@ def test_discover_data_with_langfuse(monkeypatch):
     )
     monkeypatch.setattr(
         tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")]
+    )
+    monkeypatch.setattr(
+        tool, "hydrate_collections", lambda *_args, **_kwargs: [_make_collection("C1")]
     )
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)

@@ -24,12 +24,10 @@ from langfuse import observe
 from tools.discover_data.input_model import SpatialConstraint
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from util.cache import get_cache_client
-from util.langfuse import initialize_langfuse_client
+from util.langfuse import trace_update
 from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)
-
-LANGFUSE = initialize_langfuse_client()
 
 try:
     cache = get_cache_client()
@@ -41,7 +39,9 @@ except Exception as e:
 class SpatialExtractionResult:
     """Result of LLM-based spatial extraction."""
 
-    def __init__(self, location_name: str | None, location_with_context: str | None, reasoning: str | None):
+    def __init__(
+        self, location_name: str | None, location_with_context: str | None, reasoning: str | None
+    ):
         self.location_name = location_name
         self.location_with_context = location_with_context
         self.reasoning = reasoning
@@ -54,9 +54,9 @@ class SpatialExtractionResult:
         return f"geocode:{hashlib.md5(normalized.encode()).hexdigest()}"
 
 
-@observe(name="extract_spatial_from_query")
-def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # pylint: disable=too-many-branches,too-many-return-statements
-    """LLM-only spatial extraction used by the public wrapper.
+@observe(name="extract_spatial_with_llm")
+def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
+    """LLM-based spatial extraction.
 
     Args:
         query: Natural language description potentially containing spatial info.
@@ -68,11 +68,10 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # 
     try:
         client = instructor.from_provider(f"{PROVIDER}/{MODEL_ID}")
     except Exception as e:
-        if LANGFUSE:
-            LANGFUSE.update_current_trace(
-                tags=["error", "client_init_error"],
-                metadata={"error_type": "client_init_error", "message": str(e), "success": False},
-            )
+        trace_update(
+            tags=["error", "client_init_error"],
+            metadata={"error_type": "client_init_error", "message": str(e), "success": False},
+        )
         raise RuntimeError(
             f"Failed to initialize instructor client with provider '{PROVIDER}' and model '{MODEL_ID}': {e}"
         ) from e
@@ -85,6 +84,7 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # 
 
         class SpatialExtractionOutput(BaseModel):
             """Output model for spatial extraction from LLM."""
+
             location_name: str | None = None
             location_with_context: str | None = None
             reasoning: str | None = None
@@ -107,18 +107,11 @@ def _extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:  # 
             reasoning=output.reasoning,
         )
     except Exception as e:
-        if LANGFUSE:
-            LANGFUSE.update_current_trace(
-                tags=["error", "llm_error"],
-                metadata={"error_type": "llm_error", "message": str(e), "success": False},
-            )
-        raise RuntimeError(f"Failed to extract spatial info from query '{query}': {e}") from e
-
-    if LANGFUSE:
-        LANGFUSE.update_current_trace(
-            tags=["success", "spatial_extraction"],
-            metadata={"success": True, "canonical_name": output.location_name},
+        trace_update(
+            tags=["error", "llm_error"],
+            metadata={"error_type": "llm_error", "message": str(e), "success": False},
         )
+        raise RuntimeError(f"Failed to extract spatial info from query '{query}': {e}") from e
 
 
 @observe(name="extract_spatial_constraint")
@@ -140,7 +133,7 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
         )
 
     # Use LLM to extract spatial info from the query
-    extraction = _extract_spatial_with_llm(query)
+    extraction = extract_spatial_with_llm(query)
     if not extraction or not extraction.location_with_context:
         logger.debug("No spatial information extracted from query: %s", query)
         return SpatialConstraint(
@@ -158,11 +151,10 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
             cache_key = extraction.cache_key
             cached_geom = cache.get(cache_key)
             if cached_geom:
-                if LANGFUSE:
-                    LANGFUSE.update_current_trace(
-                        tags=["cache_hit", "success"],
-                        metadata={"cache_hit": True, "canonical_name": canonical_name},
-                    )
+                trace_update(
+                    tags=["cache_hit", "success"],
+                    metadata={"cache_hit": True, "canonical_name": canonical_name},
+                )
                 logger.debug("Cache hit for location: %s (key: %s)", canonical_name, cache_key)
                 return SpatialConstraint(
                     location=location_to_geocode,
@@ -178,11 +170,10 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
 
         if geom is None:
             logger.warning("Failed to geocode location: %s", location_to_geocode)
-            if LANGFUSE:
-                LANGFUSE.update_current_trace(
-                    tags=["cache_miss", "error", "geocoding_failed"],
-                    metadata={"error_type": "geocoding_failed", "success": False},
-                )
+            trace_update(
+                tags=["cache_miss", "error", "geocoding_failed"],
+                metadata={"error_type": "geocoding_failed", "success": False},
+            )
             return SpatialConstraint(
                 location=location_to_geocode,
                 wkt_geometry=None,
@@ -199,15 +190,14 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
             except (redis.RedisError, Exception) as e:
                 logger.debug("Cache store failed: %s", e)
 
-        if LANGFUSE:
-            LANGFUSE.update_current_trace(
-                tags=["cache_miss", "success", "geocoded"],
-                metadata={
-                    "cache_hit": False,
-                    "success": True,
-                    "geometry_type": type(geom).__name__,
-                },
-            )
+        trace_update(
+            tags=["cache_miss", "success", "geocoded"],
+            metadata={
+                "cache_hit": False,
+                "success": True,
+                "geometry_type": type(geom).__name__,
+            },
+        )
 
         logger.debug("Successfully geocoded location: %s (%s)", canonical_name, location_to_geocode)
         return SpatialConstraint(
@@ -218,11 +208,10 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
 
     except (ValueError, TypeError) as e:
         logger.warning("Invalid location format for '%s': %s", location_to_geocode, e)
-        if LANGFUSE:
-            LANGFUSE.update_current_trace(
-                tags=["error", "validation_error"],
-                metadata={"error_type": "validation_error"},
-            )
+        trace_update(
+            tags=["error", "validation_error"],
+            metadata={"error_type": "validation_error"},
+        )
         return SpatialConstraint(
             location=location_to_geocode,
             wkt_geometry=None,
@@ -231,14 +220,13 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
 
     except Exception as e:
         logger.error("Unexpected error geocoding '%s': %s", location_to_geocode, e)
-        if LANGFUSE:
-            LANGFUSE.update_current_trace(
-                tags=["error", "exception"],
-                metadata={
-                    "error_type": "exception",
-                    "exception_class": type(e).__name__,
-                },
-            )
+        trace_update(
+            tags=["error", "exception"],
+            metadata={
+                "error_type": "exception",
+                "exception_class": type(e).__name__,
+            },
+        )
         return SpatialConstraint(
             location=location_to_geocode,
             wkt_geometry=None,

@@ -46,7 +46,6 @@ def extract_temporal_constraint_from_query(query: str) -> TemporalConstraint:
         )
 
 
-
 def extract_spatial_constraint_from_query(query: str) -> SpatialConstraint:
     """
     Extract spatial constraints from a natural language query.

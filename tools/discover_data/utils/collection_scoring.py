@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 # Weight factors for different entity types when contributing to indirect score
 ENTITY_TYPE_WEIGHTS = {
-    "variable": 1.0,        # Variables are strong indicators of collection relevance
-    "citation": 0.8,        # Citations indicate collection relevance
-    "sciencekeywords": 0.7, # Science keywords are good topical matches
-    "instruments": 0.6,     # Instruments indicate capability
-    "platforms": 0.5,       # Platforms are broader (many collections per platform)
+    "variable": 1.0,  # Variables are strong indicators of collection relevance
+    "citation": 0.8,  # Citations indicate collection relevance
+    "sciencekeywords": 0.7,  # Science keywords are good topical matches
+    "instruments": 0.6,  # Instruments indicate capability
+    "platforms": 0.5,  # Platforms are broader (many collections per platform)
 }
 
 # Weight for direct vs indirect scores in final ranking
@@ -51,14 +51,16 @@ class CollectionScore:
         weight = ENTITY_TYPE_WEIGHTS.get(entity_type, 0.5)
         weighted_score = similarity * weight
 
-        self.indirect_scores.append({
-            "entity_id": entity_id,
-            "entity_type": entity_type,
-            "entity_text": entity_text,
-            "similarity": similarity,
-            "weight": weight,
-            "weighted_score": weighted_score,
-        })
+        self.indirect_scores.append(
+            {
+                "entity_id": entity_id,
+                "entity_type": entity_type,
+                "entity_text": entity_text,
+                "similarity": similarity,
+                "weight": weight,
+                "weighted_score": weighted_score,
+            }
+        )
 
     def compute_combined_score(self) -> float:
         """Compute the final combined score."""
@@ -181,10 +183,7 @@ def score_and_rank_collections(
 
     # Process indirect matches: look up associated collections
     if other_matches:
-        entities = [
-            (r["external_id"], r["type"])
-            for r in other_matches
-        ]
+        entities = [(r["external_id"], r["type"]) for r in other_matches]
         collections_map = get_collections_for_entities(entities)
 
         # Add indirect signals
@@ -213,10 +212,7 @@ def score_and_rank_collections(
         score.compute_combined_score()
 
     # Filter by threshold and sort by combined score
-    ranked = [
-        s for s in scores.values()
-        if s.combined_score >= similarity_threshold
-    ]
+    ranked = [s for s in scores.values() if s.combined_score >= similarity_threshold]
     ranked.sort(key=lambda s: s.combined_score, reverse=True)
 
     # Log summary
@@ -250,9 +246,11 @@ def explain_collection_ranking(score: CollectionScore) -> str:
 
     if score.indirect_scores:
         parts.append(f"{len(score.indirect_scores)} indirect signal(s):")
-        for signal in sorted(score.indirect_scores, key=lambda x: x["weighted_score"], reverse=True)[:3]:
+        for signal in sorted(
+            score.indirect_scores, key=lambda x: x["weighted_score"], reverse=True
+        )[:3]:
             parts.append(
-                f"  - {signal['entity_type']}: \"{signal['entity_text'][:50]}...\" "
+                f'  - {signal["entity_type"]}: "{signal["entity_text"][:50]}..." '
                 f"(sim: {signal['similarity']:.2f}, weight: {signal['weight']:.1f})"
             )
 

@@ -273,8 +273,6 @@ def filter_by_user_refinements(
                 or c.resolution.spatial_resolution == selected_option
             ]
         elif question_id.startswith("platform_"):
-            filtered = [
-                c for c in filtered if not c.platforms or selected_option in c.platforms
-            ]
+            filtered = [c for c in filtered if not c.platforms or selected_option in c.platforms]
 
     return filtered

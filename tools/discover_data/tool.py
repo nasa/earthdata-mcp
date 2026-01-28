@@ -11,7 +11,7 @@ direct matches and indirect signals from related entities.
 
 import logging
 
-from langfuse import get_client, observe
+from langfuse import observe
 
 from tools.discover_data.input_model import (
     DiscoverDataInput,
@@ -25,6 +25,7 @@ from tools.discover_data.output_model import (
     DiscoveryStatus,
     ExtractedConstraints,
 )
+from tools.discover_data.utils.collection_hydration import hydrate_collections
 from tools.discover_data.utils.collection_scoring import score_and_rank_collections
 from tools.discover_data.utils.constraint_extraction import extract_constraints
 from tools.discover_data.utils.disambiguation import (
@@ -36,14 +37,9 @@ from tools.discover_data.utils.query_expansion import (
     generate_expansion_questions,
     should_expand_query,
 )
+from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
-
-try:
-    langfuse = get_client()
-except Exception as e:
-    logger.warning("Failed to initialize Langfuse client: %s", e)
-    langfuse = None
 
 
 @observe(name="discover_data")
@@ -64,20 +60,20 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
     Returns:
         Dictionary representation of DiscoverDataOutput
     """
-    if langfuse:
-        langfuse.update_current_trace(
-            tags=["orchestrator", "discovery"],
-            metadata={
-                "query_length": len(query.query),
-                "has_temporal_constraint": query.temporal_constraint is not None,
-                "has_spatial_constraint": query.spatial_constraint is not None,
-                "is_refinement": query.previous_context is not None,
-                "max_results": query.max_results,
-            },
-        )
+    trace_update(
+        tags=["orchestrator", "discovery"],
+        metadata={
+            "query_length": len(query.query),
+            "has_temporal_constraint": query.temporal_constraint is not None,
+            "has_spatial_constraint": query.spatial_constraint is not None,
+            "is_refinement": query.previous_context is not None,
+            "max_results": query.max_results,
+        },
+    )
 
     try:
         # === PHASE 1: Constraint Extraction ===
+        # Extract temporal and spatial constraints from query
         temporal, spatial = _extract_or_use_constraints(query)
 
         extracted = ExtractedConstraints(
@@ -89,132 +85,67 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
         )
 
         # === PHASE 2: Discovery Search (All Entity Types) ===
-        # Search collections, variables, instruments, citations, science keywords
-        all_results = search_all_entity_types(
+        embedding_results = search_all_entity_types(
             query.query,
             similarity_threshold=0.3,  # Lower threshold, scoring will filter
-            limit=50,  # Get more results for better scoring
+            limit=50,  # Get more candidates for better scoring
         )
 
-        if langfuse:
-            # Log breakdown by type
-            type_counts = {}
-            for r in all_results:
-                t = r["type"]
-                type_counts[t] = type_counts.get(t, 0) + 1
-            langfuse.update_current_trace(
-                metadata={
-                    "phase2_results_by_type": type_counts,
-                    "phase2_total_results": len(all_results),
-                },
-            )
+        type_counts = {}
+        for r in embedding_results:
+            t = r["type"]
+            type_counts[t] = type_counts.get(t, 0) + 1
+        trace_update(
+            metadata={
+                "embedding_results_by_type": type_counts,
+                "embedding_results_count": len(embedding_results),
+            },
+        )
 
         # === PHASE 3: Collection Scoring & Ranking ===
-        # Score collections based on direct + indirect signals
-        ranked_collections = score_and_rank_collections(
-            all_results,
+        scored_collections = score_and_rank_collections(
+            embedding_results,
             similarity_threshold=query.similarity_threshold,
         )
 
-        if langfuse:
-            langfuse.update_current_trace(
-                metadata={
-                    "phase3_ranked_collections": len(ranked_collections),
-                },
-            )
+        trace_update(metadata={"scored_collections_count": len(scored_collections)})
 
-        # === PHASE 4: Transform to CollectionMatch Objects ===
-        # Convert scored embedding results into CollectionMatch objects
-        #
-        # TODO: Once embedding results include pre-enriched metadata:
-        # - Remove _transform_to_collection_matches helper
-        # - Transform inline, populating CollectionMatch with enriched fields
-        # - Enriched metadata will enable constraint filtering (Phase 5) and disambiguation (Phase 6)
-        #
-        # For now, using lightweight transformation without enriched metadata
-        filtered_collections = _transform_to_collection_matches(ranked_collections)
+        # === PHASE 4: Hydration & Filtering ===
+        collections = hydrate_collections(
+            scored_collections,
+            temporal_start=temporal.start_date,
+            temporal_end=temporal.end_date,
+            spatial_wkt=spatial.wkt_geometry,
+        )
 
-        if langfuse:
-            langfuse.update_current_trace(
-                metadata={
-                    "phase4_collection_matches": len(filtered_collections),
-                },
-            )
+        trace_update(metadata={"hydrated_collections_count": len(collections)})
 
-        # === PHASE 5: Apply Constraint Filtering ===
-        # Filter collections that don't meet temporal/spatial constraints
-        #
-        # TODO: Once enriched metadata is available in Phase 4:
-        # - Apply temporal/spatial constraint filtering
-        # - Requires enriched metadata from embedding results
-        #
-        # For now, all collections pass through without filtering
-
-        # Apply user refinements from previous context
+        # Apply user refinements from previous context (disambiguation answers)
         if query.previous_context and query.previous_context.user_refinements:
-            filtered_collections = filter_by_user_refinements(
-                filtered_collections,
+            collections = filter_by_user_refinements(
+                collections,
                 query.previous_context.user_refinements,
             )
 
-        if langfuse:
-            langfuse.update_current_trace(
-                metadata={
-                    "phase5_after_filtering": len(filtered_collections),
-                },
-            )
+            trace_update(metadata={"after_refinements_count": len(collections)})
 
-        # === PHASE 6: Query Expansion or Disambiguation ===
+        # === PHASE 5: Query Expansion or Disambiguation ===
         questions = []
+        needs_disambiguation = False
 
-        if should_expand_query(filtered_collections, all_results, query.similarity_threshold):
-            discovery_context = analyze_embedding_results(all_results)
+        if should_expand_query(collections, embedding_results, query.similarity_threshold):
+            discovery_context = analyze_embedding_results(embedding_results)
             questions = generate_expansion_questions(query.query, discovery_context)
             status = DiscoveryStatus.REFINEMENT_SUGGESTED
-            needs_disambiguation = False
         else:
-            # Temporal resolution-based disambiguation
-            #
-            # TODO: Once enriched metadata is available in Phase 4:
-            # - Extract metadata from CollectionMatch objects
-            # - Check for temporal disambiguation needs
-            # - Generate clarifying questions if needed
-            #
-            # collection_metas = [
-            #     c.metadata
-            #     for c in filtered_collections
-            #     if getattr(c, "metadata", None) and isinstance(c.metadata, dict)
-            # ]
-            #
-            # if collection_metas:
-            #     needs_temporal_disambiguation, resolution_options = check_temporal_disambiguation(collection_metas)
-            # else:
-            #     needs_temporal_disambiguation, resolution_options = False, []
-            # For now, skip temporal disambiguation since metadata is not available
-            needs_temporal_disambiguation = False
-            resolution_options = []
-
-            # Convert resolution options to clarifying questions format
-            questions = []
-            if needs_temporal_disambiguation and resolution_options:
-                questions = [
-                    {
-                        "question_id": "temporal_resolution",
-                        "question_text": "Multiple temporal resolutions found. Which do you prefer?",
-                        "question_type": "select",
-                        "options": resolution_options,
-                    }
-                ]
-
-            needs_disambiguation = needs_temporal_disambiguation
             status = _determine_status(
-                filtered_collections,
+                collections,
                 needs_disambiguation,
-                ranked_collections,
+                scored_collections,
             )
 
-        # === PHASE 7: Output Assembly ===
-        final_collections = filtered_collections[: query.max_results]
+        # === PHASE 6: Output Assembly ===
+        final_collections = collections[: query.max_results]
 
         search_context = _build_search_context(
             temporal, spatial, final_collections, query.previous_context
@@ -223,38 +154,35 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
         output = DiscoverDataOutput(
             status=status,
             collections=final_collections,
-            total_found=len(filtered_collections),
+            total_found=len(collections),
             clarifying_questions=questions,
             extracted_constraints=extracted,
             search_context=search_context,
             error_message=None,
-            search_strategy=_describe_search_strategy(temporal, spatial, ranked_collections),
+            search_strategy=_describe_search_strategy(temporal, spatial, scored_collections),
         )
 
-        if langfuse:
-            langfuse.update_current_trace(
-                tags=["success", status.value],
-                metadata={
-                    "final_collection_count": len(final_collections),
-                    "total_found": len(filtered_collections),
-                    "needs_disambiguation": needs_disambiguation,
-                    "question_count": len(questions),
-                },
-            )
+        trace_update(
+            tags=["success", status.value],
+            metadata={
+                "returned_count": len(final_collections),
+                "total_matches": len(collections),
+                "question_count": len(questions),
+            },
+        )
 
         return output.model_dump()
 
     except Exception as e:
         logger.exception("Error in discover_data")
 
-        if langfuse:
-            langfuse.update_current_trace(
-                tags=["error"],
-                metadata={
-                    "error_type": type(e).__name__,
-                    "error_message": str(e),
-                },
-            )
+        trace_update(
+            tags=["error"],
+            metadata={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
 
         return DiscoverDataOutput(
             status=DiscoveryStatus.ERROR,
@@ -279,50 +207,6 @@ def _extract_or_use_constraints(
         explicit_temporal=query.temporal_constraint,
         explicit_spatial=query.spatial_constraint,
     )
-
-
-def _transform_to_collection_matches(
-    ranked_collections: list[dict],
-) -> list[CollectionMatch]:
-    """
-    Transform scored embedding results into CollectionMatch objects.
-
-    This is a lightweight transformation without CMR enrichment.
-
-    Args:
-        ranked_collections: Scored collection results from embedding search
-
-    Returns:
-        List of CollectionMatch objects (non-enriched)
-    """
-    matches = []
-
-    for result in ranked_collections:
-        # Only process collection results
-        if result.get("type") != "collection":
-            continue
-
-        # Create minimal CollectionMatch from embedding result
-        # Field mapping from embedding results:
-        # - external_id -> concept_id
-        # - text_content -> title
-        # - attribute -> matched_attribute
-        # - similarity -> similarity_score
-        match = CollectionMatch(
-            concept_id=result["external_id"],
-            title=result.get("text_content", ""),
-            short_name="",  # Not available in embedding results
-            score=result.get("score", 0.0),
-            match_type=result.get("match_type", "direct"),
-            similarity_score=result.get("similarity", 0.0),
-            matched_attribute=result.get("attribute"),
-            related_entity_id=result.get("related_entity_id"),
-            related_entity_text=result.get("related_entity_text"),
-            metadata=result.get("metadata"),  # Pass through any metadata we have
-        )
-        matches.append(match)
-
-    return matches
 
 
 def _determine_status(

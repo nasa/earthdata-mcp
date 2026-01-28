@@ -106,65 +106,71 @@ def generate_expansion_questions(
         # Extract unique keyword topics
         keyword_options = _extract_keyword_options(context.science_keywords)
         if len(keyword_options) > 1:
-            questions.append(ClarifyingQuestion(
-                question_id="data_type",
-                question_text=f"I found several types of data related to '{original_query}'. What are you looking for?",
-                question_type="data_type_preference",
-                options=keyword_options[:4],  # Max 4 options
-                explanations=None,
-                recommendation=None,
-                related_collection_ids=[],
-            ))
+            questions.append(
+                ClarifyingQuestion(
+                    question_id="data_type",
+                    question_text=f"I found several types of data related to '{original_query}'. What are you looking for?",
+                    question_type="data_type_preference",
+                    options=keyword_options[:4],  # Max 4 options
+                    explanations=None,
+                    recommendation=None,
+                    related_collection_ids=[],
+                )
+            )
 
     # Question 2: What instrument/sensor?
     if context.instruments and len(context.instruments) > 1:
-        instrument_names = sorted({
-            _extract_name_from_text(inst["text"])
-            for inst in context.instruments
-        })[:4]
+        instrument_names = sorted(
+            {_extract_name_from_text(inst["text"]) for inst in context.instruments}
+        )[:4]
         if len(instrument_names) > 1:
-            questions.append(ClarifyingQuestion(
-                question_id="instrument_preference",
-                question_text="Data is available from multiple instruments. Do you have a preference?",
-                question_type="instrument_preference",
-                options=instrument_names,
-                explanations=None,
-                recommendation=None,
-                related_collection_ids=[],
-            ))
+            questions.append(
+                ClarifyingQuestion(
+                    question_id="instrument_preference",
+                    question_text="Data is available from multiple instruments. Do you have a preference?",
+                    question_type="instrument_preference",
+                    options=instrument_names,
+                    explanations=None,
+                    recommendation=None,
+                    related_collection_ids=[],
+                )
+            )
 
     # Question 3: What temporal resolution?
     if context.available_temporal_resolutions and len(context.available_temporal_resolutions) > 1:
-        questions.append(ClarifyingQuestion(
-            question_id="temporal_resolution",
-            question_text="What time interval works for your analysis?",
-            question_type="resolution_preference",
-            options=sorted(context.available_temporal_resolutions)[:4],
-            explanations={
-                "Daily": "Best for studying individual events or short-term changes",
-                "8-Day": "Good balance of detail and data volume",
-                "Monthly": "Best for seasonal patterns and long-term trends",
-            },
-            recommendation=None,
-            related_collection_ids=[],
-        ))
+        questions.append(
+            ClarifyingQuestion(
+                question_id="temporal_resolution",
+                question_text="What time interval works for your analysis?",
+                question_type="resolution_preference",
+                options=sorted(context.available_temporal_resolutions)[:4],
+                explanations={
+                    "Daily": "Best for studying individual events or short-term changes",
+                    "8-Day": "Good balance of detail and data volume",
+                    "Monthly": "Best for seasonal patterns and long-term trends",
+                },
+                recommendation=None,
+                related_collection_ids=[],
+            )
+        )
 
     # Question 4: What variable specifically?
     if context.variables and len(context.variables) > 1:
-        variable_names = sorted({
-            _extract_name_from_text(var["text"])
-            for var in context.variables
-        })[:4]
+        variable_names = sorted(
+            {_extract_name_from_text(var["text"]) for var in context.variables}
+        )[:4]
         if len(variable_names) > 1:
-            questions.append(ClarifyingQuestion(
-                question_id="variable_preference",
-                question_text="Which specific measurement are you interested in?",
-                question_type="variable_preference",
-                options=variable_names,
-                explanations=None,
-                recommendation=None,
-                related_collection_ids=[],
-            ))
+            questions.append(
+                ClarifyingQuestion(
+                    question_id="variable_preference",
+                    question_text="Which specific measurement are you interested in?",
+                    question_type="variable_preference",
+                    options=variable_names,
+                    explanations=None,
+                    recommendation=None,
+                    related_collection_ids=[],
+                )
+            )
 
     return questions
 
@@ -225,7 +231,8 @@ def should_expand_query(
 
     # Check if there are related entities that matched
     non_collection_matches = [
-        r for r in embedding_results
+        r
+        for r in embedding_results
         if r.get("type") != "collection" and r.get("similarity", 0) >= 0.3
     ]
 

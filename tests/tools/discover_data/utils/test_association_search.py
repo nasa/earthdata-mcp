@@ -14,27 +14,6 @@ def reset_datastore_singleton():
     datastores.reset_datastore()
 
 
-def test_get_associated_collections_uses_datastore(monkeypatch):
-    """Ensure get_associated_collections delegates to the datastore singleton."""
-    calls: list[tuple[str, str]] = []
-
-    class FakeDatastore:
-        """Mock datastore for testing associated collections."""
-
-        def get_associated_collections(self, entity_id: str, entity_type: str):
-            """Mock get_associated_collections method."""
-            calls.append((entity_id, entity_type))
-            return ["C1", "C2"]
-
-    fake = FakeDatastore()
-    monkeypatch.setattr(datastores, "_datastore", fake)
-
-    result = association_search.get_associated_collections("id-123", "citation")
-
-    assert result == ["C1", "C2"]
-    assert calls == [("id-123", "citation")]
-
-
 def test_get_collections_for_entities_uses_datastore(monkeypatch):
     """Ensure get_collections_for_entities delegates to the datastore singleton."""
     calls: list[list[tuple[str, str]]] = []

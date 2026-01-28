@@ -6,12 +6,37 @@ from tools.discover_data.utils import query_expansion
 def test_analyze_embedding_results_categorizes_and_filters():
     """Verify embedding results are categorized by type and filtered by similarity threshold."""
     embedding_results = [
-        {"type": "collection", "external_id": "C1", "text_content": "collection text", "similarity": 0.31},
-        {"type": "sciencekeywords", "external_id": "K1", "text_content": "Atmosphere > Clouds", "similarity": 0.35},
-        {"type": "instruments", "external_id": "I1", "text_content": "MODIS instrument", "similarity": 0.4},
+        {
+            "type": "collection",
+            "external_id": "C1",
+            "text_content": "collection text",
+            "similarity": 0.31,
+        },
+        {
+            "type": "sciencekeywords",
+            "external_id": "K1",
+            "text_content": "Atmosphere > Clouds",
+            "similarity": 0.35,
+        },
+        {
+            "type": "instruments",
+            "external_id": "I1",
+            "text_content": "MODIS instrument",
+            "similarity": 0.4,
+        },
         {"type": "platforms", "external_id": "P1", "text_content": "Terra", "similarity": 0.45},
-        {"type": "variable", "external_id": "V1", "text_content": "NDVI vegetation index", "similarity": 0.5},
-        {"type": "collection", "external_id": "C2", "text_content": "low sim", "similarity": 0.2},  # filtered out
+        {
+            "type": "variable",
+            "external_id": "V1",
+            "text_content": "NDVI vegetation index",
+            "similarity": 0.5,
+        },
+        {
+            "type": "collection",
+            "external_id": "C2",
+            "text_content": "low sim",
+            "similarity": 0.2,
+        },  # filtered out
     ]
 
     ctx = query_expansion.analyze_embedding_results(embedding_results, min_similarity=0.3)
@@ -26,7 +51,9 @@ def test_analyze_embedding_results_categorizes_and_filters():
 def test_analyze_embedding_results_truncates_text():
     """Verify long text content is truncated to 200 character limit."""
     long_text = "X" * 300
-    embedding_results = [{"type": "collection", "external_id": "C1", "text_content": long_text, "similarity": 0.5}]
+    embedding_results = [
+        {"type": "collection", "external_id": "C1", "text_content": long_text, "similarity": 0.5}
+    ]
 
     ctx = query_expansion.analyze_embedding_results(embedding_results)
 
@@ -91,7 +118,10 @@ def test_extract_keyword_options_parses_hierarchy_and_words():
 def test_extract_name_from_text_formats_correctly():
     """Verify text extraction handles abbreviations, full text, and empty strings."""
     assert query_expansion._extract_name_from_text("MODIS: Moderate Resolution") == "MODIS"
-    assert query_expansion._extract_name_from_text("Sea surface temperature anomaly") == "Sea surface temperature"
+    assert (
+        query_expansion._extract_name_from_text("Sea surface temperature anomaly")
+        == "Sea surface temperature"
+    )
     assert query_expansion._extract_name_from_text("") == "Unknown"
 
 
@@ -104,7 +134,10 @@ def test_should_expand_query_true_with_related_entities():
         {"type": "collection", "similarity": 0.2},
     ]
 
-    assert query_expansion.should_expand_query(scored, embedding_results, confidence_threshold=0.5) is True
+    assert (
+        query_expansion.should_expand_query(scored, embedding_results, confidence_threshold=0.5)
+        is True
+    )
 
 
 def test_should_expand_query_false_when_enough_collections():

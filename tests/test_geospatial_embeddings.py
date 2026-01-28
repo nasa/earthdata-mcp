@@ -47,9 +47,13 @@ class TestExtractSpatialConstraint:
     def test_successful_geocoding(self, sample_geometry):
         """Test successful geocoding returning polygon."""
         with (
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
-            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_convert,
         ):
             # Mock the LLM to return extracted spatial info
             mock_result = MagicMock()
@@ -74,7 +78,9 @@ class TestExtractSpatialConstraint:
     def test_cache_hit(self, sample_cache_data):
         """Test successful cache hit with polygon geometry."""
         with (
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
         ):
             # Mock the LLM to return extracted spatial info
@@ -100,8 +106,12 @@ class TestExtractSpatialConstraint:
         """Test failed geocoding."""
         with (
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
-            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_convert,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
         ):
             mock_cache.get.return_value = None  # Cache miss
             mock_convert.return_value = None  # Geocoding failed
@@ -121,9 +131,13 @@ class TestExtractSpatialConstraint:
     def test_geocoding_value_error_exception(self):
         """Test ValueError exception during geocoding."""
         with (
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
-            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_convert,
         ):
             # Mock the LLM to return extracted spatial info
             mock_result = MagicMock()
@@ -144,9 +158,13 @@ class TestExtractSpatialConstraint:
     def test_geocoding_type_error_exception(self):
         """Test TypeError exception during geocoding."""
         with (
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
-            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_convert,
         ):
             # Mock the LLM to return extracted spatial info
             mock_result = MagicMock()
@@ -167,9 +185,13 @@ class TestExtractSpatialConstraint:
     def test_geocoding_generic_exception(self):
         """Test generic exception during geocoding."""
         with (
-            patch("tools.discover_data.utils.extract_spatial_constraint._extract_spatial_with_llm") as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
             patch("tools.discover_data.utils.extract_spatial_constraint.cache") as mock_cache,
-            patch("tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom") as mock_convert,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_convert,
         ):
             # Mock the LLM to return extracted spatial info
             mock_result = MagicMock()
