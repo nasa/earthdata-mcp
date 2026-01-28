@@ -193,3 +193,28 @@ class EmbeddingDatastore(ABC):
         Returns:
             True if deleted, False if not found.
         """
+
+    @abstractmethod
+    def get_associated_collections(self, entity_id: str, entity_type: str) -> list[str]:
+        """
+        Get collection IDs associated with a single entity.
+
+        Args:
+            entity_id: External ID of the entity
+            entity_type: Type of entity (citation, variable, etc.)
+
+        Returns:
+            List of collection concept IDs associated with this entity
+        """
+
+    @abstractmethod
+    def get_collections_for_entities(self, entities: list[tuple[str, str]]) -> dict[str, list[str]]:
+        """
+        Get all collections associated with given entities.
+
+        Args:
+            entities: List of (entity_id, entity_type) tuples
+
+        Returns:
+            Dict mapping entity_id to list of collection IDs
+        """

@@ -10,20 +10,9 @@ from typing import Any
 
 from langfuse import observe
 
-from util.datastores.postgres import PostgresEmbeddingDatastore
+from util.datastores import get_datastore
 
 logger = logging.getLogger(__name__)
-
-# Module-level singleton (lazy initialized)
-_datastore: PostgresEmbeddingDatastore | None = None
-
-
-def get_datastore() -> PostgresEmbeddingDatastore:
-    """Get or create the datastore singleton."""
-    global _datastore
-    if _datastore is None:
-        _datastore = PostgresEmbeddingDatastore()
-    return _datastore
 
 
 @observe(name="get_associated_collections")
@@ -45,7 +34,7 @@ def get_associated_collections(
         List of collection concept IDs associated with this entity
     """
     datastore = get_datastore()
-    collection_ids = datastore.get_associated_collections(entity_id, entity_type)  # pylint: disable=no-member
+    collection_ids = datastore.get_associated_collections(entity_id, entity_type)
 
     logger.debug(
         "Found %d collections associated with %s:%s",
@@ -116,10 +105,7 @@ def enrich_indirect_matches(
 
     # Batch lookup for efficiency
     if non_collection_results:
-        entities = [
-            (r["external_id"], r["type"])
-            for r in non_collection_results
-        ]
+        entities = [(r["external_id"], r["type"]) for r in non_collection_results]
         collections_map = get_collections_for_entities(entities)
 
         # Enrich non-collection results
@@ -166,16 +152,18 @@ def expand_to_collections(
             # Direct collection match
             if result["external_id"] not in seen_collection_ids:
                 seen_collection_ids.add(result["external_id"])
-                collection_records.append({
-                    "external_id": result["external_id"],
-                    "type": "collection",
-                    "match_type": "direct",
-                    "attribute": result.get("attribute"),
-                    "text_content": result.get("text_content"),
-                    "similarity": result.get("similarity", 0.0),
-                    "related_entity_id": None,
-                    "related_entity_text": None,
-                })
+                collection_records.append(
+                    {
+                        "external_id": result["external_id"],
+                        "type": "collection",
+                        "match_type": "direct",
+                        "attribute": result.get("attribute"),
+                        "text_content": result.get("text_content"),
+                        "similarity": result.get("similarity", 0.0),
+                        "related_entity_id": None,
+                        "related_entity_text": None,
+                    }
+                )
         else:
             # Non-collection - expand to associated collections
             associated = result.get("associated_collections", [])
@@ -184,16 +172,18 @@ def expand_to_collections(
             for collection_id in associated:
                 if collection_id not in seen_collection_ids:
                     seen_collection_ids.add(collection_id)
-                    collection_records.append({
-                        "external_id": collection_id,
-                        "type": "collection",
-                        "match_type": match_type,
-                        "attribute": None,  # Will be filled by CMR enrichment
-                        "text_content": None,
-                        "similarity": result.get("similarity", 0.0),
-                        "related_entity_id": result["external_id"],
-                        "related_entity_text": result.get("text_content"),
-                    })
+                    collection_records.append(
+                        {
+                            "external_id": collection_id,
+                            "type": "collection",
+                            "match_type": match_type,
+                            "attribute": None,  # Will be filled by CMR enrichment
+                            "text_content": None,
+                            "similarity": result.get("similarity", 0.0),
+                            "related_entity_id": result["external_id"],
+                            "related_entity_text": result.get("text_content"),
+                        }
+                    )
 
     # Sort by similarity (highest first)
     collection_records.sort(key=lambda r: r["similarity"], reverse=True)

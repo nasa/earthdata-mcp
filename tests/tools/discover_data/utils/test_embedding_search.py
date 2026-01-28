@@ -5,6 +5,7 @@ from tools.discover_data.utils import embedding_search
 
 class _FakeGenerator:
     """Mock embedding generator for testing."""
+
     def __init__(self, vector):
         """Initialize with test vector."""
         self.vector = vector
@@ -18,6 +19,7 @@ class _FakeGenerator:
 
 class _FakeDatastore:
     """Mock datastore for testing similarity searches."""
+
     def __init__(self, results):
         """Initialize with test results."""
         self.results = results
@@ -31,6 +33,7 @@ class _FakeDatastore:
 
 def test_get_embedding_generator_lazy_init(monkeypatch):
     """Verify embedding generator is created once and reused on subsequent calls."""
+
     class _FakeGen:
         def __init__(self):
             self.created = True
@@ -42,22 +45,6 @@ def test_get_embedding_generator_lazy_init(monkeypatch):
     second = embedding_search.get_embedding_generator()
 
     assert isinstance(first, _FakeGen)
-    assert first is second
-
-
-def test_get_datastore_lazy_init(monkeypatch):
-    """Verify datastore is created once and reused on subsequent calls."""
-    class _FakeStore:
-        def __init__(self):
-            self.created = True
-
-    monkeypatch.setattr(embedding_search, "PostgresEmbeddingDatastore", _FakeStore)
-    monkeypatch.setattr(embedding_search, "_datastore", None)
-
-    first = embedding_search.get_datastore()
-    second = embedding_search.get_datastore()
-
-    assert isinstance(first, _FakeStore)
     assert first is second
 
 
@@ -104,7 +91,9 @@ def test_search_all_entity_types_filters_and_logs(monkeypatch):
     monkeypatch.setattr(embedding_search, "get_embedding_generator", lambda: fake_generator)
     monkeypatch.setattr(embedding_search, "get_datastore", lambda: fake_datastore)
 
-    filtered = embedding_search.search_all_entity_types("vegetation", similarity_threshold=0.5, limit=10)
+    filtered = embedding_search.search_all_entity_types(
+        "vegetation", similarity_threshold=0.5, limit=10
+    )
 
     assert filtered == [fake_results[0]]
     assert fake_datastore.calls[0]["entity_type"] is None

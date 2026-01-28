@@ -3,10 +3,6 @@ Embedding-based search for collections and related entities.
 
 Searches across all entity types (collections, variables, instruments, etc.)
 to find relevant matches via semantic similarity.
-
-Singleton pattern: The datastore client is initialized once and cached
-for the lifetime of the MCP session to avoid repeated connection overhead.
-Reset via module-level assignment (primarily for testing).
 """
 
 import logging
@@ -14,30 +10,21 @@ from typing import Any
 
 from langfuse import observe
 
-from util.datastores.postgres import PostgresEmbeddingDatastore
+from util.datastores import get_datastore
 from util.embeddings import BedrockEmbeddingGenerator
 
 logger = logging.getLogger(__name__)
 
-# Module-level singletons (lazy initialized)
+# Module-level singleton for embedding generator (lazy initialized)
 _embedding_generator: BedrockEmbeddingGenerator | None = None
-_datastore: PostgresEmbeddingDatastore | None = None
 
 
 def get_embedding_generator() -> BedrockEmbeddingGenerator:
     """Get or create the embedding generator singleton."""
-    global _embedding_generator
+    global _embedding_generator  # pylint: disable=global-statement
     if _embedding_generator is None:
         _embedding_generator = BedrockEmbeddingGenerator()
     return _embedding_generator
-
-
-def get_datastore() -> PostgresEmbeddingDatastore:
-    """Get or create the datastore singleton."""
-    global _datastore
-    if _datastore is None:
-        _datastore = PostgresEmbeddingDatastore()
-    return _datastore
 
 
 @observe(name="generate_query_embedding")

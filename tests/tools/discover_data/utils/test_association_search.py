@@ -3,12 +3,15 @@
 import pytest
 
 from tools.discover_data.utils import association_search
+from util import datastores
 
 
 @pytest.fixture(autouse=True)
-def reset_datastore(monkeypatch):
-    """Ensure the module-level datastore is reset between tests."""
-    monkeypatch.setattr(association_search, "_datastore", None)
+def reset_datastore_singleton():
+    """Ensure the shared datastore singleton is reset between tests."""
+    datastores.reset_datastore()
+    yield
+    datastores.reset_datastore()
 
 
 def test_get_associated_collections_uses_datastore(monkeypatch):
@@ -24,14 +27,12 @@ def test_get_associated_collections_uses_datastore(monkeypatch):
             return ["C1", "C2"]
 
     fake = FakeDatastore()
-    monkeypatch.setattr(association_search, "PostgresEmbeddingDatastore", lambda: fake)
+    monkeypatch.setattr(datastores, "_datastore", fake)
 
     result = association_search.get_associated_collections("id-123", "citation")
 
     assert result == ["C1", "C2"]
     assert calls == [("id-123", "citation")]
-    # Singleton should be stored for subsequent calls
-    assert association_search._datastore is fake
 
 
 def test_get_collections_for_entities_uses_datastore(monkeypatch):
@@ -47,14 +48,13 @@ def test_get_collections_for_entities_uses_datastore(monkeypatch):
             return {"cit-1": ["C1"], "var-1": ["C2", "C3"]}
 
     fake = FakeDatastore()
-    monkeypatch.setattr(association_search, "PostgresEmbeddingDatastore", lambda: fake)
+    monkeypatch.setattr(datastores, "_datastore", fake)
 
     entities = [("cit-1", "citation"), ("var-1", "variable")]
     result = association_search.get_collections_for_entities(entities)
 
     assert result == {"cit-1": ["C1"], "var-1": ["C2", "C3"]}
     assert calls == [entities]
-    assert association_search._datastore is fake
 
 
 def test_get_collections_for_entities_empty(monkeypatch):
@@ -63,19 +63,19 @@ def test_get_collections_for_entities_empty(monkeypatch):
 
     class FakeDatastore:
         """Mock datastore for testing empty entities handling."""
+
         def get_collections_for_entities(self, entities):
             """Mock implementation for testing."""
             calls.append(list(entities))
             return {"cit-1": ["C1"]}
 
     fake = FakeDatastore()
-    monkeypatch.setattr(association_search, "PostgresEmbeddingDatastore", lambda: fake)
+    monkeypatch.setattr(datastores, "_datastore", fake)
 
     result = association_search.get_collections_for_entities([])
 
     assert result == {}
-    assert not calls
-    assert association_search._datastore is None
+    assert not calls  # Datastore should not be called for empty input
 
 
 def test_enrich_indirect_matches_adds_associations(monkeypatch):
@@ -105,7 +105,9 @@ def test_enrich_indirect_matches_adds_associations(monkeypatch):
 
 def test_enrich_indirect_matches_no_non_collections(monkeypatch):
     """If there are no non-collection results, pass through unchanged."""
-    monkeypatch.setattr(association_search, "get_collections_for_entities", lambda entities: {"cit-1": ["C1"]})
+    monkeypatch.setattr(
+        association_search, "get_collections_for_entities", lambda entities: {"cit-1": ["C1"]}
+    )
 
     embedding_results = [
         {"type": "collection", "external_id": "C0", "similarity": 0.9},

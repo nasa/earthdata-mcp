@@ -334,9 +334,28 @@ class PostgresEmbeddingDatastore(EmbeddingDatastore):
             )
             return cur.rowcount > 0
 
-    def get_collections_for_entities(
-        self, entities: list[tuple[str, str]]
-    ) -> dict[str, list[str]]:
+    def get_associated_collections(self, entity_id: str, entity_type: str) -> list[str]:
+        """
+        Get collection IDs associated with a single entity.
+
+        Args:
+            entity_id: External ID of the entity
+            entity_type: Type of entity (citation, variable, etc.)
+
+        Returns:
+            List of collection concept IDs associated with this entity
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT DISTINCT right_id FROM {ASSOCIATIONS_TABLE}
+                WHERE left_id = %s AND left_type = %s AND right_type = 'collection'
+                """,
+                (entity_id, entity_type),
+            )
+            return [row[0] for row in cur.fetchall()]
+
+    def get_collections_for_entities(self, entities: list[tuple[str, str]]) -> dict[str, list[str]]:
         """
         Get all collections associated with given entities.
 
