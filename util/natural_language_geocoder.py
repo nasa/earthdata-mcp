@@ -7,6 +7,9 @@ https://github.com/Element84/e84-geoai-common
 
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # TEMPORARY SOLUTION: Monkey-patch for Lambda compatibility
 # This monkey-patch is needed because the current version of the natural_language_geocoding library
@@ -72,12 +75,23 @@ def convert_text_to_geom(location_query: str) -> str:
             bedrock_llm, location_query, GeocodeIndexPlaceLookup()
         )
 
-        print(f"Extracted geometry: {geometry}")
+        # Log geometry metadata instead of full coordinates to avoid log bloat
+        shp = shape(geometry) if isinstance(geometry, dict) else geometry
+        bounds = shp.bounds if hasattr(shp, 'bounds') else None
+        num_coords = len(list(shp.coords)) if hasattr(shp, 'coords') else None
+
+        logger.debug(
+            "Extracted geometry for '%s': type=%s, bounds=%s, num_coords=%s",
+            location_query,
+            shp.geom_type if hasattr(shp, 'geom_type') else type(geometry).__name__,
+            bounds,
+            num_coords
+        )
 
         simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
         return simplified_geom
     except Exception as e:
-        print(f"Error in natural_language_geocoder: {str(e)}")
+        logger.exception("Error geocoding location '%s'", location_query)
         return None
 
 

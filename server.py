@@ -58,11 +58,11 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "http"
 
     if mode == "stdio":
-        print("Running MCP in stdio mode...")
+        logger.info("Running MCP in stdio mode...")
         mcp.run()
 
     elif mode in ("http", "sse"):
-        print("Running MCP over HTTP streaming...")
+        logger.info("Running MCP over HTTP streaming...")
         uvicorn.run(app, host="127.0.0.1", port=5001)
 
     else:
