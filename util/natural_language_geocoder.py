@@ -78,11 +78,11 @@ def convert_text_to_geom(location_query: str) -> str:
         # Log geometry metadata instead of full coordinates to avoid log bloat
         shp = shape(geometry) if isinstance(geometry, dict) else geometry
         bounds = shp.bounds if hasattr(shp, "bounds") else None
-        
+
         # Get geometry details based on type
         geom_type = shp.geom_type if hasattr(shp, "geom_type") else type(geometry).__name__
         geom_info = {"type": geom_type, "bounds": bounds}
-        
+
         if geom_type in ("Point",):
             geom_info["num_coords"] = 1
         elif geom_type in ("LineString", "LinearRing"):
@@ -91,7 +91,7 @@ def convert_text_to_geom(location_query: str) -> str:
             geom_info["num_coords"] = len(shp.exterior.coords)
         elif geom_type.startswith("Multi"):
             geom_info["num_parts"] = len(shp.geoms)
-        
+
         logger.debug(
             "Extracted geometry for '%s': %s",
             location_query,
@@ -108,8 +108,8 @@ def convert_text_to_geom(location_query: str) -> str:
         )
         logger.debug("Full traceback:", exc_info=True)
         return None
-    else:
-        return simplified_geom
+
+    return simplified_geom
 
 
 def fix_geometry(geom):
