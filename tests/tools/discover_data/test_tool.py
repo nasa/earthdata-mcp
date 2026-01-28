@@ -29,9 +29,7 @@ def _make_collection(
         platforms=[],
         instruments=[],
         related_entity_id=None,
-        related_entity_text=None,
-        # attach metadata for temporal disambiguation path
-        **({"metadata": metadata} if metadata is not None else {}),
+        related_entity_text=None
     )
 
 
