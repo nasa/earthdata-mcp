@@ -9,7 +9,7 @@ platforms/instruments.
 import logging
 import re
 
-from tools.discover_data.output_model import ClarifyingQuestion, CollectionMatch
+from tools.discover_data.models.output_model import ClarifyingQuestion, CollectionMatch
 from util.kms.client import lookup_term
 
 logger = logging.getLogger(__name__)

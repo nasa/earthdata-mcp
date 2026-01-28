@@ -1,9 +1,8 @@
-"""
-LLM-based spatial constraint extraction with geocoding and caching.
+"""LLM-based spatial constraint extraction with geocoding and caching.
 
 Two-layer design:
-  - _extract_spatial_with_llm: Pure LLM parsing → SpatialExtractionResult
-  - extract_spatial_constraint_from_query: Wrapper that geocodes location + caches WKT
+  - extract_spatial_with_llm: Pure LLM parsing → SpatialExtractionResult
+  - extract_spatial_constraint: Wrapper that geocodes location + caches WKT
 
 Cache keys use canonical location names from the LLM to ensure "Paris",
 "Paris, France", and "within 100km of Paris" all hit the same cache entry.
@@ -13,7 +12,6 @@ as the canonical key for stronger normalization.)
 
 # pylint: disable=duplicate-code  # Intentional code patterns shared with extract_temporal_constraint.py
 
-import hashlib
 import logging
 from datetime import UTC, datetime
 
@@ -21,7 +19,11 @@ import instructor
 import redis
 from langfuse import observe
 
-from tools.discover_data.input_model import SpatialConstraint
+from tools.discover_data.models.constraints import SpatialConstraint
+from tools.discover_data.models.llm import (
+    SpatialExtractionOutput,
+    SpatialExtractionResult,
+)
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from util.cache import get_cache_client
 from util.langfuse import trace_update
@@ -34,24 +36,6 @@ try:
 except Exception as e:
     logger.warning("Failed to initialize cache client: %s", e)
     cache = None
-
-
-class SpatialExtractionResult:
-    """Result of LLM-based spatial extraction."""
-
-    def __init__(
-        self, location_name: str | None, location_with_context: str | None, reasoning: str | None
-    ):
-        self.location_name = location_name
-        self.location_with_context = location_with_context
-        self.reasoning = reasoning
-        self.cache_key = self._make_cache_key(location_name) if location_name else None
-
-    @staticmethod
-    def _make_cache_key(location_name: str) -> str:
-        """Generate a standardized cache key from a canonical location name."""
-        normalized = location_name.lower().strip()
-        return f"geocode:{hashlib.md5(normalized.encode()).hexdigest()}"
 
 
 @observe(name="extract_spatial_with_llm")
@@ -80,15 +64,6 @@ def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
     system_prompt = load_extraction_prompt("spatial_extraction.md", today)
 
     try:
-        from pydantic import BaseModel
-
-        class SpatialExtractionOutput(BaseModel):
-            """Output model for spatial extraction from LLM."""
-
-            location_name: str | None = None
-            location_with_context: str | None = None
-            reasoning: str | None = None
-
         output = client.create(
             modelId=MODEL_ID,
             messages=[

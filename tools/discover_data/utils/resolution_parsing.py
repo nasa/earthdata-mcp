@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from tools.discover_data.output_model import ResolutionInfo, TemporalCoverage
+from tools.discover_data.models.output_model import ResolutionInfo, TemporalCoverage
 
 
 def parse_temporal_resolution(umm_metadata: dict[str, Any]) -> tuple[str | None, float | None]:

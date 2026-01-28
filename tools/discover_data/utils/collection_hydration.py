@@ -11,7 +11,7 @@ from typing import Any
 
 from langfuse import observe
 
-from tools.discover_data.output_model import CollectionMatch
+from tools.discover_data.models.output_model import CollectionMatch
 from tools.discover_data.utils.resolution_parsing import (
     extract_instruments,
     extract_platforms,

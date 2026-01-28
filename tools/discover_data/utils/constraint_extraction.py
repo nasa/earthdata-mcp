@@ -4,7 +4,7 @@ Constraint extraction for discover_data orchestrator.
 
 import logging
 
-from tools.discover_data.input_model import SpatialConstraint, TemporalConstraint
+from tools.discover_data.models import SpatialConstraint, TemporalConstraint
 
 from .extract_spatial_constraint import extract_spatial_constraint
 from .extract_temporal_constraint import extract_temporal_constraint

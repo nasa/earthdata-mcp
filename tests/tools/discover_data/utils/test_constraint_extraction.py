@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from tools.discover_data.input_model import SpatialConstraint, TemporalConstraint
+from tools.discover_data.models.constraints import SpatialConstraint, TemporalConstraint
 from tools.discover_data.utils import constraint_extraction
 
 

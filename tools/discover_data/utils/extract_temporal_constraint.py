@@ -12,7 +12,8 @@ from datetime import UTC, datetime
 import instructor
 from langfuse import observe
 
-from tools.discover_data.input_model import TemporalConstraint
+from tools.discover_data.models.constraints import TemporalConstraint
+from tools.discover_data.models.llm import TemporalRangeOutput
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from util.langfuse import trace_update
 
@@ -57,15 +58,6 @@ def extract_temporal_constraint(query: str) -> TemporalConstraint:
     system_prompt = load_extraction_prompt("temporal_extraction.md", today)
 
     try:
-        from pydantic import BaseModel
-
-        class TemporalRangeOutput(BaseModel):
-            """Output model for temporal range extraction from LLM."""
-
-            start_date: datetime | None = None
-            end_date: datetime | None = None
-            reasoning: str | None = None
-
         output = client.create(
             modelId=MODEL_ID,
             messages=[
