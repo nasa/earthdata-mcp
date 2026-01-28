@@ -99,7 +99,8 @@ class ClarifyingQuestion(BaseModel):
     question_type: str | None = Field(
         None,
         description="Type: 'resolution_preference', 'temporal_scope', "
-        "'spatial_scope', 'platform_preference', 'source_explanation'",
+        "'spatial_scope', 'platform_preference', 'source_explanation', "
+        "'data_type_preference', 'instrument_preference', 'variable_preference'",
     )
     options: list[str] = Field(
         default_factory=list, description="Available options for the user to choose from"

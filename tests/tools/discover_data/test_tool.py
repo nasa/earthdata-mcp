@@ -325,6 +325,7 @@ def test_discover_data_with_langfuse(monkeypatch):
     )
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
+    monkeypatch.setattr(tool, "check_disambiguation", lambda cols, *a, **k: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
     query = DiscoverDataInput(query="test collection")

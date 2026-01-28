@@ -72,14 +72,25 @@ def hydrate_collections(
     matches = []
     for result in collection_results:
         concept_id = result["external_id"]
-        data = collection_data.get(concept_id, {})
+
+        # Skip collections that were filtered out by temporal/spatial constraints
+        if concept_id not in collection_data:
+            logger.debug("Skipping collection %s (filtered by constraints)", concept_id)
+            continue
+
+        data = collection_data[concept_id]
         metadata = data.get("metadata", {})
 
+        # Skip if metadata is empty
+        if not metadata:
+            logger.debug("Skipping collection %s (no metadata found)", concept_id)
+            continue
+
         # Parse resolution and coverage from metadata
-        resolution = parse_resolution_info(metadata) if metadata else None
-        temporal_coverage = parse_temporal_coverage(metadata) if metadata else None
-        platforms = extract_platforms(metadata) if metadata else []
-        instruments = extract_instruments(metadata) if metadata else []
+        resolution = parse_resolution_info(metadata)
+        temporal_coverage = parse_temporal_coverage(metadata)
+        platforms = extract_platforms(metadata)
+        instruments = extract_instruments(metadata)
 
         # Get title from metadata if available, fall back to embedding result
         title = metadata.get("EntryTitle") or result.get("text_content", "")

@@ -30,11 +30,13 @@ def extract_constraints(
     Returns:
         Tuple of (TemporalConstraint, SpatialConstraint)
     """
+    trimmed_query = query.strip()
+
     if explicit_temporal is not None:
         temporal = explicit_temporal
     else:
         try:
-            temporal = extract_temporal_constraint(query)
+            temporal = extract_temporal_constraint(trimmed_query)
         except Exception as e:
             logger.warning("Failed to extract temporal constraint: %s", e)
             temporal = TemporalConstraint(
@@ -47,7 +49,7 @@ def extract_constraints(
         spatial = explicit_spatial
     else:
         try:
-            spatial = extract_spatial_constraint(query)
+            spatial = extract_spatial_constraint(trimmed_query)
         except Exception as e:
             logger.warning("Failed to extract spatial constraint: %s", e)
             spatial = SpatialConstraint(

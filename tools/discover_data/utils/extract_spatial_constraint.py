@@ -16,7 +16,6 @@ import logging
 from datetime import UTC, datetime
 
 import instructor
-import redis
 from langfuse import observe
 
 from tools.discover_data.models.llm import (
@@ -143,7 +142,7 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
                     wkt_geometry=cached_geom,
                     reasoning=f"{extraction.reasoning} (cached)",
                 )
-        except (redis.RedisError, Exception) as e:
+        except Exception as e:
             logger.debug("Cache lookup failed: %s", e)
 
     # Cache miss or cache disabled - geocode the location
@@ -169,7 +168,7 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
             try:
                 cache_key = extraction.cache_key
                 cache.set(cache_key, geom_str, ttl=900)
-            except (redis.RedisError, Exception) as e:
+            except Exception as e:
                 logger.debug("Cache store failed: %s", e)
 
         trace_update(
@@ -206,7 +205,7 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
         )
 
     except Exception as e:
-        logger.error("Unexpected error geocoding '%s': %s", location_to_geocode, e)
+        logger.exception("Unexpected error geocoding '%s'", location_to_geocode)
         trace_update(
             tags=["error", "exception"],
             metadata={

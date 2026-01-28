@@ -22,6 +22,8 @@ def get_datastore() -> EmbeddingDatastore:
 def reset_datastore() -> None:
     """Reset the datastore singleton (primarily for testing)."""
     global _datastore  # pylint: disable=global-statement
+    if _datastore is not None:
+        _datastore.close()
     _datastore = None
 
 

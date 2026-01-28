@@ -212,10 +212,10 @@ def _extract_or_use_constraints(
 def _determine_status(
     filtered_collections: list[CollectionMatch],
     needs_disambiguation: bool,
-    ranked_results: list[dict],
+    _ranked_results: list[dict],
 ) -> DiscoveryStatus:
     """Determine the appropriate discovery status."""
-    if not filtered_collections and not ranked_results:
+    if not filtered_collections:
         return DiscoveryStatus.NO_RESULTS
 
     if needs_disambiguation:
