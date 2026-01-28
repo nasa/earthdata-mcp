@@ -78,6 +78,16 @@ def extract_temporal_constraint(query: str) -> TemporalConstraint:
         metadata={"success": True},
     )
 
+    # Log extracted temporal information
+    if output.start_date or output.end_date:
+        logger.debug(
+            "Extracted temporal constraint: start=%s, end=%s",
+            output.start_date.isoformat() if output.start_date else None,
+            output.end_date.isoformat() if output.end_date else None,
+        )
+    else:
+        logger.debug("No temporal information extracted from query: %s", query)
+
     return TemporalConstraint(
         start_date=output.start_date,
         end_date=output.end_date,

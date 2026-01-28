@@ -74,7 +74,14 @@ def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
         )
 
         if not output.location_name and not output.location_with_context:
+            logger.debug("LLM returned no spatial information for query: %s", query)
             return None
+
+        logger.debug(
+            "LLM extracted location: %s (canonical: %s)",
+            output.location_with_context,
+            output.location_name,
+        )
 
         return SpatialExtractionResult(
             location_name=output.location_name,
@@ -174,7 +181,12 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
             },
         )
 
-        logger.debug("Successfully geocoded location: %s (%s)", canonical_name, location_to_geocode)
+        logger.debug(
+            "Successfully geocoded location '%s': geometry_type=%s, length=%d chars",
+            canonical_name,
+            type(geom).__name__,
+            len(geom_str),
+        )
         return SpatialConstraint(
             location=location_to_geocode,
             wkt_geometry=geom_str,
