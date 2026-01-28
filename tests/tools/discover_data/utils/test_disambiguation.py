@@ -3,7 +3,7 @@
 import pytest
 import responses
 
-from tools.discover_data.models.output_model import CollectionMatch, ResolutionInfo
+from tools.models.output_model import CollectionMatch, ResolutionInfo
 from tools.discover_data.utils import disambiguation
 
 

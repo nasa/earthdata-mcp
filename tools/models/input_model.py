@@ -7,7 +7,7 @@ including optional constraints and context for iterative refinement.
 
 from pydantic import BaseModel, Field
 
-from tools.discover_data.models.constraints import SpatialConstraint, TemporalConstraint
+from tools.models.constraints import SpatialConstraint, TemporalConstraint
 
 
 class SearchContext(BaseModel):

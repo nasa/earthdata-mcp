@@ -19,7 +19,7 @@ import instructor
 import redis
 from langfuse import observe
 
-from tools.discover_data.models.constraints import SpatialConstraint
+from tools.models.constraints import SpatialConstraint
 from tools.discover_data.models.llm import (
     SpatialExtractionOutput,
     SpatialExtractionResult,

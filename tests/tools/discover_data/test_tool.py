@@ -5,9 +5,10 @@ import sys
 from types import ModuleType
 from unittest.mock import MagicMock
 
-from tools.discover_data.models.constraints import SpatialConstraint, TemporalConstraint
-from tools.discover_data.models.input_model import DiscoverDataInput, SearchContext
-from tools.discover_data.models.output_model import (
+from tools.discover_data.models.llm import TemporalRangeOutput, SpatialExtractionOutput
+from tools.models.constraints import SpatialConstraint, TemporalConstraint
+from tools.models.input_model import DiscoverDataInput, SearchContext
+from tools.models.output_model import (
     ClarifyingQuestion,
     CollectionMatch,
     ResolutionInfo,

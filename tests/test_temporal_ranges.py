@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.discover_data.models import TemporalConstraint
+from tools.models.constraints import TemporalConstraint
 from tools.discover_data.utils.extract_temporal_constraint import extract_temporal_constraint
 
 

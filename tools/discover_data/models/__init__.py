@@ -1,38 +1,22 @@
-"""Data models for discover_data tool.
+"""
+LLM-specific data models for discover_data tool.
+
+For shared models (constraints, input, output), import from tools.models:
+  from tools.models.constraints import TemporalConstraint, SpatialConstraint
+  from tools.models.input_model import DiscoverDataInput, SearchContext
+  from tools.models.output_model import CollectionMatch, DiscoverDataOutput
+
+For discover-data-specific LLM extraction models, import from here:
+  from tools.discover_data.models.llm import SpatialExtractionResult, TemporalRangeOutput
 """
 
-from tools.discover_data.models.constraints import SpatialConstraint, TemporalConstraint
-from tools.discover_data.models.input_model import DiscoverDataInput, SearchContext
 from tools.discover_data.models.llm import (
     SpatialExtractionOutput,
     SpatialExtractionResult,
     TemporalRangeOutput,
 )
-from tools.discover_data.models.output_model import (
-    ClarifyingQuestion,
-    CollectionMatch,
-    DiscoverDataOutput,
-    DiscoveryStatus,
-    ExtractedConstraints,
-    ResolutionInfo,
-    TemporalCoverage,
-)
 
 __all__ = [
-    # Constraint models
-    "TemporalConstraint",
-    "SpatialConstraint",
-    # Input models
-    "DiscoverDataInput",
-    "SearchContext",
-    # Output models
-    "DiscoverDataOutput",
-    "DiscoveryStatus",
-    "CollectionMatch",
-    "ResolutionInfo",
-    "TemporalCoverage",
-    "ClarifyingQuestion",
-    "ExtractedConstraints",
     # LLM models
     "TemporalRangeOutput",
     "SpatialExtractionOutput",

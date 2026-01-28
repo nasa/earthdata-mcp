@@ -14,7 +14,7 @@ import re
 from typing import Any
 
 # TODO: This import might need to move somewhere better
-from tools.discover_data.models import CollectionMatch
+from tools.models.output_model import CollectionMatch
 from util.spatial import parse_spatial_resolution_from_title
 from util.temporal import parse_temporal_resolution_from_title
 
