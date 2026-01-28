@@ -41,4 +41,4 @@ class SpatialExtractionResult:
         """Compute cache key from location name."""
         if self.location_name:
             normalized = self.location_name.lower().strip()
-            self.cache_key = f"geocode:{hashlib.md5(normalized.encode()).hexdigest()}"
+            self.cache_key = f"geocode:{hashlib.sha256(normalized.encode()).hexdigest()}"

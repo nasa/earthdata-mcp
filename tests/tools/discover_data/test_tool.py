@@ -14,9 +14,7 @@ from tools.models.output_model import (
 )
 
 
-def _make_collection(
-    concept_id: str, match_type: str = "direct"
-) -> CollectionMatch:
+def _make_collection(concept_id: str, match_type: str = "direct") -> CollectionMatch:
     return CollectionMatch(
         concept_id=concept_id,
         title=f"Title {concept_id}",
@@ -29,7 +27,7 @@ def _make_collection(
         platforms=[],
         instruments=[],
         related_entity_id=None,
-        related_entity_text=None
+        related_entity_text=None,
     )
 
 
@@ -185,13 +183,7 @@ def test_discover_data_with_disambiguation_questions(monkeypatch):
 
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
-    monkeypatch.setattr(
-        tool,
-        "extract_constraints",
-        lambda *_args, **_kwargs: (
-            temporal, spatial
-        )
-    )
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_args, **_kwargs: (temporal, spatial))
     monkeypatch.setattr(
         tool,
         "search_all_entity_types",
@@ -234,9 +226,7 @@ def test_discover_data_with_disambiguation_questions(monkeypatch):
             recommendation=None,
         ),
     ]
-    monkeypatch.setattr(
-        tool, "check_disambiguation", lambda cols: (True, disamb_questions)
-    )
+    monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (True, disamb_questions))
 
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
 
@@ -343,6 +333,7 @@ def test_discover_data_with_langfuse(monkeypatch):
     # Verify Langfuse methods were called
     assert mock_langfuse.update_current_trace.called
     assert output["status"] == "collections_found"
+
 
 def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
     """
@@ -547,10 +538,7 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
     # Verify initial response
     assert initial_output["status"] == "disambiguation_needed"
     assert len(initial_output["clarifying_questions"]) == 2
-    assert (
-        initial_output["clarifying_questions"][0]["question_id"]
-        == "platform_pref_1"
-    )
+    assert initial_output["clarifying_questions"][0]["question_id"] == "platform_pref_1"
     assert len(initial_output["collections"]) == 3
     assert initial_output["total_found"] == 3
 
@@ -586,8 +574,7 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
             platform_pref = refinements["platform_pref_1"]
             if platform_pref == "MODIS (Terra/Aqua)":
                 filtered = [
-                    c for c in filtered
-                    if "MODIS" in " ".join(c.platforms) or "MODIS" in c.title
+                    c for c in filtered if "MODIS" in " ".join(c.platforms) or "MODIS" in c.title
                 ]
             elif platform_pref == "Landsat":
                 filtered = [c for c in filtered if "Landsat" in " ".join(c.platforms)]
@@ -597,7 +584,8 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
             temp_res = refinements["temporal_res_1"]
             if temp_res == "Moderate (8-16 days)":
                 filtered = [
-                    c for c in filtered
+                    c
+                    for c in filtered
                     if c.resolution.temporal_resolution_value
                     and 8 <= c.resolution.temporal_resolution_value <= 16
                 ]
@@ -612,7 +600,8 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
 
     # After refinement filtering, should only have MODIS collections with 8-16 day resolution
     refined_collections = [
-        c for c in hydrated_collections
+        c
+        for c in hydrated_collections
         if ("MODIS" in " ".join(c.platforms) or "MODIS" in c.title)
         and c.resolution.temporal_resolution_value
         and 8 <= c.resolution.temporal_resolution_value <= 16

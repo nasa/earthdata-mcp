@@ -6,8 +6,8 @@ https://github.com/Element84/e84-geoai-common
 """
 
 import json
-import os
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -18,15 +18,15 @@ logger = logging.getLogger(__name__)
 #
 # Remove this monkey-patch once the library is updated to handle Lambda environments.
 # Issue: [https://github.com/Element84/natural-language-geocoding/issues/15]
-import natural_language_geocoding.geocode_index.hierachical_place_cache as hpc
-from e84_geoai_common.geometry import geometry_to_geojson, simplify_geometry
-from e84_geoai_common.llm.models.nova import BedrockNovaLLM
-from natural_language_geocoding import extract_geometry_from_text
-from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
+import natural_language_geocoding.geocode_index.hierachical_place_cache as hpc  # noqa: E402
+from e84_geoai_common.geometry import geometry_to_geojson, simplify_geometry  # noqa: E402
+from e84_geoai_common.llm.models.nova import BedrockNovaLLM  # noqa: E402
+from natural_language_geocoding import extract_geometry_from_text  # noqa: E402
+from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (  # noqa: E402
     GeocodeIndexPlaceLookup,
 )
-from shapely.geometry import mapping, shape
-from shapely.ops import orient
+from shapely.geometry import mapping, shape  # noqa: E402
+from shapely.ops import orient  # noqa: E402
 
 _original_init = hpc.PlaceCache.__init__
 
@@ -77,20 +77,26 @@ def convert_text_to_geom(location_query: str) -> str:
 
         # Log geometry metadata instead of full coordinates to avoid log bloat
         shp = shape(geometry) if isinstance(geometry, dict) else geometry
-        bounds = shp.bounds if hasattr(shp, 'bounds') else None
-        num_coords = len(list(shp.coords)) if hasattr(shp, 'coords') else None
+        bounds = shp.bounds if hasattr(shp, "bounds") else None
+        # Get coordinate count safely - polygons need exterior.coords
+        if hasattr(shp, "exterior"):
+            num_coords = len(list(shp.exterior.coords)) if hasattr(shp.exterior, "coords") else None
+        elif hasattr(shp, "coords"):
+            num_coords = len(list(shp.coords))
+        else:
+            num_coords = None
 
         logger.debug(
             "Extracted geometry for '%s': type=%s, bounds=%s, num_coords=%s",
             location_query,
-            shp.geom_type if hasattr(shp, 'geom_type') else type(geometry).__name__,
+            shp.geom_type if hasattr(shp, "geom_type") else type(geometry).__name__,
             bounds,
-            num_coords
+            num_coords,
         )
 
         simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
         return simplified_geom
-    except Exception as e:
+    except Exception:
         logger.exception("Error geocoding location '%s'", location_query)
         return None
 

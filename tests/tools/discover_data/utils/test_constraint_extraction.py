@@ -2,8 +2,8 @@
 
 from datetime import UTC, datetime
 
-from tools.models.constraints import SpatialConstraint, TemporalConstraint
 from tools.discover_data.utils import constraint_extraction
+from tools.models.constraints import SpatialConstraint, TemporalConstraint
 
 
 def test_extract_constraints_extracts_both_when_no_explicit(monkeypatch):
@@ -17,12 +17,8 @@ def test_extract_constraints_extracts_both_when_no_explicit(monkeypatch):
     def fake_spatial(_query):
         return spatial_result
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     temporal, spatial = constraint_extraction.extract_constraints("data from 2020 in Denver")
 
@@ -40,12 +36,8 @@ def test_extract_constraints_handles_temporal_extraction_error(monkeypatch):
     def fake_spatial(_query):
         return spatial_result
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     temporal, spatial = constraint_extraction.extract_constraints("query")
 
@@ -65,12 +57,8 @@ def test_extract_constraints_handles_spatial_extraction_error(monkeypatch):
     def fake_spatial(_query):
         raise RuntimeError("Geocoding failed")
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     temporal, spatial = constraint_extraction.extract_constraints("query")
 
@@ -96,12 +84,8 @@ def test_extract_constraints_uses_explicit_temporal_if_provided(monkeypatch):
         spatial_calls.append(query)
         return spatial_result
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     temporal, _ = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
@@ -129,12 +113,8 @@ def test_extract_constraints_uses_explicit_spatial_if_provided(monkeypatch):
         spatial_calls.append(query)
         return SpatialConstraint()
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     _, spatial = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
@@ -162,12 +142,8 @@ def test_extract_constraints_uses_both_explicit_if_provided(monkeypatch):
         spatial_calls.append(query)
         return SpatialConstraint()
 
-    monkeypatch.setattr(
-        constraint_extraction, "extract_temporal_constraint", fake_temporal
-    )
-    monkeypatch.setattr(
-        constraint_extraction, "extract_spatial_constraint", fake_spatial
-    )
+    monkeypatch.setattr(constraint_extraction, "extract_temporal_constraint", fake_temporal)
+    monkeypatch.setattr(constraint_extraction, "extract_spatial_constraint", fake_spatial)
 
     temporal, spatial = constraint_extraction.extract_constraints(
         "some query",

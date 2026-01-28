@@ -11,13 +11,13 @@ from typing import Any
 
 from langfuse import observe
 
-from tools.models.output_model import CollectionMatch
 from tools.discover_data.utils.resolution_parsing import (
     extract_instruments,
     extract_platforms,
     parse_resolution_info,
     parse_temporal_coverage,
 )
+from tools.models.output_model import CollectionMatch
 from util.datastores import get_datastore
 
 logger = logging.getLogger(__name__)

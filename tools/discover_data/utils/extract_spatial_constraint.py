@@ -19,12 +19,12 @@ import instructor
 import redis
 from langfuse import observe
 
-from tools.models.constraints import SpatialConstraint
 from tools.discover_data.models.llm import (
     SpatialExtractionOutput,
     SpatialExtractionResult,
 )
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
+from tools.models.constraints import SpatialConstraint
 from util.cache import get_cache_client
 from util.langfuse import trace_update
 from util.natural_language_geocoder import convert_text_to_geom

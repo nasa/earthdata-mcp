@@ -66,7 +66,6 @@ def initialize_langfuse_client() -> Langfuse | None:
     Returns:
         Langfuse client instance, or None if initialization fails.
     """
-    _configure_langfuse()
     return get_langfuse()
 
 

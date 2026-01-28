@@ -3,8 +3,8 @@
 import pytest
 import responses
 
-from tools.models.output_model import CollectionMatch, ResolutionInfo
 from tools.discover_data.utils import disambiguation
+from tools.models.output_model import CollectionMatch, ResolutionInfo
 
 
 @pytest.fixture
@@ -85,9 +85,18 @@ def test_normalize_title_case_insensitive():
 def test_group_by_normalized_topic_groups_same_topic_different_versions(mock_collection):
     """Collections with same topic but different versions group together."""
     collections = [
-        mock_collection(concept_id="C1", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.0"),
-        mock_collection(concept_id="C2", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1"),
-        mock_collection(concept_id="C3", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V7.0"),
+        mock_collection(
+            concept_id="C1",
+            title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.0",
+        ),
+        mock_collection(
+            concept_id="C2",
+            title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1",
+        ),
+        mock_collection(
+            concept_id="C3",
+            title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V7.0",
+        ),
     ]
 
     groups = disambiguation.group_by_normalized_topic(collections)
@@ -102,8 +111,13 @@ def test_group_by_normalized_topic_groups_same_topic_different_versions(mock_col
 def test_group_by_normalized_topic_groups_by_different_topics(mock_collection):
     """Collections with different topics go to separate groups."""
     collections = [
-        mock_collection(concept_id="C1", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1"),
-        mock_collection(concept_id="C2", title="VIIRS/SNPP Surface Reflectance 500m Daily L2 Global"),
+        mock_collection(
+            concept_id="C1",
+            title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1",
+        ),
+        mock_collection(
+            concept_id="C2", title="VIIRS/SNPP Surface Reflectance 500m Daily L2 Global"
+        ),
         mock_collection(concept_id="C3", title="Landsat 8 Level-2 Science Products"),
     ]
 
@@ -115,8 +129,12 @@ def test_group_by_normalized_topic_groups_by_different_topics(mock_collection):
 def test_group_by_normalized_topic_normalizes_resolution_differences(mock_collection):
     """Collections differing only in resolution group together."""
     collections = [
-        mock_collection(concept_id="C1", title="MODIS/Terra Land Surface Temperature Daily L3 Global 250m Grid"),
-        mock_collection(concept_id="C2", title="MODIS/Terra Land Surface Temperature Daily L3 Global 1km Grid"),
+        mock_collection(
+            concept_id="C1", title="MODIS/Terra Land Surface Temperature Daily L3 Global 250m Grid"
+        ),
+        mock_collection(
+            concept_id="C2", title="MODIS/Terra Land Surface Temperature Daily L3 Global 1km Grid"
+        ),
     ]
 
     groups = disambiguation.group_by_normalized_topic(collections)
@@ -219,7 +237,10 @@ def test_check_disambiguation_platform(mock_collection):
     assert platform_q is not None
     assert platform_q.question_text is not None
     assert len(platform_q.question_text) > 0
-    assert "platform" in platform_q.question_text.lower() or "satellite" in platform_q.question_text.lower()
+    assert (
+        "platform" in platform_q.question_text.lower()
+        or "satellite" in platform_q.question_text.lower()
+    )
     assert set(platform_q.options) == {"Terra", "Aqua"}
     assert platform_q.related_collection_ids == ["C1", "C2"]
 
