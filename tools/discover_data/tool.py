@@ -125,7 +125,7 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
 
         # === PHASE 4: Transform to CollectionMatch Objects ===
         # Convert scored embedding results into CollectionMatch objects
-        # 
+        #
         # TODO: Once embedding results include pre-enriched metadata:
         # - Remove _transform_to_collection_matches helper
         # - Transform inline, populating CollectionMatch with enriched fields
@@ -143,7 +143,7 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
 
         # === PHASE 5: Apply Constraint Filtering ===
         # Filter collections that don't meet temporal/spatial constraints
-        # 
+        #
         # TODO: Once enriched metadata is available in Phase 4:
         # - Apply temporal/spatial constraint filtering
         # - Requires enriched metadata from embedding results
@@ -174,7 +174,7 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
             needs_disambiguation = False
         else:
             # Temporal resolution-based disambiguation
-            # 
+            #
             # TODO: Once enriched metadata is available in Phase 4:
             # - Extract metadata from CollectionMatch objects
             # - Check for temporal disambiguation needs
@@ -339,8 +339,7 @@ def _determine_status(
 
     # Check if any results are indirect matches
     has_indirect = any(
-        c.match_type not in ("direct", "direct_and_indirect")
-        for c in filtered_collections
+        c.match_type not in ("direct", "direct_and_indirect") for c in filtered_collections
     )
     if has_indirect:
         return DiscoveryStatus.INDIRECT_MATCHES
@@ -379,7 +378,9 @@ def _describe_search_strategy(
 
     # Count match types
     direct_count = sum(1 for r in ranked_collections if r.get("match_type") == "direct")
-    indirect_count = sum(1 for r in ranked_collections if r.get("match_type", "").startswith("via_"))
+    indirect_count = sum(
+        1 for r in ranked_collections if r.get("match_type", "").startswith("via_")
+    )
     both_count = sum(1 for r in ranked_collections if r.get("match_type") == "direct_and_indirect")
 
     if direct_count or both_count:

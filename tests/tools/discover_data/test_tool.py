@@ -14,7 +14,9 @@ from tools.discover_data.input_model import (
 from tools.discover_data.output_model import ClarifyingQuestion, CollectionMatch, ResolutionInfo
 
 
-def _make_collection(concept_id: str, match_type: str = "direct", metadata: dict | None = None) -> CollectionMatch:
+def _make_collection(
+    concept_id: str, match_type: str = "direct", metadata: dict | None = None
+) -> CollectionMatch:
     return CollectionMatch(
         concept_id=concept_id,
         title=f"Title {concept_id}",
@@ -33,9 +35,11 @@ def _make_collection(concept_id: str, match_type: str = "direct", metadata: dict
     )
 
 
-def _make_collection_dict(concept_id: str, match_type: str = "direct", metadata: dict | None = None) -> dict:
+def _make_collection_dict(
+    concept_id: str, match_type: str = "direct", metadata: dict | None = None
+) -> dict:
     """Create a dict result like score_and_rank_collections returns.
-    
+
     This should match the structure of embedding results with:
     - external_id: CMR concept ID
     - text_content: Matched text (title)
@@ -93,9 +97,19 @@ def test_discover_data_expansion_path(monkeypatch):
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
 
-    monkeypatch.setattr(tool, "extract_constraints", lambda q, explicit_temporal, explicit_spatial: (temporal, spatial))
-    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "variable", "similarity": 0.6}])
-    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")])
+    monkeypatch.setattr(
+        tool,
+        "extract_constraints",
+        lambda q, explicit_temporal, explicit_spatial: (temporal, spatial),
+    )
+    monkeypatch.setattr(
+        tool,
+        "search_all_entity_types",
+        lambda *_args, **_kwargs: [{"type": "variable", "similarity": 0.6}],
+    )
+    monkeypatch.setattr(
+        tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")]
+    )
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
@@ -120,18 +134,29 @@ def test_discover_data_disambiguation_path(monkeypatch):
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
     monkeypatch.setattr(tool, "extract_constraints", lambda *_args, **_kwargs: (temporal, spatial))
-    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "collection", "similarity": 0.8, "match_type": "direct"}])
+    monkeypatch.setattr(
+        tool,
+        "search_all_entity_types",
+        lambda *_args, **_kwargs: [
+            {"type": "collection", "similarity": 0.8, "match_type": "direct"}
+        ],
+    )
 
     # Return two collections so filtered_collections not empty
-    collections = [_make_collection_dict("C1", metadata={"TemporalExtents": []}), _make_collection_dict("C2", metadata={"TemporalExtents": []})]
+    collections = [
+        _make_collection_dict("C1", metadata={"TemporalExtents": []}),
+        _make_collection_dict("C2", metadata={"TemporalExtents": []}),
+    ]
     monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: collections)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
     # Ensure user refinements are applied
     applied = {}
+
     def fake_filter_by_user_refinements(cols, refinements):
         applied.update(refinements)
         return cols
+
     monkeypatch.setattr(tool, "filter_by_user_refinements", fake_filter_by_user_refinements)
 
     prev_ctx = SearchContext(temporal=None, spatial=None, user_refinements={"a": "b"})
@@ -154,14 +179,17 @@ def test_determine_status_variants():
     assert tool._determine_status([], [], []) == tool.DiscoveryStatus.NO_RESULTS
     assert tool._determine_status([direct], True, []) == tool.DiscoveryStatus.DISAMBIGUATION_NEEDED
     assert tool._determine_status([indirect], False, []) == tool.DiscoveryStatus.INDIRECT_MATCHES
-    assert tool._determine_status([direct], False, [{"match_type": "direct"}]) == tool.DiscoveryStatus.COLLECTIONS_FOUND
+    assert (
+        tool._determine_status([direct], False, [{"match_type": "direct"}])
+        == tool.DiscoveryStatus.COLLECTIONS_FOUND
+    )
 
 
 def test_describe_search_strategy_counts():
     """Test that search strategy description includes correct match type counts."""
     tool = importlib.import_module("tools.discover_data.tool")
     temporal = TemporalConstraint(start_date=None, end_date=None)
-    spatial = SpatialConstraint(wkt_geometry="POLYGON(...)" )
+    spatial = SpatialConstraint(wkt_geometry="POLYGON(...)")
     ranked = [
         {"match_type": "direct"},
         {"match_type": "direct_and_indirect"},
@@ -203,9 +231,21 @@ def test_discover_data_with_langfuse(monkeypatch):
     temporal = TemporalConstraint()
     spatial = SpatialConstraint()
 
-    monkeypatch.setattr(tool, "extract_constraints", lambda q, explicit_temporal, explicit_spatial: (temporal, spatial))
-    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_args, **_kwargs: [{"type": "collection", "similarity": 0.8, "match_type": "direct"}])
-    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")])
+    monkeypatch.setattr(
+        tool,
+        "extract_constraints",
+        lambda q, explicit_temporal, explicit_spatial: (temporal, spatial),
+    )
+    monkeypatch.setattr(
+        tool,
+        "search_all_entity_types",
+        lambda *_args, **_kwargs: [
+            {"type": "collection", "similarity": 0.8, "match_type": "direct"}
+        ],
+    )
+    monkeypatch.setattr(
+        tool, "score_and_rank_collections", lambda *_args, **_kwargs: [_make_collection_dict("C1")]
+    )
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
