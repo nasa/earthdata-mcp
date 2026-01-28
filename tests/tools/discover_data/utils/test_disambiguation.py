@@ -85,24 +85,26 @@ def test_normalize_title_case_insensitive():
 def test_group_by_normalized_topic_groups_same_topic_different_versions(mock_collection):
     """Collections with same topic but different versions group together."""
     collections = [
-        mock_collection(concept_id="C1", title="MODIS V6.0"),
-        mock_collection(concept_id="C2", title="MODIS V6.1"),
-        mock_collection(concept_id="C3", title="MODIS V7.0"),
+        mock_collection(concept_id="C1", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.0"),
+        mock_collection(concept_id="C2", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1"),
+        mock_collection(concept_id="C3", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V7.0"),
     ]
 
     groups = disambiguation.group_by_normalized_topic(collections)
 
     assert len(groups) == 1
-    assert "modis" in list(groups.keys())[0]
-    assert len(groups["modis"]) == 3
+    # Get the first (and only) group key
+    group_key = list(groups.keys())[0]
+    assert "modis" in group_key and "surface" in group_key
+    assert len(groups[group_key]) == 3
 
 
 def test_group_by_normalized_topic_groups_by_different_topics(mock_collection):
     """Collections with different topics go to separate groups."""
     collections = [
-        mock_collection(concept_id="C1", title="MODIS Data"),
-        mock_collection(concept_id="C2", title="VIIRS Data"),
-        mock_collection(concept_id="C3", title="Landsat Data"),
+        mock_collection(concept_id="C1", title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1"),
+        mock_collection(concept_id="C2", title="VIIRS/SNPP Surface Reflectance 500m Daily L2 Global"),
+        mock_collection(concept_id="C3", title="Landsat 8 Level-2 Science Products"),
     ]
 
     groups = disambiguation.group_by_normalized_topic(collections)
@@ -113,14 +115,17 @@ def test_group_by_normalized_topic_groups_by_different_topics(mock_collection):
 def test_group_by_normalized_topic_normalizes_resolution_differences(mock_collection):
     """Collections differing only in resolution group together."""
     collections = [
-        mock_collection(concept_id="C1", title="Temperature 250m"),
-        mock_collection(concept_id="C2", title="Temperature 1km"),
+        mock_collection(concept_id="C1", title="MODIS/Terra Land Surface Temperature Daily L3 Global 250m Grid"),
+        mock_collection(concept_id="C2", title="MODIS/Terra Land Surface Temperature Daily L3 Global 1km Grid"),
     ]
 
     groups = disambiguation.group_by_normalized_topic(collections)
 
     assert len(groups) == 1
-    assert len(groups["temperature"]) == 2
+    # Get the first (and only) group key
+    group_key = list(groups.keys())[0]
+    assert "temperature" in group_key
+    assert len(groups[group_key]) == 2
 
 
 def test_check_disambiguation_no_disambiguation_needed_single_collection(mock_collection):
@@ -151,21 +156,26 @@ def test_check_disambiguation_temporal_resolution(mock_collection):
     collections = [
         mock_collection(
             concept_id="C1",
-            title="Temperature Daily",
+            title="MODIS/Terra Snow Cover Daily L3 Global 500m Grid V6.1",
             temporal_resolution="Daily",
         ),
         mock_collection(
             concept_id="C2",
-            title="Temperature Monthly",
-            temporal_resolution="Monthly",
+            title="MODIS/Terra Snow Cover 8-Day L3 Global 500m Grid V6.1",
+            temporal_resolution="8-Day",
         ),
     ]
 
     needs_disambiguation, questions = disambiguation.check_disambiguation(collections)
 
     assert needs_disambiguation
-    assert any(q.question_type == "resolution_preference" for q in questions)
-    assert any("temporal" in q.question_id for q in questions)
+    temporal_q = next((q for q in questions if q.question_type == "resolution_preference"), None)
+    assert temporal_q is not None
+    assert "temporal" in temporal_q.question_id
+    assert temporal_q.question_text is not None
+    assert len(temporal_q.question_text) > 0
+    assert set(temporal_q.options) == {"Daily", "8-Day"}
+    assert "snow" in temporal_q.question_text.lower()
 
 
 def test_check_disambiguation_spatial_resolution(mock_collection):
@@ -173,12 +183,12 @@ def test_check_disambiguation_spatial_resolution(mock_collection):
     collections = [
         mock_collection(
             concept_id="C1",
-            title="NDVI 250m",
+            title="MODIS/Terra Vegetation Indices 16-Day L3 Global 250m Grid V6.1",
             spatial_resolution="250m",
         ),
         mock_collection(
             concept_id="C2",
-            title="NDVI 1km",
+            title="MODIS/Terra Vegetation Indices 16-Day L3 Global 1km Grid V6.1",
             spatial_resolution="1km",
         ),
     ]
@@ -186,21 +196,32 @@ def test_check_disambiguation_spatial_resolution(mock_collection):
     needs_disambiguation, questions = disambiguation.check_disambiguation(collections)
 
     assert needs_disambiguation
-    assert any(q.question_type == "resolution_preference" for q in questions)
-    assert any("spatial" in q.question_id for q in questions)
+    spatial_q = next((q for q in questions if q.question_type == "resolution_preference"), None)
+    assert spatial_q is not None
+    assert "spatial" in spatial_q.question_id
+    assert spatial_q.question_text is not None
+    assert len(spatial_q.question_text) > 0
+    assert set(spatial_q.options) == {"250m", "1km"}
+    assert "vegetation" in spatial_q.question_text.lower()
 
 
 def test_check_disambiguation_platform(mock_collection):
     """Different platforms should generate a question."""
     collections = [
-        mock_collection(concept_id="C1", title="Data", platforms=["Terra"]),
-        mock_collection(concept_id="C2", title="Data", platforms=["Aqua"]),
+        mock_collection(concept_id="C1", title="Data Product", platforms=["Terra"]),
+        mock_collection(concept_id="C2", title="Data Product", platforms=["Aqua"]),
     ]
 
     needs_disambiguation, questions = disambiguation.check_disambiguation(collections)
 
     assert needs_disambiguation
-    assert any(q.question_type == "platform_preference" for q in questions)
+    platform_q = next((q for q in questions if q.question_type == "platform_preference"), None)
+    assert platform_q is not None
+    assert platform_q.question_text is not None
+    assert len(platform_q.question_text) > 0
+    assert "platform" in platform_q.question_text.lower() or "satellite" in platform_q.question_text.lower()
+    assert set(platform_q.options) == {"Terra", "Aqua"}
+    assert platform_q.related_collection_ids == ["C1", "C2"]
 
 
 def test_check_disambiguation_multiple_types(mock_collection):
@@ -208,15 +229,15 @@ def test_check_disambiguation_multiple_types(mock_collection):
     collections = [
         mock_collection(
             concept_id="C1",
-            title="Data Daily 250m",
+            title="MODIS/Terra Surface Reflectance Daily L2G Global 250m SIN Grid V6.1",
             temporal_resolution="Daily",
             spatial_resolution="250m",
             platforms=["Terra"],
         ),
         mock_collection(
             concept_id="C2",
-            title="Data Monthly 1km",
-            temporal_resolution="Monthly",
+            title="MODIS/Terra Surface Reflectance 8-Day L3 Global 1km SIN Grid V6.1",
+            temporal_resolution="8-Day",
             spatial_resolution="1km",
             platforms=["Aqua"],
         ),
@@ -249,6 +270,10 @@ def test_generate_resolution_question_temporal(mock_collection):
     assert "time intervals" in question.question_text.lower()
     assert "2" in question.question_text
     assert question.question_type == "resolution_preference"
+    assert question.question_id is not None
+    assert "temporal" in question.question_id.lower()
+    assert set(question.options) == resolutions
+    assert question.related_collection_ids == ["C1", "C2"]
 
 
 def test_generate_resolution_question_spatial(mock_collection):
@@ -271,6 +296,10 @@ def test_generate_resolution_question_spatial(mock_collection):
         or "resolution" in question.question_text.lower()
     )
     assert question.question_type == "resolution_preference"
+    assert question.question_id is not None
+    assert "spatial" in question.question_id.lower()
+    assert set(question.options) == resolutions
+    assert question.related_collection_ids == ["C1", "C2"]
 
 
 def test_generate_resolution_question_options_sorted(mock_collection):
@@ -306,6 +335,10 @@ def test_generate_platform_question_text(mock_collection):
 
     assert "platform" in question.question_text.lower()
     assert question.question_type == "platform_preference"
+    assert question.question_id is not None
+    assert "platform" in question.question_id.lower()
+    assert set(question.options) == {"Terra", "Aqua"}
+    assert question.related_collection_ids == ["C1", "C2"]
 
 
 def test_generate_platform_question_options_sorted(mock_collection):

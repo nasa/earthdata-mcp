@@ -140,8 +140,8 @@ def normalize_title(title: str) -> str:
     # Remove resolution patterns (250m, 1km, 0.25deg, 4km)
     t = re.sub(r"\b[\d.]+\s*(m|km|deg|degree|arc[- ]?sec)\b", "", t)
 
-    # Remove processing levels (L2, L3, Level 3)
-    t = re.sub(r"\bl(?:evel)?\s*[\dab]+\b", "", t)
+    # Remove processing levels (L2, L3, L2G, L2SP, L3A, Level 3)
+    t = re.sub(r"\bl(?:evel)?\s*[\d]+[a-z]*\b", "", t)
 
     # Remove temporal indicators (Daily, Monthly, 8-Day)
     t = re.sub(r"\b(daily|monthly|weekly|yearly|8-day|8 day|\d+-day)\b", "", t)

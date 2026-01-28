@@ -29,6 +29,7 @@ from tools.discover_data.utils.collection_hydration import hydrate_collections
 from tools.discover_data.utils.collection_scoring import score_and_rank_collections
 from tools.discover_data.utils.constraint_extraction import extract_constraints
 from tools.discover_data.utils.disambiguation import (
+    check_disambiguation,
     filter_by_user_refinements,
 )
 from tools.discover_data.utils.embedding_search import search_all_entity_types
@@ -48,11 +49,12 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
     Discover NASA earth science data collections using natural language.
 
     This orchestrator uses a discovery-first approach:
-    1. Extracts temporal and spatial constraints from the query
-    2. Searches ALL entity types (collections, variables, instruments, etc.)
-    3. Scores collections based on direct matches + indirect signals
-    4. Applies any user refinements and checks for query expansion or disambiguation needs
-    5. Returns ranked results with clarifying questions if needed
+    1. PHASE 1: Extracts temporal and spatial constraints from the query
+    2. PHASE 2: Searches ALL entity types (collections, variables, instruments, etc.)
+    3. PHASE 3: Scores collections based on direct matches + indirect signals
+    4. PHASE 4: Hydrates collections and applies temporal/spatial filtering
+    5. PHASE 5: Applies user refinements and checks for query expansion or disambiguation
+    6. PHASE 6: Returns ranked results with clarifying questions if needed
 
     Args:
         query: Natural language query with optional constraints and context
@@ -138,6 +140,8 @@ def discover_data(query: DiscoverDataInput) -> dict:  # pylint: disable=too-many
             questions = generate_expansion_questions(query.query, discovery_context)
             status = DiscoveryStatus.REFINEMENT_SUGGESTED
         else:
+            needs_disambiguation, questions = check_disambiguation(collections)
+
             status = _determine_status(
                 collections,
                 needs_disambiguation,
