@@ -194,10 +194,10 @@ def _extract_or_use_constraints(
     query: DiscoverDataInput,
 ) -> tuple[TemporalConstraint, SpatialConstraint]:
     """Extract constraints or use explicit ones from input."""
-    # Check previous context first
+    # Prefer explicit constraints on the input
     if query.previous_context:
-        temporal = query.previous_context.temporal or query.temporal_constraint
-        spatial = query.previous_context.spatial or query.spatial_constraint
+        temporal = query.temporal_constraint or query.previous_context.temporal
+        spatial = query.spatial_constraint or query.previous_context.spatial
         if temporal and spatial:
             return temporal, spatial
 

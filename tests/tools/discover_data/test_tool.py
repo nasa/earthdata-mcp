@@ -70,8 +70,8 @@ def _load_tool():
     return importlib.import_module("tools.discover_data.tool")
 
 
-def test_extract_or_use_constraints_prefers_previous_context():
-    """Test that previous context constraints are preferred over extracting new ones."""
+def test_extract_or_use_constraints_prefers_previous_context_when_no_explicit():
+    """Test that previous context constraints are used when no explicit ones are provided."""
     tool = _load_tool()
     prior_temporal = TemporalConstraint(reasoning="prev")
     prior_spatial = SpatialConstraint(reasoning="prev")
@@ -82,6 +82,27 @@ def test_extract_or_use_constraints_prefers_previous_context():
 
     assert temporal is prior_temporal
     assert spatial is prior_spatial
+
+
+def test_extract_or_use_constraints_prefers_explicit_over_previous_context():
+    """Test that explicit constraints override previous context constraints."""
+    tool = _load_tool()
+    prior_temporal = TemporalConstraint(reasoning="prev")
+    prior_spatial = SpatialConstraint(reasoning="prev")
+    explicit_temporal = TemporalConstraint(reasoning="explicit")
+    explicit_spatial = SpatialConstraint(reasoning="explicit")
+    prev_ctx = SearchContext(temporal=prior_temporal, spatial=prior_spatial)
+    query = DiscoverDataInput(
+        query="q",
+        previous_context=prev_ctx,
+        temporal_constraint=explicit_temporal,
+        spatial_constraint=explicit_spatial,
+    )
+
+    temporal, spatial = tool._extract_or_use_constraints(query)
+
+    assert temporal is explicit_temporal
+    assert spatial is explicit_spatial
 
 
 def test_discover_data_expansion_path(monkeypatch):
