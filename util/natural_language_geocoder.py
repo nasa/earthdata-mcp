@@ -75,10 +75,9 @@ def convert_text_to_geom(location_query: str) -> str:
             bedrock_llm, location_query, GeocodeIndexPlaceLookup()
         )
 
+        # Log geometry details for debugging, including type and bounds
         shp = shape(geometry) if isinstance(geometry, dict) else geometry
         bounds = shp.bounds if hasattr(shp, "bounds") else None
-
-        # Get geometry details based on type
         geom_type = shp.geom_type if hasattr(shp, "geom_type") else type(geometry).__name__
         geom_info = {"type": geom_type, "bounds": bounds}
 
