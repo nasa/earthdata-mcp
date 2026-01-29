@@ -75,7 +75,6 @@ def convert_text_to_geom(location_query: str) -> str:
             bedrock_llm, location_query, GeocodeIndexPlaceLookup()
         )
 
-        # Log geometry metadata instead of full coordinates to avoid log bloat
         shp = shape(geometry) if isinstance(geometry, dict) else geometry
         bounds = shp.bounds if hasattr(shp, "bounds") else None
 
