@@ -10,15 +10,13 @@ For discover-data-specific LLM extraction models, import from here:
   from tools.discover_data.models.llm import SpatialExtractionResult, TemporalRangeOutput
 """
 
-from tools.discover_data.models.llm import (
-    SpatialExtractionOutput,
-    SpatialExtractionResult,
-    TemporalRangeOutput,
+from tools.discover_data.models.extraction import (
+    ParsedSpatialExtraction,
+    ParsedTemporalExtraction,
 )
 
 __all__ = [
     # LLM models
-    "SpatialExtractionOutput",
-    "SpatialExtractionResult",
-    "TemporalRangeOutput",
+    "ParsedSpatialExtraction",
+    "ParsedTemporalExtraction",
 ]

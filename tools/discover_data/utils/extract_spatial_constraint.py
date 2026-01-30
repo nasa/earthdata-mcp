@@ -1,13 +1,5 @@
-"""LLM-based spatial constraint extraction with geocoding and caching.
-
-Two-layer design:
-  - extract_spatial_with_llm: Pure LLM parsing → SpatialExtractionResult
-  - extract_spatial_constraint: Wrapper that geocodes location + caches WKT
-
-Cache keys use canonical location names from the LLM to ensure "Paris",
-"Paris, France", and "within 100km of Paris" all hit the same cache entry.
-(Note: This depends on LLM consistency; future work could use geocoder output
-as the canonical key for stronger normalization.)
+"""
+Spatial constraint extraction with LLM parsing, geocoding, and caching.
 """
 
 # pylint: disable=duplicate-code  # Intentional code patterns shared with extract_temporal_constraint.py
@@ -18,9 +10,8 @@ from datetime import UTC, datetime
 import instructor
 from langfuse import observe
 
-from tools.discover_data.models.llm import (
-    SpatialExtractionOutput,
-    SpatialExtractionResult,
+from tools.discover_data.models.extraction import (
+    ParsedSpatialExtraction,
 )
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from tools.models.constraints import SpatialConstraint
@@ -30,6 +21,9 @@ from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)
 
+# Re-export for tests
+__all__ = ["ParsedSpatialExtraction", "extract_spatial_with_llm", "extract_spatial_constraint"]
+
 try:
     cache = get_cache_client()
 except Exception as e:
@@ -38,14 +32,14 @@ except Exception as e:
 
 
 @observe(name="extract_spatial_with_llm")
-def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
+def extract_spatial_with_llm(query: str) -> ParsedSpatialExtraction | None:
     """LLM-based spatial extraction.
 
     Args:
         query: Natural language description potentially containing spatial info.
 
     Returns:
-        SpatialExtractionResult (location name, contextual phrase, reasoning, cache key),
+        ParsedSpatialExtraction (location name, contextual phrase, reasoning, cache key),
         or None when no spatial signal is found; raises on LLM setup/errors.
     """
     try:
@@ -69,7 +63,7 @@ def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query},
             ],
-            response_model=SpatialExtractionOutput,
+            response_model=ParsedSpatialExtraction,
         )
 
         if not output.location_name and not output.location_with_context:
@@ -98,7 +92,7 @@ def extract_spatial_with_llm(query: str) -> SpatialExtractionResult | None:
             location_name,
         )
 
-        return SpatialExtractionResult(
+        return ParsedSpatialExtraction(
             location_name=location_name,
             location_with_context=location_with_context,
             reasoning=output.reasoning,

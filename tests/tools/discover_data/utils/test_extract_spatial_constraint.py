@@ -332,8 +332,8 @@ class TestExtractSpatialInitialization:
             assert mock_trace.called
 
     def test_spatial_extraction_result_cache_key_generation(self):
-        """SpatialExtractionResult should properly generate cache keys."""
-        result = extract_spatial_constraint.SpatialExtractionResult(
+        """ParsedSpatialExtraction should properly generate cache keys."""
+        result = extract_spatial_constraint.ParsedSpatialExtraction(
             location_name="Denver",
             location_with_context="Denver, CO",
             reasoning="City",
@@ -346,8 +346,8 @@ class TestExtractSpatialInitialization:
         assert result.cache_key.startswith("geocode:")
 
     def test_spatial_extraction_result_no_cache_key_for_none_location(self):
-        """SpatialExtractionResult should not generate cache key for None location."""
-        result = extract_spatial_constraint.SpatialExtractionResult(
+        """ParsedSpatialExtraction should not generate cache key for None location."""
+        result = extract_spatial_constraint.ParsedSpatialExtraction(
             location_name=None,
             location_with_context="Some Place",
             reasoning="No location",
@@ -357,13 +357,13 @@ class TestExtractSpatialInitialization:
 
     def test_cache_key_normalization(self):
         """Cache keys should normalize location names consistently."""
-        result1 = extract_spatial_constraint.SpatialExtractionResult(
+        result1 = extract_spatial_constraint.ParsedSpatialExtraction(
             location_name="Denver",
             location_with_context="Denver, CO",
             reasoning="City",
         )
 
-        result2 = extract_spatial_constraint.SpatialExtractionResult(
+        result2 = extract_spatial_constraint.ParsedSpatialExtraction(
             location_name="DENVER",
             location_with_context="Denver, CO",
             reasoning="City",

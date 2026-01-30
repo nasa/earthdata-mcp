@@ -231,9 +231,9 @@ def should_expand_query(
 
     # Check if there are related entities that matched
     non_collection_matches = [
-        r
-        for r in embedding_results
-        if r.get("type") != "collection" and r.get("similarity", 0) >= 0.3
+        result
+        for result in embedding_results
+        if result.get("type") != "collection" and result.get("similarity", 0) >= 0.3
     ]
 
     # If we have related entities, we can help the user refine

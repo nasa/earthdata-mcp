@@ -1,7 +1,5 @@
 """
-LLM-based temporal constraint extraction.
-
-Uses an LLM to parse natural language and extract start/end dates.
+Temporal constraint extraction with LLM parsing.
 """
 
 # pylint: disable=duplicate-code  # Intentional code patterns shared with extract_spatial_constraint.py
@@ -12,7 +10,7 @@ from datetime import UTC, datetime
 import instructor
 from langfuse import observe
 
-from tools.discover_data.models.llm import TemporalRangeOutput
+from tools.discover_data.models.extraction import ParsedTemporalExtraction
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from tools.models.constraints import TemporalConstraint
 from util.langfuse import trace_update
@@ -64,7 +62,7 @@ def extract_temporal_constraint(query: str) -> TemporalConstraint:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query},
             ],
-            response_model=TemporalRangeOutput,
+            response_model=ParsedTemporalExtraction,
         )
     except Exception as e:
         trace_update(
