@@ -227,6 +227,34 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "ENVIRONMENT_NAME"
           value = var.environment_name
+        },
+        {
+          name  = "DATABASE_SECRET_ID"
+          value = var.database_secret_arn
+        },
+        {
+          name  = "CMR_URL"
+          value = var.cmr_url
+        },
+        {
+          name  = "EMBEDDINGS_TABLE"
+          value = var.embeddings_table
+        },
+        {
+          name  = "ASSOCIATIONS_TABLE"
+          value = var.associations_table
+        },
+        {
+          name  = "LANGFUSE_BASE_URL"
+          value = var.langfuse_host
+        },
+        {
+          name  = "LANGFUSE_PUBLIC_KEY"
+          value = var.langfuse_public_key
+        },
+        {
+          name  = "REDIS_SECRET_ID"
+          value = aws_secretsmanager_secret.redis.arn
         }
       ]
 
