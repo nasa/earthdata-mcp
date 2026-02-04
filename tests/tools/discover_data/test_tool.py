@@ -2,6 +2,7 @@
 
 import importlib
 import sys
+from datetime import datetime
 from types import ModuleType
 from unittest.mock import MagicMock
 
@@ -70,39 +71,87 @@ def _load_tool():
     return importlib.import_module("tools.discover_data.tool")
 
 
-def test_extract_or_use_constraints_prefers_previous_context_when_no_explicit():
-    """Test that previous context constraints are used when no explicit ones are provided."""
+def test_extract_or_use_constraints_uses_search_context(monkeypatch):
+    """Test that search_context constraints are used without re-extraction."""
     tool = _load_tool()
-    prior_temporal = TemporalConstraint(reasoning="prev")
-    prior_spatial = SpatialConstraint(reasoning="prev")
+
+    prior_temporal = TemporalConstraint(
+        start_date=datetime(2020, 1, 1), end_date=datetime(2020, 12, 31), reasoning="prev"
+    )
+    prior_spatial = SpatialConstraint(
+        location="test_location",
+        wkt_geometry="POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))",
+        reasoning="prev",
+    )
     prev_ctx = SearchContext(temporal=prior_temporal, spatial=prior_spatial)
-    query = DiscoverDataInput(query="q", previous_context=prev_ctx)
+    query = DiscoverDataInput(query="q", search_context=prev_ctx)
 
-    temporal, spatial = tool._extract_or_use_constraints(query)
-
-    assert temporal is prior_temporal
-    assert spatial is prior_spatial
-
-
-def test_extract_or_use_constraints_prefers_explicit_over_previous_context():
-    """Test that explicit constraints override previous context constraints."""
-    tool = _load_tool()
-    prior_temporal = TemporalConstraint(reasoning="prev")
-    prior_spatial = SpatialConstraint(reasoning="prev")
-    explicit_temporal = TemporalConstraint(reasoning="explicit")
-    explicit_spatial = SpatialConstraint(reasoning="explicit")
-    prev_ctx = SearchContext(temporal=prior_temporal, spatial=prior_spatial)
-    query = DiscoverDataInput(
-        query="q",
-        previous_context=prev_ctx,
-        temporal_constraint=explicit_temporal,
-        spatial_constraint=explicit_spatial,
+    # Mock extract_constraints to verify it's NOT called
+    extract_called = []
+    monkeypatch.setattr(
+        tool,
+        "extract_constraints",
+        lambda q, prior_temporal, prior_spatial: extract_called.append(True)
+        or (TemporalConstraint(), SpatialConstraint()),
     )
 
     temporal, spatial = tool._extract_or_use_constraints(query)
 
-    assert temporal is explicit_temporal
-    assert spatial is explicit_spatial
+    # Verify extract_constraints was NOT called (avoiding unnecessary extraction)
+    assert not extract_called
+
+    # Verify all fields are preserved from search_context
+    assert temporal.start_date == prior_temporal.start_date
+    assert temporal.end_date == prior_temporal.end_date
+    assert temporal.reasoning == "prev"
+    assert spatial.location == "test_location"
+    assert spatial.wkt_geometry == "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
+    assert spatial.reasoning == "prev"
+
+
+def test_extract_or_use_constraints_extracts_when_missing_context(monkeypatch):
+    """Test that extraction happens when search_context is missing or incomplete."""
+    tool = _load_tool()
+
+    extracted_temporal = TemporalConstraint(
+        start_date=datetime(2021, 6, 1), end_date=None, reasoning="extracted"
+    )
+    extracted_spatial = SpatialConstraint(
+        location="Denver", wkt_geometry="POLYGON((...)", reasoning="extracted"
+    )
+
+    # Mock extract_constraints to verify it IS called
+    extract_called = []
+
+    def mock_extract(q, prior_temporal, prior_spatial):  # pylint: disable=unused-argument
+        extract_called.append(True)
+        return extracted_temporal, extracted_spatial
+
+    monkeypatch.setattr(tool, "extract_constraints", mock_extract)
+
+    # Test with no search_context
+    query1 = DiscoverDataInput(query="ocean data from 2021")
+    temporal1, spatial1 = tool._extract_or_use_constraints(query1)
+
+    assert len(extract_called) == 1
+    assert temporal1 == extracted_temporal
+    assert spatial1 == extracted_spatial
+
+    # Test with incomplete search_context (only temporal)
+    extract_called.clear()
+    partial_ctx = SearchContext(temporal=TemporalConstraint(), spatial=None)
+    query2 = DiscoverDataInput(query="ocean data", search_context=partial_ctx)
+    tool._extract_or_use_constraints(query2)
+
+    assert len(extract_called) == 1
+
+    # Test with incomplete search_context (only spatial)
+    extract_called.clear()
+    partial_ctx2 = SearchContext(temporal=None, spatial=SpatialConstraint())
+    query3 = DiscoverDataInput(query="ocean data", search_context=partial_ctx2)
+    tool._extract_or_use_constraints(query3)
+
+    assert len(extract_called) == 1
 
 
 def test_discover_data_expansion_path(monkeypatch):
@@ -115,7 +164,7 @@ def test_discover_data_expansion_path(monkeypatch):
     monkeypatch.setattr(
         tool,
         "extract_constraints",
-        lambda q, explicit_temporal, explicit_spatial: (temporal, spatial),
+        lambda q, prior_temporal, prior_spatial: (temporal, spatial),
     )
     monkeypatch.setattr(
         tool,
@@ -188,7 +237,7 @@ def test_discover_data_disambiguation_path(monkeypatch):
     monkeypatch.setattr(tool, "filter_by_user_refinements", fake_filter_by_user_refinements)
 
     prev_ctx = SearchContext(temporal=None, spatial=None, user_refinements={"a": "b"})
-    query = DiscoverDataInput(query="snow", previous_context=prev_ctx)
+    query = DiscoverDataInput(query="snow", search_context=prev_ctx)
 
     output = tool.discover_data(query)
 
@@ -329,7 +378,7 @@ def test_discover_data_with_langfuse(monkeypatch):
     monkeypatch.setattr(
         tool,
         "extract_constraints",
-        lambda q, explicit_temporal, explicit_spatial: (temporal, spatial),
+        lambda q, prior_temporal, prior_spatial: (temporal, spatial),
     )
     monkeypatch.setattr(
         tool,
@@ -379,7 +428,7 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
     monkeypatch.setattr(
         tool,
         "extract_constraints",
-        lambda q, explicit_temporal, explicit_spatial: (temporal, spatial),
+        lambda q, prior_temporal, prior_spatial: (temporal, spatial),
     )
 
     # Mock initial embedding search returning multiple entity types
@@ -639,7 +688,7 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
     # Follow-up query with refinements
     followup_query = DiscoverDataInput(
         query="I need land cover data",  # Same query
-        previous_context=search_context,
+        search_context=search_context,
     )
 
     followup_output = tool.discover_data(followup_query)

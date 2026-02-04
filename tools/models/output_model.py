@@ -10,6 +10,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from tools.models.input_model import SearchContext
+
 
 class DiscoveryStatus(str, Enum):
     """Status of the discovery operation."""
@@ -92,9 +94,16 @@ class CollectionMatch(BaseModel):
 
 
 class ClarifyingQuestion(BaseModel):
-    """A question to help the user refine their search."""
+    """A question to help the user refine their search.
 
-    question_id: str | None = Field(None, description="Unique identifier for this question")
+    To respond: Copy search_context from this response, add the user's choice to
+    search_context.user_refinements as {question_id: selected_option}, then call
+    the tool again with the same query and updated search_context.
+    """
+
+    question_id: str | None = Field(
+        None, description="Unique identifier for this question. Use as key in user_refinements."
+    )
     question_text: str | None = Field(None, description="The question to present to the user")
     question_type: str | None = Field(
         None,
@@ -103,7 +112,8 @@ class ClarifyingQuestion(BaseModel):
         "'data_type_preference', 'instrument_preference', 'variable_preference'",
     )
     options: list[str] = Field(
-        default_factory=list, description="Available options for the user to choose from"
+        default_factory=list,
+        description="Valid choices for user_refinements. User picks one of these values.",
     )
     explanations: dict[str, str] | None = Field(
         None,
@@ -130,10 +140,6 @@ class ExtractedConstraints(BaseModel):
     spatial_location: str | None = Field(None, description="Original location text from query")
     spatial_wkt: str | None = Field(None, description="WKT geometry for the spatial area")
 
-    extraction_notes: list[str] = Field(
-        default_factory=list, description="Notes about the extraction process"
-    )
-
 
 class DiscoverDataOutput(BaseModel):
     """
@@ -151,16 +157,17 @@ class DiscoverDataOutput(BaseModel):
     total_found: int = Field(default=0, description="Total number of matches found")
 
     clarifying_questions: list[ClarifyingQuestion] = Field(
-        default_factory=list, description="Questions to help refine the search"
+        default_factory=list,
+        description="Questions to help refine the search. To answer: add {question_id: selected_option} to search_context.user_refinements and call again.",
     )
 
     extracted_constraints: ExtractedConstraints | None = Field(
         None, description="Constraints extracted from the query"
     )
 
-    search_context: dict = Field(
-        default_factory=dict,
-        description="Serialized SearchContext for follow-up queries",
+    search_context: SearchContext = Field(
+        default_factory=SearchContext,
+        description="Pass back unchanged on follow-up calls. To answer clarifying_questions, add choices to search_context.user_refinements first.",
     )
 
     error_message: str | None = Field(None, description="Error message if status is ERROR")

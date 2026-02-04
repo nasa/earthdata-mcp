@@ -62,9 +62,13 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
         tags=["orchestrator", "discovery"],
         metadata={
             "query_length": len(params.query),
-            "has_temporal_constraint": params.temporal_constraint is not None,
-            "has_spatial_constraint": params.spatial_constraint is not None,
-            "is_refinement": params.previous_context is not None,
+            "has_search_context": params.search_context is not None,
+            "has_temporal_in_context": (
+                params.search_context is not None and params.search_context.temporal is not None
+            ),
+            "has_spatial_in_context": (
+                params.search_context is not None and params.search_context.spatial is not None
+            ),
             "max_results": params.max_results,
         },
     )
@@ -93,6 +97,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
         for r in embedding_results:
             t = r["type"]
             type_counts[t] = type_counts.get(t, 0) + 1
+
         trace_update(
             metadata={
                 "embedding_results_by_type": type_counts,
@@ -118,11 +123,11 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
         trace_update(metadata={"hydrated_collections_count": len(collections)})
 
-        # Apply user refinements from previous context (disambiguation answers)
-        if params.previous_context and params.previous_context.user_refinements:
+        # Apply user refinements from search context (disambiguation answers)
+        if params.search_context and params.search_context.user_refinements:
             collections = filter_by_user_refinements(
                 collections,
-                params.previous_context.user_refinements,
+                params.search_context.user_refinements,
             )
 
             trace_update(metadata={"after_refinements_count": len(collections)})
@@ -148,7 +153,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
         final_collections = collections[: params.max_results]
 
         search_context = _build_search_context(
-            temporal, spatial, final_collections, params.previous_context
+            temporal, spatial, final_collections, params.search_context
         )
 
         output = DiscoverDataOutput(
@@ -193,20 +198,19 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 def _extract_or_use_constraints(
     query: DiscoverDataInput,
 ) -> tuple[TemporalConstraint, SpatialConstraint]:
-    """Extract constraints or use explicit ones from input."""
-    # Prefer explicit constraints on the input
-    if query.previous_context:
-        temporal = query.temporal_constraint or query.previous_context.temporal
-        spatial = query.spatial_constraint or query.previous_context.spatial
-        if temporal and spatial:
-            return temporal, spatial
+    """Extract constraints or use prior ones from input."""
+    # Prefer prior constraints from search_context to avoid re-extraction
+    if query.search_context and query.search_context.temporal and query.search_context.spatial:
+        return query.search_context.temporal, query.search_context.spatial
 
     # Extract from query
-    return extract_constraints(
+    temporal, spatial = extract_constraints(
         query.query,
-        explicit_temporal=query.temporal_constraint,
-        explicit_spatial=query.spatial_constraint,
+        prior_temporal=None,
+        prior_spatial=None,
     )
+
+    return temporal, spatial
 
 
 def _determine_status(
@@ -235,21 +239,19 @@ def _build_search_context(
     temporal: TemporalConstraint,
     spatial: SpatialConstraint,
     collections: list[CollectionMatch],
-    previous_context: SearchContext | None,
-) -> dict:
+    prior_context: SearchContext | None,
+) -> SearchContext:
     """Build search context for follow-up queries."""
-    iteration = (previous_context.search_iteration + 1) if previous_context else 1
-    refinements = previous_context.user_refinements if previous_context else {}
+    iteration = (prior_context.search_iteration + 1) if prior_context else 1
+    refinements = prior_context.user_refinements if prior_context else {}
 
-    context = SearchContext(
+    return SearchContext(
         temporal=temporal,
         spatial=spatial,
         previous_collection_ids=[c.concept_id for c in collections],
         user_refinements=refinements,
         search_iteration=iteration,
     )
-
-    return context.model_dump()
 
 
 def _describe_search_strategy(

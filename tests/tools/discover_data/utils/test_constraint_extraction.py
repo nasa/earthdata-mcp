@@ -69,8 +69,8 @@ def test_extract_constraints_handles_spatial_extraction_error(monkeypatch):
 
 
 def test_extract_constraints_uses_explicit_temporal_if_provided(monkeypatch):
-    """If explicit temporal is provided, should not call extraction."""
-    explicit_temporal = TemporalConstraint(start_date=datetime(2015, 1, 1, tzinfo=UTC))
+    """If prior temporal is provided, should not call extraction."""
+    prior_temporal = TemporalConstraint(start_date=datetime(2015, 1, 1, tzinfo=UTC))
     spatial_result = SpatialConstraint(location="Denver")
 
     temporal_calls = []
@@ -89,18 +89,18 @@ def test_extract_constraints_uses_explicit_temporal_if_provided(monkeypatch):
 
     temporal, _ = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
-        explicit_temporal=explicit_temporal,
+        prior_temporal=prior_temporal,
     )
 
-    assert temporal == explicit_temporal
+    assert temporal == prior_temporal
     assert not temporal_calls  # Should not have called extraction
     assert spatial_calls == ["data from 2020 in Denver"]
 
 
 def test_extract_constraints_uses_explicit_spatial_if_provided(monkeypatch):
-    """If explicit spatial is provided, should not call extraction."""
+    """If prior spatial is provided, should not call extraction."""
     temporal_result = TemporalConstraint(start_date=datetime(2020, 1, 1, tzinfo=UTC))
-    explicit_spatial = SpatialConstraint(location="Los Angeles")
+    prior_spatial = SpatialConstraint(location="Los Angeles")
 
     temporal_calls = []
     spatial_calls = []
@@ -118,18 +118,18 @@ def test_extract_constraints_uses_explicit_spatial_if_provided(monkeypatch):
 
     _, spatial = constraint_extraction.extract_constraints(
         "data from 2020 in Denver",
-        explicit_spatial=explicit_spatial,
+        prior_spatial=prior_spatial,
     )
 
-    assert spatial == explicit_spatial
+    assert spatial == prior_spatial
     assert not spatial_calls  # Should not have called extraction
     assert temporal_calls == ["data from 2020 in Denver"]
 
 
 def test_extract_constraints_uses_both_explicit_if_provided(monkeypatch):
-    """If both explicit constraints are provided, should not call any extraction."""
-    explicit_temporal = TemporalConstraint(start_date=datetime(2015, 1, 1, tzinfo=UTC))
-    explicit_spatial = SpatialConstraint(location="Los Angeles")
+    """If both prior constraints are provided, should not call any extraction."""
+    prior_temporal = TemporalConstraint(start_date=datetime(2015, 1, 1, tzinfo=UTC))
+    prior_spatial = SpatialConstraint(location="Los Angeles")
 
     temporal_calls = []
     spatial_calls = []
@@ -147,11 +147,11 @@ def test_extract_constraints_uses_both_explicit_if_provided(monkeypatch):
 
     temporal, spatial = constraint_extraction.extract_constraints(
         "some query",
-        explicit_temporal=explicit_temporal,
-        explicit_spatial=explicit_spatial,
+        prior_temporal=prior_temporal,
+        prior_spatial=prior_spatial,
     )
 
-    assert temporal == explicit_temporal
-    assert spatial == explicit_spatial
+    assert temporal == prior_temporal
+    assert spatial == prior_spatial
     assert not temporal_calls
     assert not spatial_calls

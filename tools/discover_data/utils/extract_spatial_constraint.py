@@ -17,6 +17,7 @@ from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_ex
 from tools.models.constraints import SpatialConstraint
 from util.cache import get_cache_client
 from util.langfuse import trace_update
+from util.models.natural_language_geocoder import ValidationError
 from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)
@@ -174,7 +175,7 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
                 reasoning=extraction.reasoning,
             )
 
-        geom_str = str(geom)
+        geom_str = geom
 
         # Store in cache
         if cache and canonical_name:
@@ -202,6 +203,20 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
         return SpatialConstraint(
             location=location_to_geocode,
             wkt_geometry=geom_str,
+            reasoning=extraction.reasoning,
+        )
+
+    except ValidationError:
+        logger.warning(
+            "Invalid or empty geometry returned by geocoder for '%s'", location_to_geocode
+        )
+        trace_update(
+            tags=["warning", "geocoding_validation_error"],
+            metadata={"warning_type": "geocoding_validation_error"},
+        )
+        return SpatialConstraint(
+            location=location_to_geocode,
+            wkt_geometry=None,
             reasoning=extraction.reasoning,
         )
 

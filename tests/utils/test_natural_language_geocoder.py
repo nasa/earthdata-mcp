@@ -1,249 +1,306 @@
-"""Natural Language Geocoder Util Test"""
+"""Tests for natural language geocoder WKT conversion."""
 
-import json
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from shapely.geometry import Polygon
+from pydantic import ValidationError as PydanticValidationError
+from shapely.geometry import LinearRing, LineString, MultiPolygon, Point, Polygon
 
-from util.natural_language_geocoder import (
-    convert_geometry_to_geojson,
-    convert_text_to_geom,
-    fix_geometry,
-    lambda_safe_init,
-)
+from util.models.natural_language_geocoder import ValidationError
+from util.natural_language_geocoder import _normalize_geometry_to_wkt, convert_text_to_geom
 
 
-class TestNaturalLanguageGeocoder:
-    """Tests for natural_language_geocoder.py utility functions."""
+class TestNormalizeGeometryToWkt:
+    """Tests for _normalize_geometry_to_wkt function."""
 
-    @patch("util.natural_language_geocoder.simplify_geometry")
-    @patch("util.natural_language_geocoder.extract_geometry_from_text")
-    @patch("util.natural_language_geocoder.BedrockNovaLLM")
-    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_convert_text_to_geom_success(
-        self, mock_lookup, mock_llm_class, mock_extract, mock_simplify
-    ):
-        """Test successful conversion from text to geometry."""
-        # Setup
-        mock_llm_instance = mock_llm_class.return_value
-        mock_lookup_instance = mock_lookup.return_value
-        mock_geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
-        mock_extract.return_value = mock_geometry
-        mock_simplify.return_value = "POLYGON((0 0,1 0,1 1,0 1,0 0))"
+    def test_converts_simple_polygon_to_wkt(self):
+        """Test basic Shapely polygon to WKT conversion."""
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
 
-        # Execute
-        result = convert_text_to_geom("San Francisco")
+        result = _normalize_geometry_to_wkt(polygon)
 
-        # Assert
         assert result is not None
-        assert result == "POLYGON((0 0,1 0,1 1,0 1,0 0))"
-        mock_llm_class.assert_called_once()
-        mock_lookup.assert_called_once()
-        mock_extract.assert_called_once_with(
-            mock_llm_instance, "San Francisco", mock_lookup_instance
-        )
-        mock_simplify.assert_called_once_with(geom=mock_geometry, max_points=1000)
+        assert result.startswith("POLYGON((")  # No space after POLYGON
+        assert "0 0" in result
 
-    @patch("util.natural_language_geocoder.BedrockNovaLLM")
-    def test_convert_text_to_geom_exception(self, mock_llm_class):
-        """Test error handling in convert_text_to_geom."""
-        mock_llm_class.side_effect = Exception("API Error")
+    def test_converts_point_to_wkt(self):
+        """Test Point geometry conversion."""
+        point = Point(10.5, 20.3)
 
-        result = convert_text_to_geom("Invalid Location")
+        result = _normalize_geometry_to_wkt(point)
+
+        assert result is not None
+        assert result.startswith("POINT(")  # No space after POINT
+        assert "10.5" in result
+        assert "20.3" in result
+
+    def test_normalizes_wkt_formatting(self):
+        """Test that spaces after geometry types are removed."""
+        # Shapely adds spaces, we need to remove them
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+
+        result = _normalize_geometry_to_wkt(polygon)
+
+        # Ensure no spaces after geometry type
+        assert "POLYGON ((" not in result
+        assert "POLYGON((" in result
+
+    def test_returns_none_for_none_input(self):
+        """Test that None input returns None."""
+        result = _normalize_geometry_to_wkt(None)
 
         assert result is None
+
+    def test_raises_validation_error_for_non_shapely_object(self):
+        """Test that non-Shapely objects raise ValidationError."""
+        with pytest.raises(ValidationError, match="Expected Shapely geometry object"):
+            _normalize_geometry_to_wkt("not a geometry")
+
+    def test_repairs_invalid_geometry_with_buffer(self):
+        """Test that invalid geometries are repaired using buffer(0)."""
+        # Create a self-intersecting polygon (bow-tie shape)
+        invalid_polygon = Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
+
+        # Should not raise, should repair with buffer(0)
+        result = _normalize_geometry_to_wkt(invalid_polygon)
+
+        assert result is not None
+        assert result.startswith("POLYGON")
+
+    def test_raises_validation_error_for_unrepairable_geometry(self):
+        """Test that geometries that can't be repaired raise ValidationError."""
+        # Mock a geometry that is_valid returns False even after buffer
+        mock_geom = MagicMock()
+        mock_geom.geom_type = "Polygon"
+        mock_geom.is_empty = False
+        mock_geom.is_valid = False
+        mock_geom.buffer.return_value.is_valid = False
+
+        with pytest.raises(ValidationError, match="could not be repaired"):
+            _normalize_geometry_to_wkt(mock_geom)
+
+    def test_raises_validation_error_when_buffer_raises_exception(self):
+        """Test that exceptions during buffer operation are caught."""
+        mock_geom = MagicMock()
+        mock_geom.geom_type = "Polygon"
+        mock_geom.is_empty = False
+        mock_geom.is_valid = False
+        mock_geom.buffer.side_effect = Exception("Buffer failed")
+
+        with pytest.raises(ValidationError, match="Invalid geometry"):
+            _normalize_geometry_to_wkt(mock_geom)
+
+
+class TestConvertTextToGeom:
+    """Tests for convert_text_to_geom function."""
 
     @patch("util.natural_language_geocoder.extract_geometry_from_text")
-    @patch("util.natural_language_geocoder.BedrockNovaLLM")
-    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_convert_text_to_geom_extract_exception(
-        self, mock_lookup, mock_llm_class, mock_extract
-    ):
-        """Test error handling when extract_geometry_from_text fails."""
-        # Setup - actually use the mocked objects
-        mock_llm_instance = mock_llm_class.return_value
-        mock_lookup_instance = mock_lookup.return_value
-        # Configure the extract function to raise an exception
-        mock_extract.side_effect = Exception("Extraction failed")
-
-        # Exercise
-        result = convert_text_to_geom("San Francisco")
-
-        # Verify
-        assert result is None
-        # Verify mocks were used
-        mock_llm_class.assert_called_once()
-        mock_lookup.assert_called_once()
-        mock_extract.assert_called_once_with(
-            mock_llm_instance, "San Francisco", mock_lookup_instance
-        )
-
     @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_successful_geocoding_returns_wkt(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract
+    ):
+        """Test successful geocoding flow returns WKT string."""
+        # Setup mocks
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        mock_extract.return_value = polygon
+        mock_simplify.return_value = polygon
+
+        result = convert_text_to_geom("Pacific Ocean")
+
+        assert result is not None
+        assert isinstance(result, str)
+        assert result.startswith("POLYGON((")
+        mock_extract.assert_called_once()
+        mock_simplify.assert_called_once()
+
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_applies_aggressive_simplification_for_complex_geometry(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract
+    ):
+        """Test that very complex geometries trigger aggressive simplification."""
+        # Create a polygon that will produce a very long WKT string
+        # Mock simplify_geometry to return different results on first and second call
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+
+        # First simplification returns complex geometry
+        complex_geom = MagicMock()
+        complex_geom.geom_type = "Polygon"
+        complex_geom.is_empty = False
+        complex_geom.is_valid = True
+        complex_geom.wkt = "POLYGON ((" + ", ".join([f"{i} {i}" for i in range(10000)]) + "))"
+
+        # Second simplification returns simpler geometry
+        simple_geom = polygon
+
+        mock_extract.return_value = polygon
+        mock_simplify.side_effect = [complex_geom, simple_geom]
+
+        convert_text_to_geom("Complex coastline")
+
+        # Should have called simplify_geometry twice
+        assert mock_simplify.call_count == 2
+        # Second call should use max_points=100
+        assert mock_simplify.call_args_list[1][1]["max_points"] == 100
+
     @patch("util.natural_language_geocoder.extract_geometry_from_text")
     @patch("util.natural_language_geocoder.BedrockNovaLLM")
     @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_convert_text_to_geom_simplify_exception(
-        self, mock_lookup, mock_llm_class, mock_extract, mock_simplify
+    def test_raises_validation_error_on_pydantic_validation_error(
+        self, mock_lookup, mock_llm, mock_extract
     ):
-        """Test error handling when simplify_geometry fails."""
-        # Setup - actually use the mocked objects
-        mock_llm_instance = mock_llm_class.return_value
-        mock_lookup_instance = mock_lookup.return_value
-        mock_geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
-        mock_extract.return_value = mock_geometry
-        mock_simplify.side_effect = Exception("Simplification failed")
+        """Test that PydanticValidationError is converted to ValidationError."""
+        mock_extract.side_effect = PydanticValidationError.from_exception_data(
+            "test", [{"type": "missing", "loc": ("field",), "msg": "field required"}]
+        )
 
-        result = convert_text_to_geom("San Francisco")
+        with pytest.raises(ValidationError, match="Geocoder output validation failed"):
+            convert_text_to_geom("Invalid input")
+
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_reraises_validation_error(self, mock_lookup, mock_llm, mock_simplify, mock_extract):
+        """Test that ValidationError from normalization is re-raised."""
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        mock_extract.return_value = polygon
+
+        # Mock simplify to return something that will fail validation
+        mock_geom = MagicMock()
+        mock_geom.geom_type = "Polygon"
+        mock_geom.is_empty = False
+        mock_geom.is_valid = False
+        mock_geom.buffer.side_effect = Exception("Can't repair")
+        mock_simplify.return_value = mock_geom
+
+        with pytest.raises(ValidationError):
+            convert_text_to_geom("Test location")
+
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_returns_none_on_unexpected_exception(self, mock_lookup, mock_llm, mock_extract):
+        """Test that unexpected exceptions are caught and None is returned."""
+        mock_extract.side_effect = RuntimeError("Unexpected error")
+
+        result = convert_text_to_geom("Test location")
 
         assert result is None
 
-        # Verify the mocks were called as expected
-        mock_llm_class.assert_called_once()
-        mock_lookup.assert_called_once()
-        mock_extract.assert_called_once_with(
-            mock_llm_instance, "San Francisco", mock_lookup_instance
-        )
-        mock_simplify.assert_called_once_with(geom=mock_geometry, max_points=1000)
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_logs_geometry_details(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that geometry details are logged for debugging."""
+        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        mock_extract.return_value = polygon
+        mock_simplify.return_value = polygon
 
-    def test_fix_geometry_polygon(self):
-        """Test fix_geometry with a polygon."""
-        # Clockwise polygon (needs orientation fix)
-        polygon = {
-            "type": "Polygon",
-            "coordinates": [[(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]],
-        }
+        with caplog.at_level("DEBUG"):
+            convert_text_to_geom("Test location")
 
-        result = fix_geometry(polygon)
+        # Check that geometry info was logged
+        assert any("Extracted geometry" in record.message for record in caplog.records)
 
-        assert result["type"] == "Polygon"
-        assert "coordinates" in result
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_logs_point_geometry_details(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that Point geometry details are logged correctly."""
+        point = Point(10.5, 20.3)
+        mock_extract.return_value = point
+        mock_simplify.return_value = point
 
-    def test_fix_geometry_multipolygon(self):
-        """Test fix_geometry with a multipolygon."""
-        multipolygon = {
-            "type": "MultiPolygon",
-            "coordinates": [
-                [[(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]],
-                [[(2, 2), (2, 3), (3, 3), (3, 2), (2, 2)]],
-            ],
-        }
+        with caplog.at_level("DEBUG"):
+            convert_text_to_geom("Test location")
 
-        result = fix_geometry(multipolygon)
+        # Check that geometry info with num_coords=1 was logged
+        assert any("Extracted geometry" in record.message for record in caplog.records)
 
-        assert result["type"] == "MultiPolygon"
-        assert len(result["coordinates"]) == 2
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_handles_geometry_logging_exception(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that exceptions during geometry logging don't break the flow."""
+        # Mock geometry that raises exception when accessing geom_type
+        mock_geom = MagicMock()
+        mock_geom.geom_type = property(lambda self: (_ for _ in ()).throw(Exception("boom")))
 
-    def test_fix_geometry_point(self):
-        """Test fix_geometry with a point (should return unchanged)."""
-        point = {"type": "Point", "coordinates": [0, 0]}
+        mock_extract.return_value = mock_geom
+        mock_simplify.return_value = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
 
-        result = fix_geometry(point)
+        # Should not raise, should continue to simplification and conversion
+        result = convert_text_to_geom("Test location")
 
-        assert result == point
+        assert result is not None
 
-    def test_fix_geometry_linestring(self):
-        """Test fix_geometry with a linestring (should return unchanged)."""
-        linestring = {"type": "LineString", "coordinates": [[0, 0], [1, 1]]}
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_logs_linestring_geometry_details(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that LineString geometry details are logged correctly."""
+        linestring = LineString([(0, 0), (1, 1), (2, 2)])
+        mock_extract.return_value = linestring
+        mock_simplify.return_value = linestring
 
-        result = fix_geometry(linestring)
+        with caplog.at_level("DEBUG"):
+            convert_text_to_geom("Test location")
 
-        assert result == linestring
+        # Check that geometry info with num_coords was logged
+        assert any("Extracted geometry" in record.message for record in caplog.records)
 
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_feature_collection(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with a FeatureCollection."""
-        mock_geojson = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]],
-                    },
-                    "properties": {},
-                }
-            ],
-        }
-        mock_geometry_to_geojson.return_value = json.dumps(mock_geojson)
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_logs_linearring_geometry_details(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that LinearRing geometry details are logged correctly."""
+        linearring = LinearRing([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        mock_extract.return_value = linearring
+        mock_simplify.return_value = linearring
 
-        result = convert_geometry_to_geojson("mock_geometry")
+        with caplog.at_level("DEBUG"):
+            convert_text_to_geom("Test location")
 
-        assert result["type"] == "FeatureCollection"
-        assert len(result["features"]) == 1
+        # Check that geometry info with num_coords was logged
+        assert any("Extracted geometry" in record.message for record in caplog.records)
 
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_feature(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with a Feature."""
-        mock_geojson = {
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [[(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]],
-            },
-            "properties": {},
-        }
-        mock_geometry_to_geojson.return_value = json.dumps(mock_geojson)
+    @patch("util.natural_language_geocoder.extract_geometry_from_text")
+    @patch("util.natural_language_geocoder.simplify_geometry")
+    @patch("util.natural_language_geocoder.BedrockNovaLLM")
+    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
+    def test_logs_multipolygon_geometry_details(
+        self, mock_lookup, mock_llm, mock_simplify, mock_extract, caplog
+    ):
+        """Test that MultiPolygon geometry details are logged correctly."""
+        poly1 = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        poly2 = Polygon([(2, 2), (3, 2), (3, 3), (2, 3), (2, 2)])
+        multipolygon = MultiPolygon([poly1, poly2])
 
-        result = convert_geometry_to_geojson("mock_geometry")
+        mock_extract.return_value = multipolygon
+        mock_simplify.return_value = multipolygon
 
-        assert result["type"] == "Feature"
-        assert result["geometry"]["type"] == "Polygon"
+        with caplog.at_level("DEBUG"):
+            convert_text_to_geom("Test location")
 
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_geometry_only(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with geometry only."""
-        mock_geojson = {
-            "type": "Polygon",
-            "coordinates": [[(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]],
-        }
-        mock_geometry_to_geojson.return_value = json.dumps(mock_geojson)
-
-        result = convert_geometry_to_geojson("mock_geometry")
-
-        assert result["type"] == "Polygon"
-
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_attribute_error(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with AttributeError."""
-        mock_geometry_to_geojson.side_effect = AttributeError("Invalid geometry")
-
-        with pytest.raises(ValueError) as excinfo:
-            convert_geometry_to_geojson("invalid_geometry")
-
-        assert "Failed to convert geometry to GeoJSON" in str(excinfo.value)
-
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_json_decode_error(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with JSONDecodeError."""
-        mock_geometry_to_geojson.return_value = "invalid json"
-
-        with pytest.raises(ValueError) as excinfo:
-            convert_geometry_to_geojson("mock_geometry")
-
-        assert "Failed to convert geometry to GeoJSON" in str(excinfo.value)
-
-    @patch("util.natural_language_geocoder.geometry_to_geojson")
-    def test_convert_geometry_to_geojson_value_error(self, mock_geometry_to_geojson):
-        """Test convert_geometry_to_geojson with ValueError."""
-        mock_geometry_to_geojson.side_effect = ValueError("Conversion failed")
-
-        with pytest.raises(ValueError) as excinfo:
-            convert_geometry_to_geojson("invalid_geometry")
-
-        assert "Failed to convert geometry to GeoJSON" in str(excinfo.value)
-
-
-@patch("util.natural_language_geocoder._original_init")
-def test_lambda_safe_init_default_cache_dir(mock_original_init):
-    """Test lambda_safe_init with ./temp cache_dir (should change to /tmp)."""
-
-    mock_self = Mock()
-    mock_original_init.return_value = None
-
-    # Test with "./temp" - should be changed to "/tmp"
-    lambda_safe_init(mock_self, cache_dir="./temp")
-
-    # Verify _original_init was called with /tmp
-    mock_original_init.assert_called_once_with(mock_self, cache_dir="/tmp")
+        # Check that geometry info with num_parts was logged
+        assert any("Extracted geometry" in record.message for record in caplog.records)

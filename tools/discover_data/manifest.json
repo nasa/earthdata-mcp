@@ -1,9 +1,64 @@
 {
   "name": "discover_data",
   "module": "tool",
-  "description": "Discover NASA Earth science data collections using natural language queries. Searches across collections, variables, instruments, and citations to find relevant datasets. Supports temporal and spatial filtering with intelligent constraint extraction.",
+  "description": "Discover NASA Earth science data collections using natural language queries. All parameters are flat (strings, numbers) except search_context (opaque passthrough from prior response). Params MUST be a native object (not a JSON string).",
   "version": "1.0.0",
   "tags": ["discovery", "earth-science", "nasa", "collections", "search", "nlp"],
   "entry_function": "discover_data",
-  "enabled": true
+  "enabled": true,
+  "examples": {
+    "minimal": {
+      "description": "Simplest query - required query only",
+      "params": {
+        "query": "sea surface temperature data in the Gulf of Mexico"
+      }
+    },
+    "with_config": {
+      "description": "Query with custom config",
+      "params": {
+        "query": "rainfall precipitation data",
+        "similarity_threshold": 0.45,
+        "max_results": 20
+      }
+    },
+    "follow_up_query": {
+      "description": "Follow-up query: pass back 'search_context' from prior response unchanged",
+      "params": {
+        "query": "but only for specific months",
+        "search_context": {
+          "temporal": {
+            "start_date": "2020-01-01",
+            "end_date": "2025-12-31",
+            "reasoning": "Extracted from query"
+          },
+          "spatial": {
+            "location": "Gulf of Mexico",
+            "wkt_geometry": "POLYGON((-87.5 29, -86 29, -86 30, -87.5 30, -87.5 29))",
+            "reasoning": "Extracted from query",
+            "warning_message": null
+          },
+          "previous_collection_ids": [],
+          "user_refinements": {},
+          "search_iteration": 1
+        }
+      }
+    },
+    "answering_clarifying_question": {
+      "description": "Responding to clarifying_questions: add question_id:selected_option to user_refinements",
+      "params": {
+        "query": "MODIS vegetation data",
+        "search_context": {
+          "temporal": null,
+          "spatial": null,
+          "previous_collection_ids": ["C12345-PROVIDER"],
+          "user_refinements": {
+            "temporal_res_1": "Daily"
+          },
+          "search_iteration": 2
+        }
+      }
+    }
+  }
 }
+
+

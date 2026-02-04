@@ -1,6 +1,6 @@
 """Test for geospatial embeddings utility"""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,15 +10,13 @@ from tools.discover_data.utils.extract_spatial_constraint import extract_spatial
 # Pytest fixtures
 @pytest.fixture
 def sample_geometry():
-    """Sample polygon geometry object for testing."""
-    mock_geom = Mock()
+    """Sample polygon WKT string for testing."""
     # Use a polygon representing San Francisco Bay Area
     polygon_wkt = (
         "POLYGON((-122.5150 37.7050, -122.3549 37.7050, -122.3549 37.8150, "
         "-122.5150 37.8150, -122.5150 37.7050))"
     )
-    mock_geom.__str__ = Mock(return_value=polygon_wkt)
-    return mock_geom
+    return polygon_wkt
 
 
 @pytest.fixture
