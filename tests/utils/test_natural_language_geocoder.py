@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError as PydanticValidationError
 from shapely.geometry import LinearRing, LineString, MultiPolygon, Point, Polygon
 
-from util.models.natural_language_geocoder import ValidationError
+from util.geocoder_exceptions import ValidationError
 from util.natural_language_geocoder import _normalize_geometry_to_wkt, convert_text_to_geom
 
 

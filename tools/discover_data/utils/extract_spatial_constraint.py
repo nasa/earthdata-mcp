@@ -16,8 +16,8 @@ from tools.discover_data.models.extraction import (
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from tools.models.constraints import SpatialConstraint
 from util.cache import get_cache_client
+from util.geocoder_exceptions import ValidationError
 from util.langfuse import trace_update
-from util.models.natural_language_geocoder import ValidationError
 from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)

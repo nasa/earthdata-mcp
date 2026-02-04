@@ -16,7 +16,7 @@ from natural_language_geocoding.geocode_index.geocode_index_place_lookup import 
 )
 from pydantic import ValidationError as PydanticValidationError
 
-from util.models.natural_language_geocoder import ValidationError
+from util.geocoder_exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
