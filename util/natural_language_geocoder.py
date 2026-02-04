@@ -130,6 +130,8 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
         logger.warning("Invalid geometry detected, attempting to fix with buffer(0)")
         try:
             geometry = geometry.buffer(0)
+            if geometry.is_empty:
+                raise ValidationError("Geometry is empty after buffer(0) repair")
             if not geometry.is_valid:
                 raise ValidationError("Geometry is invalid and could not be repaired")
         except Exception as e:

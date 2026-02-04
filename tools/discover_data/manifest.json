@@ -34,8 +34,7 @@
           "spatial": {
             "location": "Gulf of Mexico",
             "wkt_geometry": "POLYGON((-87.5 29, -86 29, -86 30, -87.5 30, -87.5 29))",
-            "reasoning": "Extracted from query",
-            "warning_message": null
+            "reasoning": "Extracted from query"
           },
           "previous_collection_ids": [],
           "user_refinements": {},

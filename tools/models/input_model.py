@@ -17,9 +17,10 @@ class SearchContext(BaseModel):
     Include this on follow-up queries to keep previously extracted
     temporal/spatial constraints and any user refinements.
 
-    If the user changes temporal or spatial constraints, express the change
-    in the new query and let the system re-extract them in the required formats.
-    Keep search_context.temporal/spatial as the prior values to preserve continuity.
+    If the user changes temporal or spatial constraints, set the corresponding
+    search_context.temporal or search_context.spatial field to null/None so that
+    extract_constraints will re-extract from the new query. Keeping prior values
+    prevents re-extraction.
 
     Reusing prior context avoids re-extraction and can reduce latency.
     """

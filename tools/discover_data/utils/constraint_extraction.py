@@ -21,11 +21,15 @@ def extract_constraints(
     Extract temporal and spatial constraints from a query.
 
     Uses prior constraints from search context if provided, otherwise extracts from the query.
+    If the user changes a constraint, callers must pass None for that parameter to trigger
+    re-extraction from the query.
 
     Args:
         query: Natural language query
-        prior_temporal: Temporal constraint from previous search iteration (skips extraction if provided)
-        prior_spatial: Spatial constraint from previous search iteration (skips extraction if provided)
+        prior_temporal: Temporal constraint from previous search iteration (skips extraction if provided).
+                       Pass None to force re-extraction when user changes temporal constraints.
+        prior_spatial: Spatial constraint from previous search iteration (skips extraction if provided).
+                      Pass None to force re-extraction when user changes spatial constraints.
 
     Returns:
         Tuple of (TemporalConstraint, SpatialConstraint)
