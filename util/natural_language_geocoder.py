@@ -17,7 +17,7 @@ from natural_language_geocoding.geocode_index.geocode_index_place_lookup import 
 
 logger = logging.getLogger(__name__)
 
-SIMPLIFY_GEOM_MAX_POINT = int(os.getenv("SIMPLIFY_GEOM_MAX_POINT", "1000"))
+SIMPLIFY_GEOM_MAX_POINT = int(os.getenv("SIMPLIFY_GEOM_MAX_POINT", "4900"))
 
 
 def convert_text_to_geom(location_query: str) -> str:
@@ -69,17 +69,6 @@ def convert_text_to_geom(location_query: str) -> str:
 
         # Convert to WKT and validate the geometry is usable
         wkt_result = _normalize_geometry_to_wkt(simplified_geom)
-
-        # If still too complex, apply more aggressive simplification
-        # Using 50k chars as a threshold (roughly 500+ vertices)
-        if wkt_result and len(wkt_result) > 50000:
-            logger.warning(
-                "Geometry for '%s' is very complex (%d chars), attempting aggressive simplification",
-                location_query,
-                len(wkt_result),
-            )
-            simplified_geom = simplify_geometry(geom=geometry, max_points=100)
-            wkt_result = _normalize_geometry_to_wkt(simplified_geom)
 
         return wkt_result
     except Exception as e:

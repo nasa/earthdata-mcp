@@ -107,39 +107,9 @@ class TestConvertTextToGeom:
     @patch("util.natural_language_geocoder.simplify_geometry")
     @patch("util.natural_language_geocoder.BedrockNovaLLM")
     @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_applies_aggressive_simplification_for_complex_geometry(
+    def test_returns_none_on_validation_error(
         self, mock_lookup, mock_llm, mock_simplify, mock_extract
     ):
-        """Test that very complex geometries trigger aggressive simplification."""
-        # Create a polygon that will produce a very long WKT string
-        # Mock simplify_geometry to return different results on first and second call
-        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
-
-        # First simplification returns complex geometry
-        complex_geom = MagicMock()
-        complex_geom.geom_type = "Polygon"
-        complex_geom.is_empty = False
-        complex_geom.is_valid = True
-        complex_geom.wkt = "POLYGON ((" + ", ".join([f"{i} {i}" for i in range(10000)]) + "))"
-
-        # Second simplification returns simpler geometry
-        simple_geom = polygon
-
-        mock_extract.return_value = polygon
-        mock_simplify.side_effect = [complex_geom, simple_geom]
-
-        convert_text_to_geom("Complex coastline")
-
-        # Should have called simplify_geometry twice
-        assert mock_simplify.call_count == 2
-        # Second call should use max_points=100
-        assert mock_simplify.call_args_list[1][1]["max_points"] == 100
-
-    @patch("util.natural_language_geocoder.extract_geometry_from_text")
-    @patch("util.natural_language_geocoder.simplify_geometry")
-    @patch("util.natural_language_geocoder.BedrockNovaLLM")
-    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_returns_none_on_validation_error(self, mock_lookup, mock_llm, mock_simplify, mock_extract):
         """Test that ValidationError from normalization results in None return."""
         polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
         mock_extract.return_value = polygon
