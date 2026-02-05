@@ -6,6 +6,7 @@ import pytest
 
 from tools.discover_data.models.extraction import ParsedSpatialExtraction
 from tools.discover_data.utils import extract_spatial_constraint
+from util.geocoder_exceptions import ValidationError
 
 
 @pytest.fixture(autouse=True)
@@ -180,6 +181,34 @@ class TestExtractSpatialConstraintWrapper:
             mock_llm.return_value = mock_llm_result
 
             mock_geocode.side_effect = ValueError("Invalid format")
+
+            result = extract_spatial_constraint.extract_spatial_constraint(
+                "data from Test Location"
+            )
+
+            assert result.location == "Test Location"
+            assert result.wkt_geometry is None
+            assert result.reasoning == "Extracted"
+
+    def test_geocoding_empty_geometry_validation_error(self):
+        """When geocoding raises ValidationError (e.g., empty geometry), should return location but no geometry."""
+        with (
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
+            ) as mock_llm,
+            patch(
+                "tools.discover_data.utils.extract_spatial_constraint.convert_text_to_geom"
+            ) as mock_geocode,
+            patch("tools.discover_data.utils.extract_spatial_constraint.cache", None),
+        ):
+            mock_llm_result = MagicMock()
+            mock_llm_result.location_name = "Test Location"
+            mock_llm_result.location_with_context = "Test Location"
+            mock_llm_result.reasoning = "Extracted"
+            mock_llm_result.cache_key = "test_key"
+            mock_llm.return_value = mock_llm_result
+
+            mock_geocode.side_effect = ValidationError("Geometry is empty after buffer(0) repair")
 
             result = extract_spatial_constraint.extract_spatial_constraint(
                 "data from Test Location"

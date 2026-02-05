@@ -94,7 +94,9 @@ class DiscoverDataInput(BaseModel):
     search_context: SearchContext | None = Field(
         None,
         description=(
-            "For follow-up queries: Pass back the 'search_context' object from the prior response unchanged. "
-            "This is an opaque object - do not modify, stringify, or construct it manually."
+            "For follow-up queries: Pass back the 'search_context' object from the prior response. "
+            "Callers may modify specific fields: set temporal or spatial to null to force re-extraction "
+            "when the user changes those constraints, or update user_refinements to answer clarifying questions. "
+            "Otherwise, treat this as an opaque object - do not stringify or manually reconstruct it."
         ),
     )

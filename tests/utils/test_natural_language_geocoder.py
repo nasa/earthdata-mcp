@@ -1,6 +1,6 @@
 """Tests for natural language geocoder WKT conversion."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
@@ -239,7 +239,7 @@ class TestConvertTextToGeom:
         """Test that exceptions during geometry logging don't break the flow."""
         # Mock geometry that raises exception when accessing geom_type
         mock_geom = MagicMock()
-        mock_geom.geom_type = property(lambda self: (_ for _ in ()).throw(Exception("boom")))
+        type(mock_geom).geom_type = PropertyMock(side_effect=Exception("boom"))
 
         mock_extract.return_value = mock_geom
         mock_simplify.return_value = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])

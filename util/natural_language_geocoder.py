@@ -129,12 +129,13 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
         logger.warning("Invalid geometry detected, attempting to fix with buffer(0)")
         try:
             geometry = geometry.buffer(0)
-            if geometry.is_empty:
-                raise ValidationError("Geometry is empty after buffer(0) repair")
-            if not geometry.is_valid:
-                raise ValidationError("Geometry is invalid and could not be repaired")
         except Exception as e:
             raise ValidationError(f"Invalid geometry: {e}") from e
+
+        if geometry.is_empty:
+            raise ValidationError("Geometry is empty after buffer(0) repair")
+        if not geometry.is_valid:
+            raise ValidationError("Geometry is invalid and could not be repaired")
 
     # Convert to WKT and normalize formatting
     # Shapely outputs "POLYGON ((..." but some parsers require "POLYGON((...""
@@ -145,5 +146,6 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
     wkt_str = wkt_str.replace("MULTILINESTRING (", "MULTILINESTRING(")
     wkt_str = wkt_str.replace("POINT (", "POINT(")
     wkt_str = wkt_str.replace("MULTIPOINT (", "MULTIPOINT(")
+    wkt_str = wkt_str.replace("GEOMETRYCOLLECTION (", "GEOMETRYCOLLECTION(")
 
     return wkt_str
