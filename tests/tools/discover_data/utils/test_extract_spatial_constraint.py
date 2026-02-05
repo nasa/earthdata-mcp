@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tools.discover_data.models.extraction import ParsedSpatialExtraction
 from tools.discover_data.utils import extract_spatial_constraint
 
 
@@ -333,7 +334,7 @@ class TestExtractSpatialInitialization:
 
     def test_spatial_extraction_result_cache_key_generation(self):
         """ParsedSpatialExtraction should properly generate cache keys."""
-        result = extract_spatial_constraint.ParsedSpatialExtraction(
+        result = ParsedSpatialExtraction(
             location_name="Denver",
             location_with_context="Denver, CO",
             reasoning="City",
@@ -347,7 +348,7 @@ class TestExtractSpatialInitialization:
 
     def test_spatial_extraction_result_no_cache_key_for_none_location(self):
         """ParsedSpatialExtraction should not generate cache key for None location."""
-        result = extract_spatial_constraint.ParsedSpatialExtraction(
+        result = ParsedSpatialExtraction(
             location_name=None,
             location_with_context="Some Place",
             reasoning="No location",
@@ -357,13 +358,13 @@ class TestExtractSpatialInitialization:
 
     def test_cache_key_normalization(self):
         """Cache keys should normalize location names consistently."""
-        result1 = extract_spatial_constraint.ParsedSpatialExtraction(
+        result1 = ParsedSpatialExtraction(
             location_name="Denver",
             location_with_context="Denver, CO",
             reasoning="City",
         )
 
-        result2 = extract_spatial_constraint.ParsedSpatialExtraction(
+        result2 = ParsedSpatialExtraction(
             location_name="DENVER",
             location_with_context="Denver, CO",
             reasoning="City",

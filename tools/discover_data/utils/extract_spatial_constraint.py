@@ -22,9 +22,6 @@ from util.natural_language_geocoder import convert_text_to_geom
 
 logger = logging.getLogger(__name__)
 
-# Re-export for tests
-__all__ = ["ParsedSpatialExtraction", "extract_spatial_with_llm", "extract_spatial_constraint"]
-
 try:
     cache = get_cache_client()
 except Exception as e:

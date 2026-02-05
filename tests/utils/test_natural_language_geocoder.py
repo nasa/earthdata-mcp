@@ -74,6 +74,7 @@ class TestNormalizeGeometryToWkt:
         mock_geom.geom_type = "Polygon"
         mock_geom.is_empty = False
         mock_geom.is_valid = False
+        mock_geom.buffer.return_value.is_empty = False
         mock_geom.buffer.return_value.is_valid = False
 
         with pytest.raises(ValidationError, match="could not be repaired"):

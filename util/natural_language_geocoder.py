@@ -6,7 +6,6 @@ https://github.com/Element84/e84-geoai-common
 """
 
 import logging
-import os
 
 from e84_geoai_common.geometry import simplify_geometry
 from e84_geoai_common.llm.models.nova import BedrockNovaLLM
@@ -20,7 +19,7 @@ from util.geocoder_exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
-simplify_geom_max_point = int(os.getenv("SIMPLIFY_GEOM_MAX_POINT", "1000"))
+SIMPLIFY_GEOM_MAX_POINT = 1000
 
 
 def convert_text_to_geom(location_query: str) -> str:
@@ -68,7 +67,7 @@ def convert_text_to_geom(location_query: str) -> str:
             logger.debug("Unable to inspect extracted geometry: %s", e)
 
         # Initial simplification to reduce vertex count
-        simplified_geom = simplify_geometry(geom=geometry, max_points=simplify_geom_max_point)
+        simplified_geom = simplify_geometry(geom=geometry, max_points=SIMPLIFY_GEOM_MAX_POINT)
 
         # Convert to WKT and validate the geometry is usable
         wkt_result = _normalize_geometry_to_wkt(simplified_geom)
