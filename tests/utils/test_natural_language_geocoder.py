@@ -3,10 +3,8 @@
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from pydantic import ValidationError as PydanticValidationError
 from shapely.geometry import LinearRing, LineString, MultiPolygon, Point, Polygon
 
-from util.geocoder_exceptions import ValidationError
 from util.natural_language_geocoder import _normalize_geometry_to_wkt, convert_text_to_geom
 
 
@@ -20,7 +18,7 @@ class TestNormalizeGeometryToWkt:
         result = _normalize_geometry_to_wkt(polygon)
 
         assert result is not None
-        assert result.startswith("POLYGON((")  # No space after POLYGON
+        assert result.startswith("POLYGON")
         assert "0 0" in result
 
     def test_converts_point_to_wkt(self):
@@ -30,20 +28,9 @@ class TestNormalizeGeometryToWkt:
         result = _normalize_geometry_to_wkt(point)
 
         assert result is not None
-        assert result.startswith("POINT(")  # No space after POINT
+        assert result.startswith("POINT")
         assert "10.5" in result
         assert "20.3" in result
-
-    def test_normalizes_wkt_formatting(self):
-        """Test that spaces after geometry types are removed."""
-        # Shapely adds spaces, we need to remove them
-        polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
-
-        result = _normalize_geometry_to_wkt(polygon)
-
-        # Ensure no spaces after geometry type
-        assert "POLYGON ((" not in result
-        assert "POLYGON((" in result
 
     def test_returns_none_for_none_input(self):
         """Test that None input returns None."""
@@ -52,8 +39,8 @@ class TestNormalizeGeometryToWkt:
         assert result is None
 
     def test_raises_validation_error_for_non_shapely_object(self):
-        """Test that non-Shapely objects raise ValidationError."""
-        with pytest.raises(ValidationError, match="Expected Shapely geometry object"):
+        """Test that non-Shapely objects raise ValueError."""
+        with pytest.raises(ValueError, match="Expected Shapely geometry object"):
             _normalize_geometry_to_wkt("not a geometry")
 
     def test_repairs_invalid_geometry_with_buffer(self):
@@ -68,7 +55,7 @@ class TestNormalizeGeometryToWkt:
         assert result.startswith("POLYGON")
 
     def test_raises_validation_error_for_unrepairable_geometry(self):
-        """Test that geometries that can't be repaired raise ValidationError."""
+        """Test that geometries that can't be repaired raise ValueError."""
         # Mock a geometry that is_valid returns False even after buffer
         mock_geom = MagicMock()
         mock_geom.geom_type = "Polygon"
@@ -77,7 +64,7 @@ class TestNormalizeGeometryToWkt:
         mock_geom.buffer.return_value.is_empty = False
         mock_geom.buffer.return_value.is_valid = False
 
-        with pytest.raises(ValidationError, match="could not be repaired"):
+        with pytest.raises(ValueError, match="could not be repaired"):
             _normalize_geometry_to_wkt(mock_geom)
 
     def test_raises_validation_error_when_buffer_raises_exception(self):
@@ -88,7 +75,7 @@ class TestNormalizeGeometryToWkt:
         mock_geom.is_valid = False
         mock_geom.buffer.side_effect = Exception("Buffer failed")
 
-        with pytest.raises(ValidationError, match="Invalid geometry"):
+        with pytest.raises(ValueError, match="Invalid geometry"):
             _normalize_geometry_to_wkt(mock_geom)
 
 
@@ -112,7 +99,7 @@ class TestConvertTextToGeom:
 
         assert result is not None
         assert isinstance(result, str)
-        assert result.startswith("POLYGON((")
+        assert result.startswith("POLYGON")
         mock_extract.assert_called_once()
         mock_simplify.assert_called_once()
 
@@ -149,25 +136,11 @@ class TestConvertTextToGeom:
         assert mock_simplify.call_args_list[1][1]["max_points"] == 100
 
     @patch("util.natural_language_geocoder.extract_geometry_from_text")
-    @patch("util.natural_language_geocoder.BedrockNovaLLM")
-    @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_raises_validation_error_on_pydantic_validation_error(
-        self, mock_lookup, mock_llm, mock_extract
-    ):
-        """Test that PydanticValidationError is converted to ValidationError."""
-        mock_extract.side_effect = PydanticValidationError.from_exception_data(
-            "test", [{"type": "missing", "loc": ("field",), "msg": "field required"}]
-        )
-
-        with pytest.raises(ValidationError, match="Geocoder output validation failed"):
-            convert_text_to_geom("Invalid input")
-
-    @patch("util.natural_language_geocoder.extract_geometry_from_text")
     @patch("util.natural_language_geocoder.simplify_geometry")
     @patch("util.natural_language_geocoder.BedrockNovaLLM")
     @patch("util.natural_language_geocoder.GeocodeIndexPlaceLookup")
-    def test_reraises_validation_error(self, mock_lookup, mock_llm, mock_simplify, mock_extract):
-        """Test that ValidationError from normalization is re-raised."""
+    def test_returns_none_on_validation_error(self, mock_lookup, mock_llm, mock_simplify, mock_extract):
+        """Test that ValidationError from normalization results in None return."""
         polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
         mock_extract.return_value = polygon
 
@@ -179,8 +152,9 @@ class TestConvertTextToGeom:
         mock_geom.buffer.side_effect = Exception("Can't repair")
         mock_simplify.return_value = mock_geom
 
-        with pytest.raises(ValidationError):
-            convert_text_to_geom("Test location")
+        result = convert_text_to_geom("Test location")
+
+        assert result is None
 
     @patch("util.natural_language_geocoder.extract_geometry_from_text")
     @patch("util.natural_language_geocoder.BedrockNovaLLM")

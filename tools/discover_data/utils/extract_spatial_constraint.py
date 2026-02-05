@@ -16,7 +16,6 @@ from tools.discover_data.models.extraction import (
 from tools.discover_data.utils.llm_extraction import MODEL_ID, PROVIDER, load_extraction_prompt
 from tools.models.constraints import SpatialConstraint
 from util.cache import get_cache_client
-from util.geocoder_exceptions import ValidationError
 from util.langfuse import trace_update
 from util.natural_language_geocoder import convert_text_to_geom
 
@@ -172,13 +171,11 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
                 reasoning=extraction.reasoning,
             )
 
-        geom_str = geom
-
         # Store in cache
         if cache and canonical_name:
             try:
                 cache_key = extraction.cache_key
-                cache.set(cache_key, geom_str, ttl=900)
+                cache.set(cache_key, geom, ttl=900)
             except Exception as e:
                 logger.debug("Cache store failed: %s", e)
 
@@ -187,33 +184,17 @@ def extract_spatial_constraint(query: str) -> SpatialConstraint:  # pylint: disa
             metadata={
                 "cache_hit": False,
                 "success": True,
-                "geometry_type": type(geom).__name__,
             },
         )
 
         logger.debug(
-            "Successfully geocoded location '%s': geometry_type=%s, length=%d chars",
+            "Successfully geocoded location '%s': length=%d chars",
             canonical_name,
-            type(geom).__name__,
-            len(geom_str),
+            len(geom),
         )
         return SpatialConstraint(
             location=location_to_geocode,
-            wkt_geometry=geom_str,
-            reasoning=extraction.reasoning,
-        )
-
-    except ValidationError:
-        logger.warning(
-            "Invalid or empty geometry returned by geocoder for '%s'", location_to_geocode
-        )
-        trace_update(
-            tags=["warning", "geocoding_validation_error"],
-            metadata={"warning_type": "geocoding_validation_error"},
-        )
-        return SpatialConstraint(
-            location=location_to_geocode,
-            wkt_geometry=None,
+            wkt_geometry=geom,
             reasoning=extraction.reasoning,
         )
 

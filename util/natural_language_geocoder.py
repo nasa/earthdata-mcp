@@ -6,6 +6,7 @@ https://github.com/Element84/e84-geoai-common
 """
 
 import logging
+import os
 
 from e84_geoai_common.geometry import simplify_geometry
 from e84_geoai_common.llm.models.nova import BedrockNovaLLM
@@ -13,13 +14,10 @@ from natural_language_geocoding import extract_geometry_from_text
 from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
     GeocodeIndexPlaceLookup,
 )
-from pydantic import ValidationError as PydanticValidationError
-
-from util.geocoder_exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
-SIMPLIFY_GEOM_MAX_POINT = 1000
+SIMPLIFY_GEOM_MAX_POINT = int(os.getenv("SIMPLIFY_GEOM_MAX_POINT", "1000"))
 
 
 def convert_text_to_geom(location_query: str) -> str:
@@ -84,11 +82,6 @@ def convert_text_to_geom(location_query: str) -> str:
             wkt_result = _normalize_geometry_to_wkt(simplified_geom)
 
         return wkt_result
-    except PydanticValidationError as e:
-        logger.debug("Geocoder output validation failed for '%s': %s", location_query, e)
-        raise ValidationError("Geocoder output validation failed") from e
-    except ValidationError:
-        raise
     except Exception as e:
         logger.warning(
             "Error geocoding location '%s': %s (%s)",
@@ -114,14 +107,14 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
         WKT string with normalized formatting, or None if input is None
 
     Raises:
-        ValidationError: If geometry is invalid or not a Shapely object
+        ValueError: If geometry is invalid or not a Shapely object
     """
     if geometry is None:
         return None
 
     # Validate it's a Shapely geometry object
     if not hasattr(geometry, "geom_type"):
-        raise ValidationError("Expected Shapely geometry object")
+        raise ValueError("Expected Shapely geometry object")
 
     # Repair invalid geometries using buffer(0)
     # This fixes self-intersections, duplicate vertices, and topology issues
@@ -130,22 +123,12 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
         try:
             geometry = geometry.buffer(0)
         except Exception as e:
-            raise ValidationError(f"Invalid geometry: {e}") from e
+            raise ValueError(f"Invalid geometry: {e}") from e
 
         if geometry.is_empty:
-            raise ValidationError("Geometry is empty after buffer(0) repair")
+            raise ValueError("Geometry is empty after buffer(0) repair")
         if not geometry.is_valid:
-            raise ValidationError("Geometry is invalid and could not be repaired")
+            raise ValueError("Geometry is invalid and could not be repaired")
 
-    # Convert to WKT and normalize formatting
-    # Shapely outputs "POLYGON ((..." but some parsers require "POLYGON((...""
-    wkt_str = geometry.wkt
-    wkt_str = wkt_str.replace("POLYGON (", "POLYGON(")
-    wkt_str = wkt_str.replace("MULTIPOLYGON (", "MULTIPOLYGON(")
-    wkt_str = wkt_str.replace("LINESTRING (", "LINESTRING(")
-    wkt_str = wkt_str.replace("MULTILINESTRING (", "MULTILINESTRING(")
-    wkt_str = wkt_str.replace("POINT (", "POINT(")
-    wkt_str = wkt_str.replace("MULTIPOINT (", "MULTIPOINT(")
-    wkt_str = wkt_str.replace("GEOMETRYCOLLECTION (", "GEOMETRYCOLLECTION(")
-
-    return wkt_str
+    # Convert to WKT
+    return geometry.wkt

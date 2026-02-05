@@ -6,7 +6,6 @@ import pytest
 
 from tools.discover_data.models.extraction import ParsedSpatialExtraction
 from tools.discover_data.utils import extract_spatial_constraint
-from util.geocoder_exceptions import ValidationError
 
 
 @pytest.fixture(autouse=True)
@@ -191,7 +190,7 @@ class TestExtractSpatialConstraintWrapper:
             assert result.reasoning == "Extracted"
 
     def test_geocoding_empty_geometry_validation_error(self):
-        """When geocoding raises ValidationError (e.g., empty geometry), should return location but no geometry."""
+        """When geocoding returns None (e.g., validation error), should return location but no geometry."""
         with (
             patch(
                 "tools.discover_data.utils.extract_spatial_constraint.extract_spatial_with_llm"
@@ -208,7 +207,8 @@ class TestExtractSpatialConstraintWrapper:
             mock_llm_result.cache_key = "test_key"
             mock_llm.return_value = mock_llm_result
 
-            mock_geocode.side_effect = ValidationError("Geometry is empty after buffer(0) repair")
+            # Geocoder returns None (could be due to validation error or other issue)
+            mock_geocode.return_value = None
 
             result = extract_spatial_constraint.extract_spatial_constraint(
                 "data from Test Location"
