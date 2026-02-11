@@ -160,10 +160,10 @@ def handler(event: dict[str, Any], _context) -> dict[str, Any]:
     total_sent = 0
     total_errors = 0
 
-    for items in search_cmr(concept_type, search_params, page_size):
+    for page in search_cmr(concept_type, search_params, page_size):
         messages = []
 
-        for item in items:
+        for item in page.items:
             try:
                 msg = extract_concept_info(concept_type, item)
                 messages.append(msg)

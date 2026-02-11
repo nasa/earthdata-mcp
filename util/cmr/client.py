@@ -3,9 +3,10 @@
 import logging
 import os
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Literal
 
 import requests
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,24 @@ CONCEPT_ENDPOINTS = {
     "collection": "/search/collections.umm_json",
     "variable": "/search/variables.umm_json",
     "citation": "/search/citations.umm_json",
+    "granule": "/search/granules.umm_json",
 }
+
+
+class CMRSearchResponse(BaseModel):
+    """Single page of CMR search results with metadata."""
+
+    items: list[dict[str, Any]] = Field(description="List of concept metadata dictionaries")
+    total_hits: int = Field(
+        description="Total number of results matching the query (from CMR-Hits header)"
+    )
+    took_ms: int = Field(
+        description="Time CMR spent processing the request in milliseconds (from CMR-Took header)"
+    )
+    search_after: str | None = Field(
+        default=None, description="Token for fetching the next page (from CMR-Search-After header)"
+    )
+    page_size: int = Field(description="Number of items in this page")
 
 
 class CMRError(Exception):
@@ -77,17 +95,21 @@ def search_cmr(
     concept_type: str,
     search_params: dict[str, Any],
     page_size: int = 500,
-) -> Generator[list[dict[str, Any]]]:
+    method: Literal["GET", "POST"] = "GET",
+    files: dict[str, Any] | None = None,
+) -> Generator[CMRSearchResponse]:
     """
     Search CMR and yield pages of results using search-after pagination.
 
     Args:
-        concept_type: Type of concept (collection, variable, citation)
+        concept_type: Type of concept (collection, variable, citation, granule)
         search_params: Dictionary of CMR search parameters
         page_size: Number of results per page
+        method: HTTP method to use ("GET" or "POST")
+        files: Optional files dict for multipart/form-data (e.g., shapefile)
 
     Yields:
-        Lists of concept metadata dictionaries
+        CMRSearchResponse objects containing items and metadata
 
     Raises:
         CMRError: If the concept_type is unsupported or the request fails.
@@ -108,27 +130,61 @@ def search_cmr(
         )
 
         try:
-            response = requests.get(endpoint, params=params, headers=headers, timeout=60)
+            if method.upper() == "POST":
+                # POST request with optional files for spatial queries
+                response = requests.post(
+                    endpoint, data=params, files=files, headers=headers, timeout=60
+                )
+            else:
+                # GET request with params in URL
+                response = requests.get(endpoint, params=params, headers=headers, timeout=60)
+
             response.raise_for_status()
             data = response.json()
         except requests.RequestException as e:
             raise CMRError(f"CMR request failed: {e}") from e
 
         items = data.get("items", [])
+        total_hits = int(response.headers.get("CMR-Hits", 0))
+        took_ms = int(response.headers.get("CMR-Took", 0))
+        search_after_token = response.headers.get("CMR-Search-After")
+
+        # For count-only queries (page_size=0), return one page with empty items
+        if page_size == 0:
+            logger.info("Count-only query: %d total hits", total_hits)
+            yield CMRSearchResponse(
+                items=[],
+                total_hits=total_hits,
+                took_ms=took_ms,
+                search_after=None,
+                page_size=0,
+            )
+            break
+
         if not items:
             logger.info("No more results")
             break
 
         total_fetched += len(items)
-        hits = response.headers.get("CMR-Hits", "unknown")
-        logger.info("Fetched %d items (total: %d, hits: %s)", len(items), total_fetched, hits)
+        logger.info(
+            "Fetched %d items (total: %d, hits: %d, took: %dms)",
+            len(items),
+            total_fetched,
+            total_hits,
+            took_ms,
+        )
 
-        yield items
+        yield CMRSearchResponse(
+            items=items,
+            total_hits=total_hits,
+            took_ms=took_ms,
+            search_after=search_after_token,
+            page_size=len(items),
+        )
 
         # Get search-after token for next page
-        search_after = response.headers.get("CMR-Search-After")
-        if not search_after or len(items) < page_size:
+        if not search_after_token or len(items) < page_size:
             logger.info("Fetched all %d items", total_fetched)
             break
 
-        headers["CMR-Search-After"] = search_after
+        headers["CMR-Search-After"] = search_after_token
