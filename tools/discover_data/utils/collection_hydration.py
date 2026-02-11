@@ -96,6 +96,9 @@ def hydrate_collections(
         title = metadata.get("EntryTitle") or result.get("text_content", "")
         abstract = metadata.get("Abstract")
 
+        # Extract is_ongoing from temporal_coverage if available
+        is_ongoing = temporal_coverage.is_ongoing if temporal_coverage else False
+
         match = CollectionMatch(
             concept_id=concept_id,
             title=title,
@@ -109,6 +112,7 @@ def hydrate_collections(
             instruments=instruments,
             related_entity_id=result.get("related_entity_id"),
             related_entity_text=result.get("related_entity_text"),
+            is_ongoing=is_ongoing,
         )
         matches.append(match)
 

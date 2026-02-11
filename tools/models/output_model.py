@@ -21,6 +21,7 @@ class DiscoveryStatus(str, Enum):
     INDIRECT_MATCHES = "indirect_matches"
     REFINEMENT_SUGGESTED = "refinement_suggested"
     NO_RESULTS = "no_results"
+    NO_GRANULES_IN_CONSTRAINTS = "no_granules_in_constraints"
     ERROR = "error"
 
 
@@ -90,6 +91,14 @@ class CollectionMatch(BaseModel):
     )
     related_entity_text: str | None = Field(
         None, description="The text content of the related entity"
+    )
+    is_ongoing: bool = Field(
+        default=False,
+        description="Whether the collection is still actively collecting data",
+    )
+    granule_count: int | None = Field(
+        None,
+        description="Number of granules matching spatio-temporal constraints (None if not validated)",
     )
 
 
