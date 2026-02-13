@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-eval"
+version = "0.1.0"
+description = "RAG evaluation example using Ragas with AWS Bedrock"
+requires-python = ">=3.9"
+dependencies = [
+    "ragas[all]>=0.3.0",
+    "litellm>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "boto3>=1.28.0",
+    "psycopg[binary]>=3.2.4",
+    "pgvector>=0.3.6",
+    "pydantic>=2.12.5",
+    "mlflow>=3.1.4",
+    "langfuse>=3.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.uv]
+managed = true
+# Note: When developing locally, use:
+# uv sync --override ragas@path/to/ragas
