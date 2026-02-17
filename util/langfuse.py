@@ -116,3 +116,67 @@ def trace_update(
 
     if kwargs:
         client.update_current_trace(**kwargs)
+
+
+def get_current_trace_id() -> str | None:
+    """
+    Get the current trace ID from the Langfuse context.
+
+    This is useful for attaching scores to the current trace created by @observe decorator.
+
+    Returns:
+        Current trace ID, or None if not in a trace context or Langfuse is unavailable.
+    """
+    try:
+        from langfuse.decorators import langfuse_context
+
+        return langfuse_context.get_current_trace_id()
+    except Exception as e:
+        logger.warning("Failed to get current trace ID: %s", e)
+        return None
+
+
+def create_score(
+    name: str,
+    value: float,
+    comment: str = "",
+    data_type: str = "NUMERIC",
+    trace_id: str | None = None,
+) -> None:
+    """
+    Create a score for the current trace.
+
+    If trace_id is not provided, will attempt to get the current trace ID from context.
+    Safely handles cases where Langfuse is unavailable or not in a trace context.
+
+    Args:
+        name: Name of the metric/score
+        value: Numeric value of the score
+        comment: Optional comment/explanation for the score
+        data_type: Type of data ("NUMERIC", "CATEGORICAL", "BOOLEAN")
+        trace_id: Optional trace ID. If None, uses current trace from context.
+    """
+    try:
+        # Get trace ID if not provided
+        if trace_id is None:
+            trace_id = get_current_trace_id()
+
+        if trace_id is None:
+            logger.warning("No trace ID available for creating score: %s", name)
+            return
+
+        # Get Langfuse client
+        langfuse = get_langfuse()
+        if langfuse is None:
+            return
+
+        # Create the score
+        langfuse.create_score(
+            name=name,
+            value=value,
+            trace_id=trace_id,
+            data_type=data_type,
+            comment=comment,
+        )
+    except Exception as e:
+        logger.warning("Failed to create score '%s': %s", name, e)
