@@ -144,13 +144,43 @@ class RedisCache(CacheClient):
 
     def _connect(self):
         """Establish Redis connection with proper error handling."""
+        # Try local development configuration first
+        redis_host = os.environ.get("REDIS_HOST")
+        redis_password = os.environ.get("REDIS_PASSWORD")
+        redis_port = os.environ.get("REDIS_PORT", "6379")
+
+        if redis_host:
+            # Local development mode - use direct environment variables
+            try:
+                logger.info("Using local Redis configuration (REDIS_HOST)")
+                self.client = redis.Redis(
+                    host=redis_host,
+                    port=int(redis_port),
+                    password=redis_password if redis_password else None,
+                    ssl=False,  # Local development typically doesn't use SSL
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                )
+                # Test connection
+                self.client.ping()
+                logger.info(
+                    "Successfully connected to local Redis at %s:%s", redis_host, redis_port
+                )
+                return
+            except Exception as e:
+                logger.warning("Failed to connect to local Redis: %s", e)
+                self.client = None
+                return
+
+        # Production mode - use AWS Secrets Manager
         if not REDIS_SECRET_ID:
-            logger.info("REDIS_SECRET_ID not set, caching disabled")
+            logger.info("REDIS_SECRET_ID not set and no local Redis config found, caching disabled")
             self.client = None
             return
 
         try:
             creds = get_redis_credentials()
+            logger.info("Using AWS Secrets Manager Redis configuration")
             self.client = redis.Redis(
                 host=creds["host"],
                 port=int(creds["port"]),
@@ -163,7 +193,7 @@ class RedisCache(CacheClient):
 
             # Test connection
             self.client.ping()
-            logger.info("Successfully connected to Redis")
+            logger.info("Successfully connected to Redis via Secrets Manager")
 
         except Exception as e:
             logger.warning("Failed to connect to Redis: %s. Caching will be disabled.", e)
