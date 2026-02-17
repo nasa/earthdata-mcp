@@ -141,14 +141,14 @@ class TestRedisCacheInitialization:
         mock_redis_class.side_effect = Exception("Redis creation failed")
 
         with patch("util.cache.logger") as mock_logger:
-            client = RedisCache()
+            cache = RedisCache()
 
             # Verify warning was logged
             mock_logger.warning.assert_called_once()
             assert "Failed to connect to Redis" in mock_logger.warning.call_args[0][0]
 
             # Verify client is None
-            assert client.client is None
+            assert cache.client is None
 
     @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", None)
@@ -162,53 +162,55 @@ class TestRedisCacheInitialization:
             )
             assert client.client is None
 
-    @patch.dict(os.environ, {"REDIS_HOST": "localhost"}, clear=False)
-    @patch("util.cache.redis.Redis")
-    def test_local_redis_successful_connection(self, mock_redis_class):
+    def test_local_redis_successful_connection(self, monkeypatch):
         """Test successful connection to local Redis using REDIS_HOST."""
+        monkeypatch.setenv("REDIS_HOST", "localhost")
+
         mock_client = Mock()
-        mock_redis_class.return_value = mock_client
+        mock_redis_class = Mock(return_value=mock_client)
+        monkeypatch.setattr("util.cache.redis.Redis", mock_redis_class)
+
         mock_client.ping.return_value = True
 
-        with patch("util.cache.logger") as mock_logger:
-            client = RedisCache()
+        mock_logger = Mock()
+        monkeypatch.setattr("util.cache.logger", mock_logger)
 
-            # Verify Redis client was created with local development parameters
-            mock_redis_class.assert_called_once_with(
-                host="localhost",
-                port=6379,  # Default port
-                password=None,  # No password by default
-                ssl=False,  # Local development doesn't use SSL
-                socket_connect_timeout=2,
-                socket_timeout=2,
-            )
+        client = RedisCache()
 
-            # Verify connection test was performed
-            mock_client.ping.assert_called_once()
+        # Verify Redis client was created with local development parameters
+        mock_redis_class.assert_called_once_with(
+            host="localhost",
+            port=6379,  # Default port
+            password=None,  # No password by default
+            ssl=False,  # Local development doesn't use SSL
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
 
-            # Verify logging
-            assert mock_logger.info.call_count == 2
-            assert (
-                mock_logger.info.call_args_list[0][0][0]
-                == "Using local Redis configuration (REDIS_HOST)"
-            )
-            assert (
-                "Successfully connected to local Redis" in mock_logger.info.call_args_list[1][0][0]
-            )
+        # Verify connection test was performed
+        mock_client.ping.assert_called_once()
 
-            # Verify client is available
-            assert client.client is not None
+        # Verify logging
+        assert mock_logger.info.call_count == 2
+        assert (
+            mock_logger.info.call_args_list[0][0][0]
+            == "Using local Redis configuration (REDIS_HOST)"
+        )
+        assert "Successfully connected to local Redis" in mock_logger.info.call_args_list[1][0][0]
 
-    @patch.dict(
-        os.environ,
-        {"REDIS_HOST": "localhost", "REDIS_PORT": "6380", "REDIS_PASSWORD": "dev-pass"},
-        clear=False,
-    )
-    @patch("util.cache.redis.Redis")
-    def test_local_redis_with_custom_port_and_password(self, mock_redis_class):
+        # Verify client is available
+        assert client.client is not None
+
+    def test_local_redis_with_custom_port_and_password(self, monkeypatch):
         """Test local Redis connection with custom port and password."""
+        monkeypatch.setenv("REDIS_HOST", "localhost")
+        monkeypatch.setenv("REDIS_PORT", "6380")
+        monkeypatch.setenv("REDIS_PASSWORD", "dev-pass")
+
         mock_client = Mock()
-        mock_redis_class.return_value = mock_client
+        mock_redis_class = Mock(return_value=mock_client)
+        monkeypatch.setattr("util.cache.redis.Redis", mock_redis_class)
+
         mock_client.ping.return_value = True
 
         client = RedisCache()
@@ -224,52 +226,59 @@ class TestRedisCacheInitialization:
         )
         assert client.client is not None
 
-    @patch.dict(os.environ, {"REDIS_HOST": "localhost"}, clear=False)
-    @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
-    @patch("util.cache.get_redis_credentials")
-    @patch("util.cache.redis.Redis")
-    def test_local_redis_takes_precedence_over_secrets(
-        self, mock_redis_class, mock_get_creds, mock_redis_credentials
-    ):
+    def test_local_redis_takes_precedence_over_secrets(self, monkeypatch, mock_redis_credentials):
         """Test that REDIS_HOST takes precedence over REDIS_SECRET_ID."""
-        mock_get_creds.return_value = mock_redis_credentials
+        monkeypatch.setenv("REDIS_HOST", "localhost")
+        monkeypatch.setattr("util.cache.REDIS_SECRET_ID", "test-secret-arn")
+
+        mock_get_creds = Mock(return_value=mock_redis_credentials)
+        monkeypatch.setattr("util.cache.get_redis_credentials", mock_get_creds)
+
         mock_client = Mock()
-        mock_redis_class.return_value = mock_client
+        mock_redis_class = Mock(return_value=mock_client)
+        monkeypatch.setattr("util.cache.redis.Redis", mock_redis_class)
+
         mock_client.ping.return_value = True
 
-        with patch("util.cache.logger") as mock_logger:
-            client = RedisCache()
+        mock_logger = Mock()
+        monkeypatch.setattr("util.cache.logger", mock_logger)
 
-            # Verify local Redis was used (not Secrets Manager)
-            assert "Using local Redis configuration" in mock_logger.info.call_args_list[0][0][0]
-            mock_redis_class.assert_called_once_with(
-                host="localhost",
-                port=6379,
-                password=None,
-                ssl=False,
-                socket_connect_timeout=2,
-                socket_timeout=2,
-            )
-            # Secrets Manager should not have been called
-            mock_get_creds.assert_not_called()
+        RedisCache()
 
-    @patch.dict(os.environ, {"REDIS_HOST": "localhost"}, clear=False)
-    @patch("util.cache.redis.Redis")
-    def test_local_redis_connection_failure(self, mock_redis_class):
+        # Verify local Redis was used (not Secrets Manager)
+        assert "Using local Redis configuration" in mock_logger.info.call_args_list[0][0][0]
+        mock_redis_class.assert_called_once_with(
+            host="localhost",
+            port=6379,
+            password=None,
+            ssl=False,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+        # Secrets Manager should not have been called
+        mock_get_creds.assert_not_called()
+
+    def test_local_redis_connection_failure(self, monkeypatch):
         """Test graceful handling of local Redis connection failure."""
+        monkeypatch.setenv("REDIS_HOST", "localhost")
+
         mock_client = Mock()
-        mock_redis_class.return_value = mock_client
+        mock_redis_class = Mock(return_value=mock_client)
+        monkeypatch.setattr("util.cache.redis.Redis", mock_redis_class)
+
         mock_client.ping.side_effect = redis.ConnectionError("Connection refused")
 
-        with patch("util.cache.logger") as mock_logger:
-            client = RedisCache()
+        mock_logger = Mock()
+        monkeypatch.setattr("util.cache.logger", mock_logger)
 
-            # Verify warning was logged
-            mock_logger.warning.assert_called_once()
-            assert "Failed to connect to local Redis" in mock_logger.warning.call_args[0][0]
+        client = RedisCache()
 
-            # Verify client is None (graceful degradation)
-            assert client.client is None
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once()
+        assert "Failed to connect to local Redis" in mock_logger.warning.call_args[0][0]
+
+        # Verify client is None (graceful degradation)
+        assert client.client is None
 
 
 class TestIsAvailable:
