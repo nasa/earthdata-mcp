@@ -21,6 +21,8 @@ dependencies = [
     "langfuse==3.10.6",
     "instructor>=1.13.0",
     "jsonschema>=4.17.3",
+    "ragas>=0.4.3",
+    "litellm>=1.81.12",
     "jsonpath-ng>=1.7.0",
 ]
 

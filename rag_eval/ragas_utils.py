@@ -72,9 +72,7 @@ def init_ragas_metrics(metrics, llm, embedding):
         metric.init(run_config)
 
 
-async def score_with_ragas(
-    metrics, query: str, contexts: List[str], answer: str
-) -> dict:
+def score_with_ragas(metrics, query: str, contexts: List[str], answer: str) -> dict:
     """
     Score a single sample with Ragas metrics.
 
@@ -95,5 +93,5 @@ async def score_with_ragas(
             response=answer,
         )
         logger.info(f"Calculating {m.name}...")
-        scores[m.name] = await m.single_turn_ascore(sample)
+        scores[m.name] = m.single_turn_score(sample)
     return scores

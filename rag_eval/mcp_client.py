@@ -206,17 +206,32 @@ class EarthdataRAGClient:
                 if isinstance(content, list) and len(content) > 0:
                     text_content = content[0].get("text", "")
                     if text_content:
-                        # Parse the JSON response from discover_data
-                        discover_result = json.loads(text_content)
+                        try:
+                            # If text_content is already a dict, use it directly
+                            if isinstance(text_content, dict):
+                                discover_result = text_content
+                            else:
+                                # Otherwise parse as JSON (possibly double-encoded)
+                                discover_result = json.loads(text_content)
+                                # Check if it's double-encoded
+                                if isinstance(discover_result, str):
+                                    discover_result = json.loads(discover_result)
 
-                        # Format as answer string
-                        answer = self._format_answer(discover_result)
+                            # Format as answer string
+                            answer = self._format_answer(discover_result)
 
-                        return {
-                            "answer": answer,
-                            "logs": f"Found {len(discover_result.get('collections', []))} collections",
-                            "raw_result": discover_result,
-                        }
+                            return {
+                                "answer": answer,
+                                "logs": f"Found {len(discover_result.get('collections', []))} collections",
+                                "raw_result": discover_result,
+                            }
+                        except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                            # If it's not JSON or can't be parsed, return as-is
+                            logger.debug(f"Response is not JSON, treating as text: {e}")
+                            return {
+                                "answer": str(text_content),
+                                "logs": "Received text response",
+                            }
 
             return {"answer": "No results found", "logs": "Empty response from server"}
 

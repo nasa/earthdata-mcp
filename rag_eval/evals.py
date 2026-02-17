@@ -1,5 +1,6 @@
 """Offline RAG evaluation for Earthdata MCP server."""
 
+import asyncio
 import json
 import logging
 import os
@@ -12,9 +13,9 @@ from ragas.metrics import (
     LLMContextPrecisionWithoutReference,
 )
 
-from mcp_client import EarthdataRAGClient
-from models import DatasetRelevanceInput, DatasetRelevancePrompt
-from ragas_utils import (
+from rag_eval.mcp_client import EarthdataRAGClient
+from rag_eval.models import DatasetRelevanceInput, DatasetRelevancePrompt
+from rag_eval.ragas_utils import (
     create_bedrock_llm,
     create_bedrock_embeddings,
     init_ragas_metrics,
@@ -102,14 +103,14 @@ class EarthdataEvaluator:
         dataset.save()
         return dataset
 
-    async def _score_dataset(self, question: str, title: str, abstract: str) -> float:
+    def _score_dataset(self, question: str, title: str, abstract: str) -> float:
         """Score a single dataset's relevance to a question."""
         prompt_input = DatasetRelevanceInput(
             question=question,
             dataset_title=title,
             dataset_abstract=abstract,
         )
-        result = await self.relevance_prompt.generate(data=prompt_input, llm=self.llm)
+        result = self.relevance_prompt.generate(data=prompt_input, llm=self.llm)
         return result.relevance_score
 
     def close(self):
@@ -117,7 +118,7 @@ class EarthdataEvaluator:
         if hasattr(self, "rag_client"):
             self.rag_client.close()
 
-    async def evaluate(self, testset_path: str):
+    def evaluate(self, testset_path: str):
         """Run full evaluation on a test dataset."""
         langfuse = get_langfuse()
         dataset = self.load_dataset(testset_path)
@@ -174,18 +175,21 @@ class EarthdataEvaluator:
                     ):
                         pass
 
-                    # Score individual datasets
-                    logger.info("Scoring individual datasets...")
-                    dataset_scores = []
-                    for collection_idx, collection in enumerate(collections):
-                        score = await self._score_dataset(
-                            question=question,
-                            title=collection.get("title", ""),
-                            abstract=collection.get("abstract", ""),
-                        )
-                        dataset_scores.append(score)
+                    # Use shared evaluation logic
+                    all_scores = SingleEvaluation.evaluate_single(
+                        question=question,
+                        collections=collections,
+                        contexts=contexts,
+                        answer=answer,
+                    )
 
-                        # Log scoring generation
+                    # Add individual dataset scores to trace
+                    individual_scores = all_scores.get(
+                        "individual_dataset_scores", {}
+                    ).get("value", [])
+                    for collection_idx, (collection, score) in enumerate(
+                        zip(collections, individual_scores)
+                    ):
                         with trace.start_as_current_observation(
                             as_type="span",
                             name="score_dataset_relevance",
@@ -196,7 +200,6 @@ class EarthdataEvaluator:
                             },
                             output={"relevance_score": score},
                         ) as scoring_span:
-                            # Score this individual dataset
                             scoring_span.score(
                                 name="dataset_relevance",
                                 value=score,
@@ -204,67 +207,53 @@ class EarthdataEvaluator:
                                 comment=f"Dataset {collection_idx + 1}: {collection.get('title', 'N/A')[:50]}",
                             )
 
-                    # Calculate aggregate dataset scores
-                    avg_dataset_relevance = (
-                        sum(dataset_scores) / len(dataset_scores)
-                        if dataset_scores
-                        else 0.0
-                    )
-                    max_dataset_relevance = (
-                        max(dataset_scores) if dataset_scores else 0.0
-                    )
+                    # Add all other scores to trace dynamically
+                    for metric_name, metric_data in all_scores.items():
+                        # Skip individual scores (already added above)
+                        if metric_name == "individual_dataset_scores":
+                            continue
 
-                    # Compute Ragas metrics for overall RAG quality
-                    logger.info("Computing Ragas metrics...")
-                    ragas_scores = await score_with_ragas(
-                        self.metrics, question, contexts, answer
-                    )
+                        # Extract metadata
+                        value = metric_data.get("value")
+                        comment = metric_data.get("comment", "")
+                        data_type = metric_data.get("data_type", "NUMERIC")
 
-                    logger.info(f"RAGAS Scores: {ragas_scores}")
+                        # Only add numeric scores to trace
+                        if isinstance(value, (int, float)):
+                            trace.score(
+                                name=metric_name,
+                                value=value,
+                                data_type=data_type,
+                                comment=comment,
+                            )
 
-                    # Add all scores to Langfuse trace
-                    trace.score(
-                        name="avg_dataset_relevance",
-                        value=avg_dataset_relevance,
-                        data_type="NUMERIC",
-                        comment="Average relevance of individual datasets",
-                    )
-                    trace.score(
-                        name="max_dataset_relevance",
-                        value=max_dataset_relevance,
-                        data_type="NUMERIC",
-                        comment="Best dataset relevance score",
-                    )
-
-                    # Ragas metrics
-                    for metric_name, score_value in ragas_scores.items():
-                        trace.score(
-                            name=metric_name,
-                            value=score_value,
-                            data_type="NUMERIC",
-                            comment=f"Ragas {metric_name} metric",
-                        )
-
-                    # Store result
+                    # Store result - dynamically extract all score values
                     result_row = {
                         **row,
                         "response": answer,
                         "num_datasets_returned": len(collections),
-                        "avg_dataset_relevance": avg_dataset_relevance,
-                        "max_dataset_relevance": max_dataset_relevance,
-                        "individual_dataset_scores": dataset_scores,
-                        "ragas_scores": ragas_scores,
                         "trace_id": trace_id,
                     }
+
+                    # Add all scores dynamically
+                    for metric_name, metric_data in all_scores.items():
+                        value = metric_data.get("value")
+                        # Store the value directly in result_row
+                        result_row[metric_name] = value
+
                     results.append(result_row)
 
-                    logger.info(f"→ Avg Dataset Relevance: {avg_dataset_relevance:.3f}")
-                    logger.info(f"→ Max Dataset Relevance: {max_dataset_relevance:.3f}")
                     logger.info(
-                        f"→ Faithfulness: {ragas_scores.get('faithfulness', 0):.3f}"
+                        f"→ Avg Dataset Relevance: {all_scores.get('avg_dataset_relevance', {}).get('value', 0):.3f}"
                     )
                     logger.info(
-                        f"→ Context Precision: {ragas_scores.get('context_precision', 0):.3f}"
+                        f"→ Max Dataset Relevance: {all_scores.get('max_dataset_relevance', {}).get('value', 0):.3f}"
+                    )
+                    logger.info(
+                        f"→ Faithfulness: {all_scores.get('faithfulness', {}).get('value', 0):.3f}"
+                    )
+                    logger.info(
+                        f"→ Context Precision: {all_scores.get('context_precision', {}).get('value', 0):.3f}"
                     )
                     logger.info(f"→ Datasets Retrieved: {len(collections)}")
 
@@ -289,7 +278,120 @@ class EarthdataEvaluator:
         return results
 
 
-async def main():
+class SingleEvaluation:
+    """
+    Single-instance evaluator for scoring one query/response pair.
+
+    This is the core evaluation logic that both offline batch evaluation
+    and online per-request evaluation use.
+    """
+
+    # Singleton class variables
+    _llm = None
+    _embeddings = None
+    _relevance_prompt = None
+    _metrics = None
+
+    @classmethod
+    def _initialize_components(cls):
+        """Initialize evaluation components once (singleton pattern)."""
+        if cls._llm is None:
+            cls._llm = create_bedrock_llm(
+                model="amazon.nova-pro-v1:0",
+                temperature=0.01,
+                max_tokens=4096,
+            )
+            cls._embeddings = create_bedrock_embeddings()
+            cls._relevance_prompt = DatasetRelevancePrompt()
+
+            # Initialize Ragas metrics
+            cls._metrics = [
+                Faithfulness(),
+                LLMContextPrecisionWithoutReference(),
+            ]
+            init_ragas_metrics(cls._metrics, cls._llm, cls._embeddings)
+
+    @classmethod
+    def evaluate_single(
+        cls,
+        question: str,
+        collections: list[dict],
+        contexts: list[str],
+        answer: str,
+    ) -> dict[str, float]:
+        """
+        Evaluate a single query/response and return all scores.
+
+        This is the core evaluation that both batch and online evaluation use.
+        The caller is responsible for sending scores to Langfuse.
+
+        Args:
+            question: User query
+            collections: List of collection dicts with 'title' and 'abstract'
+            contexts: Retrieved contexts (formatted collection info)
+            answer: Generated answer
+
+        Returns:
+            Dictionary of all scores, including individual_dataset_scores
+        """
+        cls._initialize_components()
+        all_scores = {}
+
+        # Score individual collections
+        collection_scores = []
+        for collection in collections:
+            try:
+                prompt_input = DatasetRelevanceInput(
+                    question=question,
+                    dataset_title=collection.get("title", ""),
+                    dataset_abstract=collection.get("abstract", "") or "No description",
+                )
+                result = cls._relevance_prompt.generate(data=prompt_input, llm=cls._llm)
+                collection_scores.append(result.relevance_score)
+            except Exception as e:
+                logger.warning(f"Error scoring collection: {e}")
+                continue
+
+        # Store individual scores
+        all_scores["individual_dataset_scores"] = {
+            "value": collection_scores,
+            "comment": "Individual relevance scores for each dataset",
+            "data_type": "LIST",
+        }
+
+        # Compute aggregate collection scores
+        if collection_scores:
+            avg_relevance = sum(collection_scores) / len(collection_scores)
+            max_relevance = max(collection_scores)
+
+            all_scores["avg_dataset_relevance"] = {
+                "value": avg_relevance,
+                "comment": "Average relevance of individual datasets",
+                "data_type": "NUMERIC",
+            }
+            all_scores["max_dataset_relevance"] = {
+                "value": max_relevance,
+                "comment": "Best dataset relevance score",
+                "data_type": "NUMERIC",
+            }
+
+        # Compute Ragas metrics
+        try:
+            ragas_scores = score_with_ragas(cls._metrics, question, contexts, answer)
+            # Wrap Ragas scores with metadata
+            for metric_name, score_value in ragas_scores.items():
+                all_scores[metric_name] = {
+                    "value": score_value,
+                    "comment": f"Ragas {metric_name} metric",
+                    "data_type": "NUMERIC",
+                }
+        except Exception as e:
+            logger.warning(f"Error computing Ragas scores: {e}")
+
+        return all_scores
+
+
+def main():
     """Main entry point for running evaluations."""
     # Get configuration from environment
     mcp_server_url = os.getenv(
@@ -305,7 +407,7 @@ async def main():
 
     try:
         # Run evaluation
-        results = await evaluator.evaluate(testset_path)
+        results = evaluator.evaluate(testset_path)
         logger.info(f"Evaluation complete: {len(results)} results")
     finally:
         # Clean up resources
@@ -313,6 +415,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
+    main()
