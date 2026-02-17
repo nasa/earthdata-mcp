@@ -139,7 +139,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
             # Explicitly track if granule validation removed ALL collections
             all_filtered_by_granule_validation = (
-                collections_before_granule_validation > 0 and len(collections) == 0
+                collections_before_granule_validation > 0 and not collections
             )
 
             trace_update(

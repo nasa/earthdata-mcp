@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from io import BytesIO
 
@@ -79,7 +79,7 @@ def _count_granules(
             concept_type="granule",
             search_params=params,
             page_size=0,
-            method="POST" if files else "GET",
+            method="POST",
             files=files,
         ):
             return page.total_hits, page.took_ms
@@ -214,7 +214,7 @@ def validate_granule_availability(
             for task in as_completed(pending_validations, timeout=timeout):
                 collection = pending_validations[task]
                 try:
-                    hits_count, took_ms = task.result()
+                    hits_count, _ = task.result()
                     collection.granule_count = hits_count
 
                     # Cache the result
@@ -252,12 +252,13 @@ def validate_granule_availability(
     for collection in collections:
         if collection.granule_count is not None and collection.granule_count > 0:
             validated.append(collection)
-        elif collection.granule_count == 0:
+        elif not collection.granule_count:
             zero_granule_count += 1
 
     if zero_granule_count > 0 or failures > 0:
         logger.info(
-            "Granule availability: %d/%d collections validated (filtered %d with no granules, %d failures)",
+            "Granule availability: %d/%d collections validated "
+            "(filtered %d with no granules, %d failures)",
             len(validated),
             len(collections),
             zero_granule_count,

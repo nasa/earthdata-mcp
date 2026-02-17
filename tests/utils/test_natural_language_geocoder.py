@@ -21,6 +21,34 @@ class TestNormalizeGeometryToWkt:
         assert result.startswith("POLYGON")
         assert "0 0" in result
 
+    def test_orients_polygon_counter_clockwise(self):
+        """Test that polygons are oriented counter-clockwise (exterior ring CCW)."""
+        # Create a clockwise polygon (CMR requires counter-clockwise)
+        clockwise_polygon = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
+
+        result = _normalize_geometry_to_wkt(clockwise_polygon)
+
+        assert result is not None
+        # Parse result to verify orientation
+        from shapely import wkt
+
+        result_geom = wkt.loads(result)
+        # Exterior ring with positive area means counter-clockwise
+        assert LinearRing(result_geom.exterior.coords).is_ccw
+
+    def test_preserves_counter_clockwise_orientation(self):
+        """Test that counter-clockwise polygons remain counter-clockwise."""
+        # Create a counter-clockwise polygon
+        ccw_polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+
+        result = _normalize_geometry_to_wkt(ccw_polygon)
+
+        assert result is not None
+        from shapely import wkt
+
+        result_geom = wkt.loads(result)
+        assert LinearRing(result_geom.exterior.coords).is_ccw
+
     def test_converts_point_to_wkt(self):
         """Test Point geometry conversion."""
         point = Point(10.5, 20.3)
