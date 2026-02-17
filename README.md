@@ -49,6 +49,42 @@ uv sync --extra dev
 
 ### Running Locally
 
+#### Local Database & Cache Configuration
+
+For local development, you can run PostgreSQL and Redis locally instead of using AWS services.
+
+**Database (PostgreSQL):**
+
+1. Start local PostgreSQL (with pgvector extension)
+2. Set environment variables in `.env`:
+
+   ```bash
+   DB_HOST=localhost
+   DATABASE_SECRET_ID=<your-aws-secret-id>  # Still needed for credentials
+   ```
+
+   The `DB_HOST` override allows you to connect to localhost while still using AWS Secrets Manager credentials.
+
+**Cache (Redis):**
+
+1. Start local Redis server
+2. Set environment variables in `.env`:
+
+   ```bash
+   REDIS_HOST=localhost
+   REDIS_PORT=6379              # Optional, defaults to 6379
+   REDIS_PASSWORD=<password>    # Optional for local dev
+   ```
+
+   When `REDIS_HOST` is set, the cache client uses local Redis instead of AWS Secrets Manager.
+
+**Production Mode:**
+
+- Database: Uses `DATABASE_SECRET_ID` to fetch connection URL from AWS Secrets Manager
+- Redis: Uses `REDIS_SECRET_ID` to fetch connection details from AWS Secrets Manager
+
+#### Starting the Server
+
 **HTTP Mode (recommended for development):**
 
 ```bash
@@ -81,11 +117,13 @@ uv run pytest tests/test_server.py
 ### MCP Inspector (Interactive Testing)
 
 1. Start the server:
+
    ```bash
    uv run server.py http
    ```
 
 2. Launch inspector:
+
    ```bash
    npx @modelcontextprotocol/inspector
    ```
@@ -133,6 +171,7 @@ https://cmr.earthdata.nasa.gov/mcp/sse
 ```
 
 Works with:
+
 - Claude Code CLI
 - VS Code MCP extensions
 - Any MCP-compatible client

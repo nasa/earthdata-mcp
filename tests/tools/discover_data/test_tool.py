@@ -180,6 +180,13 @@ def test_discover_data_expansion_path(monkeypatch):
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
+    def mock_validate_granules(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+
     ctx_obj = object()
     monkeypatch.setattr(tool, "analyze_embedding_results", lambda results: ctx_obj)
     questions = [ClarifyingQuestion(question_id="q1"), ClarifyingQuestion(question_id="q2")]
@@ -226,6 +233,14 @@ def test_discover_data_disambiguation_path(monkeypatch):
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
+
+    # Mock granule validation to return collections with granule counts
+    def mock_validate_granules(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
 
     # Ensure user refinements are applied
     applied = {}
@@ -297,6 +312,14 @@ def test_discover_data_with_disambiguation_questions(monkeypatch):
         ),
     ]
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (True, disamb_questions))
+
+    # Mock granule validation to return collections with granule counts
+    def mock_validate_granules(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
 
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
 
@@ -416,6 +439,14 @@ def test_discover_data_with_langfuse(monkeypatch):
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols, *a, **k: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
+
+    # Mock granule validation to return collections with granule counts
+    def mock_validate_granules(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
 
     query = DiscoverDataInput(query="test collection")
     output = tool.discover_data(query)
@@ -631,6 +662,14 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
     )
 
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "Multi-entity search")
+
+    # Mock granule validation to return collections with granule counts
+    def mock_validate_granules(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
 
     # === INITIAL QUERY (NO REFINEMENT) ===
     initial_query = DiscoverDataInput(query="I need land cover data")

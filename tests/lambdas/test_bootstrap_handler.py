@@ -39,8 +39,8 @@ class TestSearchCmr:
         results = list(search_cmr("collection", {}, page_size=100))
 
         assert len(results) == 1
-        assert len(results[0]) == 2
-        assert results[0][0]["meta"]["concept-id"] == "C1234-PROV"
+        assert len(results[0].items) == 2
+        assert results[0].items[0]["meta"]["concept-id"] == "C1234-PROV"
 
     @responses.activate
     def test_search_cmr_paginates(self):
@@ -73,8 +73,8 @@ class TestSearchCmr:
         results = list(search_cmr("collection", {}, page_size=2))
 
         assert len(results) == 2
-        assert len(results[0]) == 2
-        assert len(results[1]) == 1
+        assert len(results[0].items) == 2
+        assert len(results[1].items) == 1
 
         # Verify second request included search-after header
         assert responses.calls[1].request.headers.get("CMR-Search-After") == '["token123"]'

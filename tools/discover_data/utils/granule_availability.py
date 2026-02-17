@@ -24,7 +24,7 @@ from util.cmr.client import CMRError, search_cmr
 
 logger = logging.getLogger(__name__)
 
-GRANULE_VALIDATION_MAX_WORKERS = int(os.environ.get("GRANULE_VALIDATION_MAX_WORKERS", "5"))
+GRANULE_VALIDATION_MAX_WORKERS = int(os.environ.get("GRANULE_VALIDATION_MAX_WORKERS", "10"))
 
 
 @observe(name="count_granules")
@@ -129,32 +129,6 @@ def _get_cache_ttl(is_ongoing: bool) -> int:
     return 900 if is_ongoing else 86400
 
 
-def _validate_single_collection(
-    collection: CollectionMatch,
-    temporal_start: datetime | None,
-    temporal_end: datetime | None,
-    spatial_wkt: str | None,
-) -> tuple[int, int]:
-    """
-    Validate a single collection by counting its granules.
-
-    Args:
-        collection: Collection to validate
-        temporal_start: Optional start datetime
-        temporal_end: Optional end datetime
-        spatial_wkt: Optional WKT geometry string
-
-    Returns:
-        Tuple of (hits_count, took_ms)
-    """
-    return _count_granules(
-        collection.concept_id,
-        temporal_start,
-        temporal_end,
-        spatial_wkt,
-    )
-
-
 @observe(name="validate_granule_availability")
 def validate_granule_availability(
     collections: list[CollectionMatch],
@@ -200,51 +174,45 @@ def validate_granule_availability(
             else:
                 # Submit for parallel validation
                 task = executor.submit(
-                    _validate_single_collection,
-                    collection,
+                    _count_granules,
+                    collection.concept_id,
                     temporal_start,
                     temporal_end,
                     spatial_wkt,
                 )
                 pending_validations[task] = collection
 
-        # Process results as they complete (scale timeout with collection count)
-        timeout = max(60, len(pending_validations) * 2)
-        try:
-            for task in as_completed(pending_validations, timeout=timeout):
-                collection = pending_validations[task]
-                try:
-                    hits_count, _ = task.result()
-                    collection.granule_count = hits_count
+        for task in as_completed(pending_validations):
+            collection = pending_validations[task]
+            try:
+                hits_count, _ = task.result()
+                collection.granule_count = hits_count
 
-                    # Cache the result
-                    cache_key = _build_cache_key(
-                        collection.concept_id,
-                        temporal_start,
-                        temporal_end,
-                        spatial_wkt,
-                    )
-                    ttl = _get_cache_ttl(collection.is_ongoing)
-                    cache.set(
-                        cache_key,
-                        json.dumps({"count": hits_count, "timestamp": time.time()}),
-                        ttl=ttl,
-                    )
+                # Cache the result
+                cache_key = _build_cache_key(
+                    collection.concept_id,
+                    temporal_start,
+                    temporal_end,
+                    spatial_wkt,
+                )
+                ttl = _get_cache_ttl(collection.is_ongoing)
+                cache.set(
+                    cache_key,
+                    json.dumps({"count": hits_count, "timestamp": time.time()}),
+                    ttl=ttl,
+                )
 
-                except Exception as e:
-                    logger.warning(
-                        "Granule validation failed for %s: %s (type: %s)",
-                        collection.concept_id,
-                        e,
-                        type(e).__name__,
-                        exc_info=True,
-                    )
-                    failures += 1
-                    # Keep collection with None granule_count
-                    collection.granule_count = None
-
-        except TimeoutError:
-            logger.warning("Granule availability check timed out for some collections")
+            except Exception as e:
+                logger.warning(
+                    "Granule validation failed for %s: %s (type: %s)",
+                    collection.concept_id,
+                    e,
+                    type(e).__name__,
+                    exc_info=True,
+                )
+                failures += 1
+                # Keep collection with None granule_count
+                collection.granule_count = None
             failures += len(pending_validations)
 
     # Filter out collections with zero granules
