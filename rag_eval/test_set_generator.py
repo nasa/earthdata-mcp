@@ -22,6 +22,7 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 import litellm
+from openai import OpenAI
 
 from ragas.llms import llm_factory
 from ragas.embeddings.base import embedding_factory
@@ -31,6 +32,13 @@ from ragas.testset.transforms import (
     HeadlinesExtractor,
     HeadlineSplitter,
     KeyphrasesExtractor,
+    Parallel,
+)
+from ragas.testset.transforms.extractors import TopicDescriptionExtractor
+
+# from ragas.testset.transforms.extractors import NERExtractor
+from ragas.testset.transforms.relationship_builders.traditional import (
+    JaccardSimilarityBuilder,
 )
 from ragas.testset.persona import Persona
 from ragas.testset.synthesizers.single_hop.specific import (
@@ -43,7 +51,7 @@ from util.database import get_db_connection
 # Load environment variables
 load_dotenv()
 
-# Configuration for AWS Bedrock
+# Configuration for AWS Bedrock (DEFAULT - has structured output issues with Nova)
 BEDROCK_CONFIG = {
     "region_name": "us-east-1",
     "llm": "amazon.nova-pro-v1:0",
@@ -51,8 +59,28 @@ BEDROCK_CONFIG = {
     "temperature": 0.4,
 }
 
-# Set AWS region
-os.environ["AWS_REGION_NAME"] = BEDROCK_CONFIG["region_name"]
+# Configuration for OpenAI (ALTERNATIVE - better structured output support)
+OPENAI_CONFIG = {
+    "llm": "claude-4.5-sonnet",  # Using NASA API Portal with Claude (matches Continue config)
+    "embeddings": "text-embedding-3-small",
+    "temperature": 0.4,
+    "base_url": os.getenv("OPENAI_BASE_URL"),  # Must include /v1 suffix
+}
+
+# Choose which provider to use
+USE_OPENAI = os.getenv("USE_OPENAI", "false").lower() == "true"
+
+if USE_OPENAI:
+    print("🔧 Using OpenAI models")
+    if not os.getenv("OPENAI_API_KEY"):
+        print("❌ Error: OPENAI_API_KEY environment variable is not set.")
+        print("Please set your OpenAI API key:")
+        print("export OPENAI_API_KEY='your_openai_api_key'")
+        exit(1)
+else:
+    print("🔧 Using AWS Bedrock models")
+    # Set AWS region
+    os.environ["AWS_REGION_NAME"] = BEDROCK_CONFIG["region_name"]
 
 
 class EarthdataTestSetGenerator:
@@ -68,26 +96,54 @@ class EarthdataTestSetGenerator:
         Initialize the test set generator
 
         Args:
-            llm_model: Bedrock LLM model ID (defaults to Nova Pro)
-            embedding_model: Bedrock embedding model ID (defaults to Titan)
+            llm_model: LLM model ID (defaults to Nova Pro or GPT-4o depending on USE_OPENAI)
+            embedding_model: Embedding model ID (defaults to Titan or OpenAI depending on USE_OPENAI)
             temperature: LLM temperature for generation
         """
-        llm_model = llm_model or BEDROCK_CONFIG["llm"]
-        embedding_model = embedding_model or BEDROCK_CONFIG["embeddings"]
+        if USE_OPENAI:
+            # OpenAI configuration (or OpenAI-compatible API like NASA API Portal)
+            llm_model = llm_model or OPENAI_CONFIG["llm"]
+            embedding_model = embedding_model or OPENAI_CONFIG["embeddings"]
+            base_url = OPENAI_CONFIG.get("base_url")
 
-        # Initialize LLM for generation
-        self.generator_llm = llm_factory(
-            f"bedrock/{llm_model}",
-            provider="litellm",
-            client=litellm.completion,
-            temperature=temperature,
-        )
+            # Create OpenAI client instance (required by ragas llm_factory)
+            openai_client = OpenAI(
+                api_key=os.getenv("OPENAI_API_KEY"),
+                base_url=base_url,
+            )
 
-        # Initialize embeddings
-        self.generator_embeddings = embedding_factory(
-            "litellm",
-            model=f"bedrock/{embedding_model}",
-        )
+            # Initialize OpenAI-compatible LLM with client
+            # Note: When using custom client, pass model name without provider prefix
+            self.generator_llm = llm_factory(
+                llm_model,  # Just model name, not "openai/model"
+                client=openai_client,
+                temperature=temperature,
+            )
+
+            # Initialize OpenAI embeddings
+            # Note: embeddings may need to use standard OpenAI endpoint even with custom base_url for LLM
+            self.generator_embeddings = embedding_factory(
+                "openai",
+                model=embedding_model,
+            )
+        else:
+            # AWS Bedrock configuration
+            llm_model = llm_model or BEDROCK_CONFIG["llm"]
+            embedding_model = embedding_model or BEDROCK_CONFIG["embeddings"]
+
+            # Initialize Bedrock LLM
+            self.generator_llm = llm_factory(
+                f"bedrock/{llm_model}",
+                provider="litellm",
+                client=litellm.completion,
+                temperature=temperature,
+            )
+
+            # Initialize Bedrock embeddings
+            self.generator_embeddings = embedding_factory(
+                "litellm",
+                model=f"bedrock/{embedding_model}",
+            )
 
         # Initialize knowledge graph
         self.kg = KnowledgeGraph()
@@ -151,34 +207,37 @@ class EarthdataTestSetGenerator:
         ]
         return personas
 
-    def load_collections_from_db(
-        self, limit: int = 100, query: Optional[str] = None
-    ) -> List[dict]:
+    def load_all_entities_from_db(self, limit_per_type: int = 50) -> List[dict]:
         """
-        Load collection documents from PostgreSQL database
+        Load ALL searchable entities from PostgreSQL database.
+
+        This includes collections, variables, citations, instruments, and keywords
+        to match what the RAG system actually searches. This ensures test questions
+        reflect real user queries across all entity types.
 
         Args:
-            limit: Maximum number of collections to load
-            query: Optional SQL WHERE clause to filter collections
+            limit_per_type: Maximum number of entities per type to load
 
         Returns:
-            List of collection dictionaries with title and abstract
+            List of entity dictionaries with title/content
         """
-        print(f"Loading {limit} collections from database...")
+        print(f"Loading entities from database (up to {limit_per_type} per type)...")
 
-        collections = []
+        entities = []
         conn = get_db_connection()
 
         try:
             with conn.cursor() as cur:
-                # Query collections table
-                sql = """
+                # Query 1: Collections (from collections table with enriched metadata)
+                cur.execute(
+                    """
                     SELECT concept_id, metadata, enriched_metadata
                     FROM collections
                     ORDER BY concept_id
                     LIMIT %s
-                """
-                cur.execute(sql, (limit,))
+                """,
+                    (limit_per_type,),
+                )
 
                 for row in cur.fetchall():
                     concept_id = row[0]
@@ -191,42 +250,107 @@ class EarthdataTestSetGenerator:
                         else json.loads(row[2] or "{}")
                     )
 
-                    # Extract title and abstract from metadata
-                    title = metadata.get("ShortName", "")
-                    if "EntryTitle" in metadata:
-                        title = metadata["EntryTitle"]
-
-                    # Try to get abstract from various metadata fields
-                    abstract = metadata.get("Abstract", "")
-                    if not abstract:
-                        abstract = metadata.get("Summary", {}).get("Abstract", "")
-
-                    # Use enriched metadata if available
-                    if enriched:
-                        title = enriched.get("title", title)
-                        abstract = enriched.get("abstract", abstract)
+                    title = (
+                        enriched.get("title")
+                        or metadata.get("EntryTitle")
+                        or metadata.get("ShortName", "")
+                    )
+                    abstract = enriched.get("abstract") or metadata.get("Abstract", "")
 
                     if title and abstract:
-                        collections.append(
+                        entities.append(
                             {
-                                "concept_id": concept_id,
+                                "id": concept_id,
+                                "type": "collection",
                                 "title": title,
-                                "abstract": abstract,
+                                "content": abstract,
                             }
                         )
 
-            print(f"Loaded {len(collections)} collections from database")
+                # Query 2: All other entity types from embeddings table
+                # This matches what search_all_entity_types() queries
+                # Note: Multiple rows per entity (title, abstract, etc.) so we limit total rows
+                cur.execute(
+                    """
+                    SELECT type, external_id, attribute, text_content
+                    FROM embeddings
+                    WHERE type IN ('variable', 'citation', 'instruments', 'platforms', 'sciencekeywords')
+                    ORDER BY type, external_id, attribute
+                    LIMIT %s
+                """,
+                    (
+                        limit_per_type * 10,
+                    ),  # Multiply to account for multiple rows per entity
+                )
+
+                # Group rows by (type, external_id) since title and abstract are in different rows
+                entity_map = {}
+                for row in cur.fetchall():
+                    entity_type = row[0]
+                    external_id = row[1]
+                    attribute = row[2]
+                    text_content = row[3]
+
+                    key = (entity_type, external_id)
+                    if key not in entity_map:
+                        entity_map[key] = {
+                            "type": entity_type,
+                            "id": external_id,
+                            "attributes": {},
+                        }
+
+                    if text_content:
+                        entity_map[key]["attributes"][attribute] = text_content
+
+                # Convert grouped entities to list format
+                for (entity_type, external_id), data in entity_map.items():
+                    attrs = data["attributes"]
+
+                    # Try to get title from 'title' attribute, fallback to first available
+                    title = (
+                        attrs.get("title")
+                        or attrs.get("name")
+                        or next(iter(attrs.values()), "")[:100]
+                    )
+
+                    # Try to get content from 'abstract' attribute, fallback to combining all attributes
+                    content = attrs.get("abstract") or attrs.get("description")
+                    if not content:
+                        # Combine all attributes as content if no abstract
+                        content = "\n\n".join(
+                            f"{k}: {v}" for k, v in attrs.items() if k != "title"
+                        )
+
+                    if title and content:
+                        entities.append(
+                            {
+                                "id": external_id,
+                                "type": entity_type,
+                                "title": title,
+                                "content": content,
+                            }
+                        )
+
+            print(f"Loaded {len(entities)} total entities from database")
+
+            # Print breakdown by type
+            type_counts = {}
+            for e in entities:
+                t = e["type"]
+                type_counts[t] = type_counts.get(t, 0) + 1
+            print(f"Entity breakdown: {type_counts}")
 
         except Exception as e:
-            print(f"Error loading collections from database: {e}")
+            print(f"Error loading entities from database: {e}")
             print("Falling back to placeholder data...")
 
-            # Fallback to placeholder collections
-            collections = [
+            # Fallback to placeholder data
+            entities = [
                 {
-                    "concept_id": "C1234567890-ORNL_DAAC",
+                    "id": "C1234567890-ORNL_DAAC",
+                    "type": "collection",
                     "title": "MODIS/Terra Sea Surface Temperature (SST) Daily L3 Global 4km",
-                    "abstract": (
+                    "content": (
                         "This dataset provides daily sea surface temperature measurements "
                         "from the MODIS instrument aboard NASA's Terra satellite. Data is "
                         "provided at 4km spatial resolution globally. Temporal coverage spans "
@@ -235,56 +359,39 @@ class EarthdataTestSetGenerator:
                     ),
                 },
                 {
-                    "concept_id": "C9876543210-LAADS",
-                    "title": "VIIRS/NPP Land Surface Temperature Daily L3 Global 1km",
-                    "abstract": (
-                        "Daily land surface temperature from the Visible Infrared Imaging "
-                        "Radiometer Suite (VIIRS) on the Suomi NPP satellite. The dataset "
-                        "offers 1km resolution globally and includes quality flags. Data "
-                        "available from 2012 onwards."
-                    ),
+                    "id": "V1234567890-VARIABLE",
+                    "type": "variable",
+                    "title": "Sea Surface Temperature",
+                    "content": "Sea surface temperature measured in Celsius from satellite thermal infrared sensors.",
                 },
             ]
 
         finally:
             conn.close()
 
-        return collections
+        return entities
 
-    def load_collections_from_file(self, filepath: str) -> List[dict]:
+    def create_knowledge_graph(self, entities: List[dict]) -> KnowledgeGraph:
         """
-        Load collection documents from a JSON file
+        Create a knowledge graph from all entity types
 
         Args:
-            filepath: Path to JSON file containing collections
+            entities: List of entity dictionaries with id, type, title, content
 
         Returns:
-            List of collection dictionaries
+            Knowledge graph with document nodes for all entities
         """
-        with open(filepath, "r") as f:
-            data = json.load(f)
-            return data.get("collections", [])
+        print(f"Creating knowledge graph from {len(entities)} entities...")
 
-    def create_knowledge_graph(self, collections: List[dict]) -> KnowledgeGraph:
-        """
-        Create a knowledge graph from collection documents
-
-        Args:
-            collections: List of collection dictionaries with title and abstract
-
-        Returns:
-            Knowledge graph with document nodes
-        """
-        print(f"Creating knowledge graph from {len(collections)} collections...")
-
-        for collection in collections:
-            # Create document content combining title and abstract
-            page_content = f"# {collection['title']}\n\n{collection['abstract']}"
+        for entity in entities:
+            # Create document content combining title and content
+            page_content = f"# {entity['title']}\n\n{entity['content']}"
 
             # Create metadata
             metadata = {
-                "concept_id": collection.get("concept_id", ""),
-                "title": collection.get("title", ""),
+                "id": entity.get("id", ""),
+                "type": entity.get("type", ""),
+                "title": entity.get("title", ""),
                 "source": "cmr",
             }
 
@@ -302,30 +409,70 @@ class EarthdataTestSetGenerator:
         print(f"Knowledge graph created: {self.kg}")
         return self.kg
 
-    def apply_transforms(self):
+    def enrich_knowledge_graph(self):
         """
-        Apply transforms to enrich the knowledge graph
+        Apply transforms to enrich the knowledge graph and build relationships
 
-        Transforms:
-        - KeyphrasesExtractor: Extract key concepts and themes
+        This follows the Ragas knowledge graph approach:
+        1. Extract information from nodes (entities, keyphrases)
+        2. Build relationships between nodes based on extracted properties
+
+        The relationship building enables multi-hop query generation by connecting
+        related documents through shared entities and concepts.
 
         Note: HeadlinesExtractor and HeadlineSplitter are disabled due to
         compatibility issues with AWS Bedrock Nova model's structured output.
         """
-        print("Applying transforms to knowledge graph...")
+        print("Enriching knowledge graph with extractors and relationship builders...")
 
+        # Step 1: Extract information from nodes
+        # These extractors add properties to nodes that can be used for relationship building
         headline_extractor = HeadlinesExtractor(llm=self.generator_llm, max_num=20)
         headline_splitter = HeadlineSplitter(max_tokens=1500)
+        topic_extractor = TopicDescriptionExtractor(llm=self.generator_llm)
+        # ner_extractor = NERExtractor(llm=self.generator_llm)
         keyphrase_extractor = KeyphrasesExtractor(llm=self.generator_llm)
 
+        # Step 2: Build relationships between nodes based on extracted properties
+        # This establishes connections between documents that share similar entities/concepts
+        topic_similarity_builder = JaccardSimilarityBuilder(
+            property_name="topic_description",
+            new_property_name="entity_jaccard_similarity",
+            threshold=0.1,  # Minimum similarity threshold (0.1 = 10% overlap)
+        )
+
+        keyphrase_similarity_builder = JaccardSimilarityBuilder(
+            property_name="keyphrases",
+            new_property_name="keyphrase_similarity",
+            threshold=0.1,
+        )
+
         transforms = [
-            headline_extractor,
-            headline_splitter,
-            keyphrase_extractor,
+            # headline_extractor,  # DISABLED: Nova returns {} instead of required JSON
+            # headline_splitter,
+            Parallel(
+                topic_extractor,  # Testing TopicDescriptionExtractor
+                # ner_extractor,  # Alternative: NERExtractor
+                # keyphrase_extractor,  # DISABLED: Nova structured output issue
+            ),
+            # keyphrase_extractor,  # DISABLED: Causes validation error - Nova returns {}
+            # topic_extractor,  # DISABLED: Using TopicDescriptionExtractor instead of NER
+            # ner_extractor,  # DISABLED: Nova structured output issue
+            topic_similarity_builder,  # DISABLED: Needs entities from NERExtractor
+            # keyphrase_similarity_builder,
         ]
 
         apply_transforms(self.kg, transforms=transforms)
-        print("Transforms applied successfully")
+
+        # Print statistics about the enriched graph
+        num_nodes = len(self.kg.nodes)
+        num_relationships = len(self.kg.relationships)
+        print(f"✓ Knowledge graph enriched:")
+        print(f"  - {num_nodes} nodes")
+        print(f"  - {num_relationships} relationships established")
+
+        if num_relationships > 0:
+            print(f"  - Enables multi-hop query generation across connected documents")
 
     def generate_testset(
         self,
@@ -345,13 +492,14 @@ class EarthdataTestSetGenerator:
         print(f"Generating test set with {testset_size} questions...")
 
         # Configure query distribution using synthesizers
-        # Only using keyphrases since headlines are disabled
+        # SingleHopSpecificQuerySynthesizer generates specific questions based on node properties
         query_distribution = [
             (
                 SingleHopSpecificQuerySynthesizer(
-                    llm=self.generator_llm, property_name="keyphrases"
+                    llm=self.generator_llm,
+                    property_name="page_content",  # Use page_content which exists on all nodes
                 ),
-                1.0,  # 100% keyphrase-based queries
+                1.0,  # 100% single-hop specific queries
             ),
         ]
 
@@ -363,7 +511,8 @@ class EarthdataTestSetGenerator:
             persona_list=self.personas,
         )
 
-        # Generate test set
+        # Generate test set using generate_samples instead of generate
+        print("Generating scenarios and samples...")
         testset = generator.generate(
             testset_size=testset_size,
             query_distribution=query_distribution,
@@ -418,33 +567,46 @@ def main():
     Main function to generate test set
 
     Usage:
+        # Using AWS Bedrock (default):
+        python test_set_generator.py
+
+        # Using OpenAI (set environment variable):
+        export USE_OPENAI=true
+        export OPENAI_API_KEY='your-api-key'
         python test_set_generator.py
     """
     print("=" * 70)
     print("Earthdata MCP Test Set Generator")
     print("=" * 70)
 
+    if USE_OPENAI:
+        print(f"Provider: OpenAI")
+        print(f"LLM: {OPENAI_CONFIG['llm']}")
+        print(f"Embeddings: {OPENAI_CONFIG['embeddings']}")
+    else:
+        print(f"Provider: AWS Bedrock")
+        print(f"LLM: {BEDROCK_CONFIG['llm']}")
+        print(f"Embeddings: {BEDROCK_CONFIG['embeddings']}")
+    print("=" * 70)
+
     # Initialize generator
-    generator = EarthdataTestSetGenerator()
+    generator = EarthdataTestSetGenerator(temperature=0.01)
 
-    # Option 1: Load collections from database
-    collections = generator.load_collections_from_db(limit=50)
-
-    # Option 2: Load collections from file
-    # collections = generator.load_collections_from_file("collections.json")
+    # Load all entity types from database (collections, variables, keywords, etc.)
+    entities = generator.load_all_entities_from_db(limit_per_type=5)
 
     # Create knowledge graph
-    generator.create_knowledge_graph(collections)
+    generator.create_knowledge_graph(entities)
 
     # Apply transforms to enrich the graph
-    generator.apply_transforms()
+    generator.enrich_knowledge_graph()
 
     # Generate test set
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = f"evals/datasets/earthdata_synthetic_{timestamp}.json"
 
     test_data = generator.generate_testset(
-        testset_size=20,  # Generate 20 test questions
+        testset_size=5,  # Generate 20 test questions
         output_path=output_path,
     )
 
