@@ -151,6 +151,14 @@ def validate_granule_availability(
     Returns:
         list[CollectionMatch] with granule_count > 0
     """
+    # Only validate if constraints exist - without them, assume exploratory search
+    if not temporal_start and not spatial_wkt:
+        logger.info("Skipping granule validation - no spatial or temporal constraints")
+        return collections
+
+    if not collections:
+        return collections
+
     cache = get_cache_client()
 
     failures = 0

@@ -126,22 +126,21 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
         trace_update(metadata={"hydrated_collections_count": len(collections)})
 
         # === PHASE 4.5: Granule Validation ===
-        all_filtered_by_granule_validation = False
-        if collections:
-            collections_before_granule_validation = len(collections)
+        collections_before_granule_validation = len(collections)
 
-            collections = validate_granule_availability(
-                collections,
-                temporal.start_date,
-                temporal.end_date,
-                spatial.wkt_geometry,
-            )
+        collections = validate_granule_availability(
+            collections,
+            temporal.start_date,
+            temporal.end_date,
+            spatial.wkt_geometry,
+        )
 
-            # Explicitly track if granule validation removed ALL collections
-            all_filtered_by_granule_validation = (
-                collections_before_granule_validation > 0 and not collections
-            )
+        # Track if granule validation removed ALL collections
+        all_filtered_by_granule_validation = (
+            collections_before_granule_validation > 0 and not collections
+        )
 
+        if collections_before_granule_validation != len(collections):
             trace_update(
                 metadata={
                     "collections_before_granule_validation": collections_before_granule_validation,

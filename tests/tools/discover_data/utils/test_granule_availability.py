@@ -171,6 +171,29 @@ class TestGetCacheTTL:
 class TestValidateGranuleAvailability:
     """Tests for validate_granule_availability function."""
 
+    def test_skips_validation_without_constraints(self, monkeypatch):
+        """Test that validation is skipped when no spatial or temporal constraints exist."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1234-PROVIDER",
+                title="Test collection",
+                similarity_score=0.9,
+                match_type="direct",
+            )
+        ]
+
+        mock_count = Mock()
+        monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
+
+        # Call without constraints
+        result = granule_availability.validate_granule_availability(collections, None, None, None)
+
+        # Should return all collections unchanged
+        assert len(result) == 1
+        assert result[0].concept_id == "C1234-PROVIDER"
+        # Should not have called count_granules
+        mock_count.assert_not_called()
+
     def test_filters_collections_with_zero_granules(self, monkeypatch):
         """Test that collections with zero granules are filtered out."""
         collections = [
@@ -196,7 +219,9 @@ class TestValidateGranuleAvailability:
         mock_count = Mock(side_effect=[(100, 10), (0, 5)])
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        result = granule_availability.validate_granule_availability(collections, None, None, None)
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
 
         assert len(result) == 1
         assert result[0].concept_id == "C1234-PROVIDER"
@@ -217,7 +242,9 @@ class TestValidateGranuleAvailability:
         mock_cache.get.return_value = '{"count": 50, "timestamp": 1234567890}'
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
-        result = granule_availability.validate_granule_availability(collections, None, None, None)
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
 
         assert len(result) == 1
         assert result[0].granule_count == 50
@@ -249,7 +276,9 @@ class TestValidateGranuleAvailability:
         mock_count = Mock(return_value=(100, 10))
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        granule_availability.validate_granule_availability(collections, None, None, None)
+        granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
 
         # Check that cache.set was called with correct TTLs
         set_calls = mock_cache.set.call_args_list
@@ -284,7 +313,9 @@ class TestValidateGranuleAvailability:
         mock_count = Mock(side_effect=[(100, 10), CMRError("Failed")])
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        result = granule_availability.validate_granule_availability(collections, None, None, None)
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
 
         # Should return the one that succeeded
         assert len(result) == 1
@@ -309,7 +340,9 @@ class TestValidateGranuleAvailability:
         mock_count = Mock(return_value=(100, 10))
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        result = granule_availability.validate_granule_availability(collections, None, None, None)
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
 
         # All should succeed
         assert len(result) == 10
