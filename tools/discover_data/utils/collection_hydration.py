@@ -36,7 +36,8 @@ def hydrate_collections(
     Fetches metadata from the collections table and uses resolution parsing
     to populate resolution, temporal_coverage, platforms, and instruments.
 
-    Applies temporal and spatial filtering at the database level.
+    Applies temporal and spatial filtering at the database level using the
+    provided temporal and spatial constraints.
 
     Args:
         ranked_results: Scored collection results from embedding search/scoring
@@ -45,7 +46,7 @@ def hydrate_collections(
         spatial_wkt: Optional WKT geometry - exclude collections that don't intersect
 
     Returns:
-        List of fully hydrated CollectionMatch objects (filtered by constraints)
+        List of hydrated CollectionMatch objects that pass temporal/spatial filters
     """
     # Filter to collection results only
     collection_results = [r for r in ranked_results if r.get("type") == "collection"]

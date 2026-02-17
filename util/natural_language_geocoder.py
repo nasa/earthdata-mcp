@@ -15,6 +15,7 @@ from natural_language_geocoding import extract_geometry_from_text
 from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
     GeocodeIndexPlaceLookup,
 )
+from shapely.ops import orient
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
     Convert Shapely geometry to WKT format for spatial queries.
 
     The geocoder and simplify_geometry both return Shapely BaseGeometry objects.
-    This converts them to WKT strings with normalized formatting for database queries.
+    This converts them to WKT strings with normalized formatting for database and CMR queries.
 
     Args:
         geometry: Shapely geometry object (Point, Polygon, MultiPolygon, etc.)
@@ -120,6 +121,10 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
             raise ValueError("Geometry is empty after buffer(0) repair")
         if not geometry.is_valid:
             raise ValueError("Geometry is invalid and could not be repaired")
+
+    if geometry.geom_type in ("Polygon", "MultiPolygon"):
+        # Orient with sign=1.0 ensures counter-clockwise exterior rings (CMR requirement)
+        geometry = orient(geometry, sign=1.0)
 
     # Convert to WKT
     return geometry.wkt

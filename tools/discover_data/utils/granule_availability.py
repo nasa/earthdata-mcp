@@ -55,7 +55,11 @@ def _count_granules(
 
     # Add temporal constraint if provided
     if temporal_start is not None and temporal_end is not None:
-        params["temporal"] = f"{temporal_start.isoformat()}Z,{temporal_end.isoformat()}Z"
+        # Format as ISO 8601 with Z suffix (CMR requires this format)
+        # Replace timezone offset with Z to avoid "+00:00Z" which CMR rejects
+        start_str = temporal_start.isoformat().replace("+00:00", "Z")
+        end_str = temporal_end.isoformat().replace("+00:00", "Z")
+        params["temporal"] = f"{start_str},{end_str}"
 
     # Prepare shapefile if spatial constraint provided
     files = None
@@ -85,11 +89,7 @@ def _count_granules(
         return 0, 0
 
     except CMRError as e:
-        logger.error(
-            "CMR granule count failed for %s: %s",
-            collection_concept_id,
-            e,
-        )
+        logger.error("CMR granule count failed for %s: %s", collection_concept_id, e)
         raise
 
 
@@ -182,8 +182,7 @@ def validate_granule_availability(
     failures = 0
     zero_granule_count = 0
 
-    # Check cache first for all collections
-    futures_to_collection = {}
+    pending_validations = {}
     with ThreadPoolExecutor(max_workers=GRANULE_VALIDATION_MAX_WORKERS) as executor:
         for collection in collections:
             cache_key = _build_cache_key(
@@ -200,22 +199,22 @@ def validate_granule_availability(
                 collection.granule_count = cached_data["count"]
             else:
                 # Submit for parallel validation
-                future = executor.submit(
+                task = executor.submit(
                     _validate_single_collection,
                     collection,
                     temporal_start,
                     temporal_end,
                     spatial_wkt,
                 )
-                futures_to_collection[future] = collection
+                pending_validations[task] = collection
 
         # Process results as they complete (scale timeout with collection count)
-        timeout = max(60, len(futures_to_collection) * 2)
+        timeout = max(60, len(pending_validations) * 2)
         try:
-            for future in as_completed(futures_to_collection, timeout=timeout):
-                collection = futures_to_collection[future]
+            for task in as_completed(pending_validations, timeout=timeout):
+                collection = pending_validations[task]
                 try:
-                    hits_count = future.result()
+                    hits_count, took_ms = task.result()
                     collection.granule_count = hits_count
 
                     # Cache the result
@@ -246,7 +245,7 @@ def validate_granule_availability(
 
         except TimeoutError:
             logger.warning("Granule availability check timed out for some collections")
-            failures += len(futures_to_collection)
+            failures += len(pending_validations)
 
     # Filter out collections with zero granules
     validated = []
