@@ -67,11 +67,9 @@ class TestGetDatabaseCredentials:
             "SecretString": json.dumps({"url": "postgresql://user:pass@db.example.com:5432/mydb"})
         }
 
-        # Call twice
         result1 = get_database_credentials()
         result2 = get_database_credentials()
 
-        # Should only call Secrets Manager once (cached)
         assert mock_client.get_secret_value.call_count == 1
         assert result1 == result2
 
@@ -258,7 +256,6 @@ class TestGetDbConnection:
             "SecretString": json.dumps({"url": "postgresql://user:pass@db.example.com:5432/mydb"})
         }
 
-        # Create a healthy connection
         mock_conn = Mock()
         mock_conn.closed = False
         mock_transaction = Mock()
@@ -278,7 +275,6 @@ class TestGetDbConnection:
 
         conn = get_db_connection()
 
-        # Should not create a new connection
         mock_connect.assert_not_called()
         assert conn == mock_conn
 
@@ -300,7 +296,6 @@ class TestGetDbConnection:
         old_conn = Mock()
         old_conn.closed = True
 
-        # New healthy connection
         new_conn = Mock()
         new_conn.closed = False
         mock_connect = Mock(return_value=new_conn)
@@ -316,7 +311,6 @@ class TestGetDbConnection:
 
         conn = get_db_connection()
 
-        # Should close old connection and create new one
         old_conn.close.assert_called_once()
         mock_connect.assert_called_once()
         mock_register.assert_called_once_with(new_conn)
@@ -354,11 +348,9 @@ class TestGetDbConnection:
 
         conn = get_db_connection()
 
-        # Should connect with localhost instead of prod-db.example.com
         mock_connect.assert_called_once_with(
             "postgresql://user:pass@localhost:5432/mydb", autocommit=True
         )
-        # Check that DB_HOST override was logged
         log_messages = [str(call) for call in mock_logger.info.call_args_list]
         assert any("DB_HOST" in msg for msg in log_messages)
         assert conn == mock_conn

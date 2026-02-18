@@ -36,8 +36,7 @@ def hydrate_collections(
     Fetches metadata from the collections table and uses resolution parsing
     to populate resolution, temporal_coverage, platforms, and instruments.
 
-    Applies temporal and spatial filtering at the database level using the
-    provided temporal and spatial constraints.
+    Applies temporal and spatial filtering at the database level.
 
     Args:
         ranked_results: Scored collection results from embedding search/scoring

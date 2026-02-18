@@ -20,7 +20,7 @@ from shapely.geometry import mapping
 
 from tools.models.output_model import CollectionMatch
 from util.cache import get_cache_client
-from util.cmr.client import CMRError, search_cmr
+from util.cmr.client import search_cmr
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +53,17 @@ def _count_granules(
     """
     params = {"collection_concept_id": collection_concept_id, "page_size": 0}
 
-    # Add temporal constraint if provided
-    if temporal_start is not None and temporal_end is not None:
+    if temporal_start is not None or temporal_end is not None:
         # Format as ISO 8601 with Z suffix (CMR requires this format)
         # Replace timezone offset with Z to avoid "+00:00Z" which CMR rejects
-        start_str = temporal_start.isoformat().replace("+00:00", "Z")
-        end_str = temporal_end.isoformat().replace("+00:00", "Z")
+        start_str = (
+            temporal_start.isoformat().replace("+00:00", "Z") if temporal_start is not None else ""
+        )
+        end_str = (
+            temporal_end.isoformat().replace("+00:00", "Z") if temporal_end is not None else ""
+        )
         params["temporal"] = f"{start_str},{end_str}"
 
-    # Prepare shapefile if spatial constraint provided
     files = None
     if spatial_wkt:
         geom = shapely_wkt.loads(spatial_wkt)
@@ -72,25 +74,19 @@ def _count_granules(
         file_obj = BytesIO(json.dumps(geojson).encode("utf-8"))
         files = {"shapefile": ("shapefile", file_obj, "application/geo+json")}
 
-    # Use search_cmr to make the request
-    try:
-        # Get first (and only) page - we only need the count, not the items
-        for page in search_cmr(
-            concept_type="granule",
-            search_params=params,
-            page_size=0,
-            method="POST",
-            files=files,
-        ):
-            return page.total_hits, page.took_ms
+    # page_size=0: CMR only populates total_hits, not items — one response page is all we need
+    for page in search_cmr(
+        concept_type="granule",
+        search_params=params,
+        page_size=0,
+        method="POST",
+        files=files,
+    ):
+        return page.total_hits, page.took_ms
 
-        # If no pages returned (shouldn't happen), return 0
-        logger.warning("No response from CMR for %s", collection_concept_id)
-        return 0, 0
-
-    except CMRError as e:
-        logger.error("CMR granule count failed for %s: %s", collection_concept_id, e)
-        raise
+    # If no pages returned (shouldn't happen), return 0
+    logger.warning("No response from CMR for %s", collection_concept_id)
+    return 0, 0
 
 
 def _build_cache_key(
@@ -149,10 +145,10 @@ def validate_granule_availability(
         spatial_wkt: Optional WKT geometry string for spatial constraint
 
     Returns:
-        list[CollectionMatch] with granule_count > 0
+        list[CollectionMatch] where granule_count > 0 or granule_count is None (validation failed)
     """
     # Only validate if constraints exist - without them, assume exploratory search
-    if not temporal_start and not spatial_wkt:
+    if not (temporal_start or temporal_end) and not spatial_wkt:
         logger.info("Skipping granule validation - no spatial or temporal constraints")
         return collections
 
@@ -174,13 +170,11 @@ def validate_granule_availability(
                 spatial_wkt,
             )
 
-            # Try cache first
             cached_result = cache.get(cache_key)
             if cached_result:
                 cached_data = json.loads(cached_result)
                 collection.granule_count = cached_data["count"]
             else:
-                # Submit for parallel validation
                 task = executor.submit(
                     _count_granules,
                     collection.concept_id,
@@ -196,7 +190,6 @@ def validate_granule_availability(
                 hits_count, _ = task.result()
                 collection.granule_count = hits_count
 
-                # Cache the result
                 cache_key = _build_cache_key(
                     collection.concept_id,
                     temporal_start,
@@ -210,25 +203,23 @@ def validate_granule_availability(
                     ttl=ttl,
                 )
 
-            except Exception as e:
+            except Exception:
                 logger.warning(
-                    "Granule validation failed for %s: %s (type: %s)",
+                    "Granule validation failed for %s",
                     collection.concept_id,
-                    e,
-                    type(e).__name__,
                     exc_info=True,
                 )
                 failures += 1
-                # Keep collection with None granule_count
                 collection.granule_count = None
-            failures += len(pending_validations)
 
-    # Filter out collections with zero granules
     validated = []
     for collection in collections:
-        if collection.granule_count is not None and collection.granule_count > 0:
+        if collection.granule_count is None:
+            # CMR failure — keep rather than silently drop
             validated.append(collection)
-        elif not collection.granule_count:
+        elif collection.granule_count > 0:
+            validated.append(collection)
+        else:
             zero_granule_count += 1
 
     if zero_granule_count > 0 or failures > 0:

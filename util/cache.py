@@ -161,7 +161,6 @@ class RedisCache(CacheClient):
                     socket_connect_timeout=2,
                     socket_timeout=2,
                 )
-                # Test connection
                 self.client.ping()
                 logger.info(
                     "Successfully connected to local Redis at %s:%s", redis_host, redis_port

@@ -177,20 +177,17 @@ class TestRedisCacheInitialization:
 
         client = RedisCache()
 
-        # Verify Redis client was created with local development parameters
         mock_redis_class.assert_called_once_with(
             host="localhost",
             port=6379,  # Default port
-            password=None,  # No password by default
+            password=None,
             ssl=False,  # Local development doesn't use SSL
             socket_connect_timeout=2,
             socket_timeout=2,
         )
 
-        # Verify connection test was performed
         mock_client.ping.assert_called_once()
 
-        # Verify logging
         assert mock_logger.info.call_count == 2
         assert (
             mock_logger.info.call_args_list[0][0][0]
@@ -198,7 +195,6 @@ class TestRedisCacheInitialization:
         )
         assert "Successfully connected to local Redis" in mock_logger.info.call_args_list[1][0][0]
 
-        # Verify client is available
         assert client.client is not None
 
     def test_local_redis_with_custom_port_and_password(self, monkeypatch):
@@ -215,7 +211,6 @@ class TestRedisCacheInitialization:
 
         client = RedisCache()
 
-        # Verify Redis client was created with custom parameters
         mock_redis_class.assert_called_once_with(
             host="localhost",
             port=6380,
@@ -273,11 +268,9 @@ class TestRedisCacheInitialization:
 
         client = RedisCache()
 
-        # Verify warning was logged
         mock_logger.warning.assert_called_once()
         assert "Failed to connect to local Redis" in mock_logger.warning.call_args[0][0]
 
-        # Verify client is None (graceful degradation)
         assert client.client is None
 
 

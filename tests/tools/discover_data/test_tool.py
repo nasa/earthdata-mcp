@@ -234,7 +234,6 @@ def test_discover_data_disambiguation_path(monkeypatch):
     monkeypatch.setattr(tool, "should_expand_query", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
 
-    # Mock granule validation to return collections with granule counts
     def mock_validate_granules(collections, *_args, **_kwargs):
         for col in collections:
             col.granule_count = 100
@@ -313,7 +312,6 @@ def test_discover_data_with_disambiguation_questions(monkeypatch):
     ]
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (True, disamb_questions))
 
-    # Mock granule validation to return collections with granule counts
     def mock_validate_granules(collections, *_args, **_kwargs):
         for col in collections:
             col.granule_count = 100
@@ -440,7 +438,6 @@ def test_discover_data_with_langfuse(monkeypatch):
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols, *a, **k: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
-    # Mock granule validation to return collections with granule counts
     def mock_validate_granules(collections, *_args, **_kwargs):
         for col in collections:
             col.granule_count = 100
@@ -663,7 +660,6 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
 
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "Multi-entity search")
 
-    # Mock granule validation to return collections with granule counts
     def mock_validate_granules(collections, *_args, **_kwargs):
         for col in collections:
             col.granule_count = 100
@@ -812,7 +808,6 @@ def test_discover_data_with_granule_validation(monkeypatch):
 
     # Mock validate_granule_availability to return only C1 (C2 filtered out)
     def mock_validate(cols, _temporal, _spatial, _wkt):
-        # Only C1 has granules
         return [c for c in cols if c.concept_id == "C1"]
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate)
@@ -820,7 +815,6 @@ def test_discover_data_with_granule_validation(monkeypatch):
     query = DiscoverDataInput(query="ocean data")
     output = tool.discover_data(query)
 
-    # Should return only one collection
     assert output["status"] == "collections_found"
     assert len(output["collections"]) == 1
     assert output["collections"][0]["concept_id"] == "C1"
@@ -860,12 +854,10 @@ def test_discover_data_all_filtered_by_granule_validation(monkeypatch):
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
 
-    # Mock validate_granule_availability to return empty list (all filtered)
     monkeypatch.setattr(tool, "validate_granule_availability", lambda *args: [])
 
     query = DiscoverDataInput(query="ocean data")
     output = tool.discover_data(query)
 
-    # Should return NO_GRANULES_IN_CONSTRAINTS status
     assert output["status"] == "no_granules_in_constraints"
     assert not output["collections"]

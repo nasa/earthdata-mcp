@@ -66,6 +66,58 @@ class TestCountGranules:
         # Should format with Z suffix (not +00:00)
         assert params["temporal"] == "2023-01-01T00:00:00Z,2023-12-31T00:00:00Z"
 
+    def test_count_granules_with_start_only_temporal(self, monkeypatch):
+        """Test that only temporal_start produces an open-ended end range."""
+        mock_response = CMRSearchResponse(
+            items=[],
+            total_hits=80,
+            took_ms=20,
+            search_after=None,
+            page_size=0,
+        )
+        start = datetime(2020, 6, 1, tzinfo=UTC)
+
+        mock_search = Mock(return_value=iter([mock_response]))
+        monkeypatch.setattr(granule_availability, "search_cmr", mock_search)
+
+        hits, _ = granule_availability._count_granules(
+            "C1234-PROVIDER",
+            temporal_start=start,
+        )
+
+        assert hits == 80
+        call_args = mock_search.call_args
+        params = call_args[1]["search_params"]
+        assert "temporal" in params
+        # Start-only: comma present with empty end
+        assert params["temporal"] == "2020-06-01T00:00:00Z,"
+
+    def test_count_granules_with_end_only_temporal(self, monkeypatch):
+        """Test that only temporal_end produces an open-ended start range."""
+        mock_response = CMRSearchResponse(
+            items=[],
+            total_hits=60,
+            took_ms=15,
+            search_after=None,
+            page_size=0,
+        )
+        end = datetime(2021, 3, 31, tzinfo=UTC)
+
+        mock_search = Mock(return_value=iter([mock_response]))
+        monkeypatch.setattr(granule_availability, "search_cmr", mock_search)
+
+        hits, _ = granule_availability._count_granules(
+            "C1234-PROVIDER",
+            temporal_end=end,
+        )
+
+        assert hits == 60
+        call_args = mock_search.call_args
+        params = call_args[1]["search_params"]
+        assert "temporal" in params
+        # End-only: comma present with empty start
+        assert params["temporal"] == ",2021-03-31T00:00:00Z"
+
     def test_count_granules_with_spatial_constraint(self, monkeypatch):
         """Test counting granules with spatial constraints."""
         mock_response = CMRSearchResponse(
@@ -88,7 +140,6 @@ class TestCountGranules:
         assert hits == 25
         assert took == 45
         call_args = mock_search.call_args
-        # Should use POST method with files when spatial constraint provided
         assert call_args[1]["method"] == "POST"
         assert call_args[1]["files"] is not None
 
@@ -185,14 +236,37 @@ class TestValidateGranuleAvailability:
         mock_count = Mock()
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        # Call without constraints
         result = granule_availability.validate_granule_availability(collections, None, None, None)
 
-        # Should return all collections unchanged
         assert len(result) == 1
         assert result[0].concept_id == "C1234-PROVIDER"
-        # Should not have called count_granules
         mock_count.assert_not_called()
+
+    def test_skips_validation_only_when_no_temporal_and_no_spatial(self, monkeypatch):
+        """Test that validation is only skipped when BOTH temporal bounds AND spatial are absent."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1234-PROVIDER",
+                title="Test collection",
+                similarity_score=0.9,
+                match_type="direct",
+            )
+        ]
+
+        mock_cache = Mock()
+        mock_cache.get.return_value = None
+        monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
+
+        mock_count = Mock(return_value=(10, 5))
+        monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
+
+        # Only temporal_end provided (no temporal_start, no spatial)
+        result = granule_availability.validate_granule_availability(
+            collections, None, datetime(2023, 12, 31, tzinfo=UTC), None
+        )
+
+        mock_count.assert_called_once()
+        assert result[0].granule_count == 10
 
     def test_filters_collections_with_zero_granules(self, monkeypatch):
         """Test that collections with zero granules are filtered out."""
@@ -215,9 +289,10 @@ class TestValidateGranuleAvailability:
         mock_cache.get.return_value = None
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
-        # First collection has granules, second doesn't
-        mock_count = Mock(side_effect=[(100, 10), (0, 5)])
-        monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
+        def _count_zero(collection_concept_id, *_):
+            return {"C1234-PROVIDER": (100, 10), "C5678-PROVIDER": (0, 5)}[collection_concept_id]
+
+        monkeypatch.setattr(granule_availability, "_count_granules", _count_zero)
 
         result = granule_availability.validate_granule_availability(
             collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
@@ -250,6 +325,27 @@ class TestValidateGranuleAvailability:
         assert result[0].granule_count == 50
         mock_cache.get.assert_called_once()
 
+    def test_cached_zero_granule_collection_excluded(self, monkeypatch):
+        """Test that a cached granule count of 0 still excludes the collection."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1234-PROVIDER",
+                title="Zero granules (cached)",
+                similarity_score=0.9,
+                match_type="direct",
+            ),
+        ]
+
+        mock_cache = Mock()
+        mock_cache.get.return_value = '{"count": 0, "timestamp": 1234567890}'
+        monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
+
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
+
+        assert len(result) == 0
+
     def test_caches_results_with_correct_ttl(self, monkeypatch):
         """Test that results are cached with appropriate TTL based on is_ongoing."""
         collections = [
@@ -280,13 +376,12 @@ class TestValidateGranuleAvailability:
             collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
         )
 
-        # Check that cache.set was called with correct TTLs
+        # Use a set — thread completion order via as_completed is non-deterministic
         set_calls = mock_cache.set.call_args_list
         assert len(set_calls) == 2
-        # Ongoing collection should have 900s TTL
-        assert set_calls[0][1]["ttl"] == 900
-        # Completed collection should have 86400s TTL
-        assert set_calls[1][1]["ttl"] == 86400
+        actual_ttls = {call[1]["ttl"] for call in set_calls}
+        # 900s for ongoing, 86400s for completed
+        assert actual_ttls == {900, 86400}
 
     def test_handles_validation_failures_gracefully(self, monkeypatch):
         """Test that validation failures don't crash the entire process."""
@@ -309,17 +404,134 @@ class TestValidateGranuleAvailability:
         mock_cache.get.return_value = None
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
-        # First succeeds, second fails
-        mock_count = Mock(side_effect=[(100, 10), CMRError("Failed")])
+        def _count_fail(collection_concept_id, *_):
+            if collection_concept_id == "C5678-PROVIDER":
+                raise CMRError("Failed")
+            return (100, 10)
+
+        monkeypatch.setattr(granule_availability, "_count_granules", _count_fail)
+
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
+
+        # Failed collections are kept (granule_count=None) rather than silently dropped;
+        # both collections should be present in the result.
+        assert len(result) == 2
+        result_by_id = {c.concept_id: c for c in result}
+        assert result_by_id["C1234-PROVIDER"].granule_count == 100
+        assert result_by_id["C5678-PROVIDER"].granule_count is None
+
+    def test_partial_failures_preserve_remaining_collections(self, monkeypatch):
+        """Test that a CMR failure for one collection does not affect others; all collections
+        are returned with successful ones keeping their counts and failed ones receiving None."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1234-PROVIDER",
+                title="Good collection",
+                similarity_score=0.9,
+                match_type="direct",
+            ),
+            CollectionMatch(
+                concept_id="C5678-PROVIDER",
+                title="Also good collection",
+                similarity_score=0.8,
+                match_type="direct",
+            ),
+            CollectionMatch(
+                concept_id="C9999-PROVIDER",
+                title="Error collection",
+                similarity_score=0.7,
+                match_type="direct",
+            ),
+        ]
+
+        mock_cache = Mock()
+        mock_cache.get.return_value = None
+        monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
+
+        def _count_two_pass(collection_concept_id, *_):
+            if collection_concept_id == "C9999-PROVIDER":
+                raise CMRError("Failed")
+            return {"C1234-PROVIDER": (100, 10), "C5678-PROVIDER": (50, 5)}[collection_concept_id]
+
+        monkeypatch.setattr(granule_availability, "_count_granules", _count_two_pass)
+
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
+
+        assert len(result) == 3
+        none_count = sum(1 for c in result if c.granule_count is None)
+        assert none_count == 1  # exactly one failure, not inflated by iteration count
+
+    def test_failed_collections_preserved_not_dropped(self, monkeypatch):
+        """Test that collections with None granule_count (failures) are kept, not filtered."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1234-PROVIDER",
+                title="Failing collection",
+                similarity_score=0.9,
+                match_type="direct",
+            ),
+        ]
+
+        mock_cache = Mock()
+        mock_cache.get.return_value = None
+        monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
+
+        mock_count = Mock(side_effect=CMRError("Network error"))
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
         result = granule_availability.validate_granule_availability(
             collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
         )
 
-        # Should return the one that succeeded
         assert len(result) == 1
-        assert result[0].concept_id == "C1234-PROVIDER"
+        assert result[0].granule_count is None
+
+    def test_zero_granule_collections_excluded(self, monkeypatch):
+        """Test that collections with exactly 0 granules are excluded, but None (failures) are not."""
+        collections = [
+            CollectionMatch(
+                concept_id="C1111-PROVIDER",
+                title="Has granules",
+                similarity_score=0.9,
+                match_type="direct",
+            ),
+            CollectionMatch(
+                concept_id="C2222-PROVIDER",
+                title="Zero granules",
+                similarity_score=0.8,
+                match_type="direct",
+            ),
+            CollectionMatch(
+                concept_id="C3333-PROVIDER",
+                title="Failed validation",
+                similarity_score=0.7,
+                match_type="direct",
+            ),
+        ]
+
+        mock_cache = Mock()
+        mock_cache.get.return_value = None
+        monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
+
+        def _count_mixed(collection_concept_id, *_):
+            if collection_concept_id == "C3333-PROVIDER":
+                raise CMRError("Error")
+            return {"C1111-PROVIDER": (42, 5), "C2222-PROVIDER": (0, 5)}[collection_concept_id]
+
+        monkeypatch.setattr(granule_availability, "_count_granules", _count_mixed)
+
+        result = granule_availability.validate_granule_availability(
+            collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
+        )
+
+        result_ids = {c.concept_id for c in result}
+        assert "C1111-PROVIDER" in result_ids  # has granules: kept
+        assert "C2222-PROVIDER" not in result_ids  # zero granules: dropped
+        assert "C3333-PROVIDER" in result_ids  # failure (None): kept
 
     def test_parallel_validation(self, monkeypatch):
         """Test that multiple collections are validated in parallel."""
@@ -344,7 +556,5 @@ class TestValidateGranuleAvailability:
             collections, datetime(2023, 1, 1, tzinfo=UTC), datetime(2023, 12, 31, tzinfo=UTC), None
         )
 
-        # All should succeed
         assert len(result) == 10
-        # Should have been called for each collection
         assert mock_count.call_count == 10

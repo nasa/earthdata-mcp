@@ -29,11 +29,9 @@ class TestNormalizeGeometryToWkt:
         result = _normalize_geometry_to_wkt(clockwise_polygon)
 
         assert result is not None
-        # Parse result to verify orientation
         from shapely import wkt
 
         result_geom = wkt.loads(result)
-        # Exterior ring with positive area means counter-clockwise
         assert LinearRing(result_geom.exterior.coords).is_ccw
 
     def test_preserves_counter_clockwise_orientation(self):

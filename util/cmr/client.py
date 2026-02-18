@@ -136,7 +136,6 @@ def search_cmr(
                     endpoint, data=params, files=files, headers=headers, timeout=60
                 )
             else:
-                # GET request with params in URL
                 response = requests.get(endpoint, params=params, headers=headers, timeout=60)
 
             response.raise_for_status()
