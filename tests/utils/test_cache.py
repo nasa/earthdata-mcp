@@ -533,6 +533,7 @@ class TestHgetMethod:
 class TestHmgetMethod:
     """Test the hmget method."""
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", None)
     def test_hmget_with_unavailable_client(self):
         """Test hmget when client is unavailable."""
