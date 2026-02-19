@@ -8,9 +8,14 @@ from typing import Any, Literal
 import requests
 from pydantic import BaseModel, Field
 
+from util.environment import get_client_id
+
 logger = logging.getLogger(__name__)
 
 CMR_URL = os.environ.get("CMR_URL", "https://cmr.earthdata.nasa.gov")
+
+
+CLIENT_ID = get_client_id()
 
 CONCEPT_ENDPOINTS = {
     "collection": "/search/collections.umm_json",
@@ -57,7 +62,7 @@ def fetch_concept(concept_id: str, revision_id: str) -> dict[str, Any]:
     url = f"{CMR_URL}/search/concepts/{concept_id}/{revision_id}.umm_json"
 
     try:
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, headers={"Client-Id": CLIENT_ID}, timeout=30)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
@@ -79,7 +84,7 @@ def fetch_associations(concept_id: str) -> dict[str, Any]:
     params = {"concept_id": concept_id, "include_has_granules": "false"}
 
     try:
-        response = requests.get(url, params=params, timeout=30)
+        response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=30)
         response.raise_for_status()
         data = response.json()
         items = data.get("items", [])
@@ -121,7 +126,7 @@ def search_cmr(
 
     endpoint = f"{CMR_URL}{CONCEPT_ENDPOINTS[concept_type]}"
     params = {**search_params, "page_size": page_size}
-    headers = {}
+    headers = {"Client-Id": CLIENT_ID}
     total_fetched = 0
 
     while True:

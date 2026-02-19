@@ -303,3 +303,54 @@ class TestSearchCmrPost:
 
         mock_post.assert_called_once()
         mock_get.assert_not_called()
+
+
+class TestClientIdHeader:
+    """Tests that the Client-Id header is sent on every request type."""
+
+    def test_fetch_concept_sends_client_id(self, monkeypatch):
+        """fetch_concept should include Client-Id in the request headers."""
+        mock_get = Mock(return_value=_make_response(json_data={}))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        fetch_concept("C1234-PROVIDER", "1")
+
+        sent_headers = mock_get.call_args[1]["headers"]
+        assert sent_headers["Client-Id"] == "eed-test-mcp"
+
+    def test_fetch_associations_sends_client_id(self, monkeypatch):
+        """fetch_associations should include Client-Id in the request headers."""
+        json_data = {"items": [{"meta": {"associations": {}}, "umm": {}}]}
+        mock_get = Mock(return_value=_make_response(json_data=json_data))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        fetch_associations("C1234-PROVIDER")
+
+        sent_headers = mock_get.call_args[1]["headers"]
+        assert sent_headers["Client-Id"] == "eed-test-mcp"
+
+    def test_search_cmr_get_sends_client_id(self, monkeypatch):
+        """search_cmr GET should include Client-Id in the request headers."""
+        items = [{"meta": {"concept-id": "C1-P"}, "umm": {}}]
+        mock_get = Mock(return_value=_make_response(json_data={"items": items}))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        list(search_cmr("collection", {}, page_size=1))
+
+        sent_headers = mock_get.call_args[1]["headers"]
+        assert sent_headers["Client-Id"] == "eed-test-mcp"
+
+    def test_search_cmr_post_sends_client_id(self, monkeypatch):
+        """search_cmr POST should include Client-Id in the request headers."""
+        items = [{"meta": {"concept-id": "C1-P"}, "umm": {}}]
+        mock_post = Mock(return_value=_make_response(json_data={"items": items}))
+        monkeypatch.setattr("util.cmr.client.requests.post", mock_post)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        list(search_cmr("granule", {}, page_size=1, method="POST"))
+
+        sent_headers = mock_post.call_args[1]["headers"]
+        assert sent_headers["Client-Id"] == "eed-test-mcp"
