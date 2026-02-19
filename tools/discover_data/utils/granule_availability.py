@@ -75,18 +75,22 @@ def _count_granules(
         files = {"shapefile": ("shapefile", file_obj, "application/geo+json")}
 
     # page_size=0: CMR only populates total_hits, not items — one response page is all we need
-    for page in search_cmr(
-        concept_type="granule",
-        search_params=params,
-        page_size=0,
-        method="POST",
-        files=files,
-    ):
-        return page.total_hits, page.took_ms
+    page = next(
+        search_cmr(
+            concept_type="granule",
+            search_params=params,
+            page_size=0,
+            method="POST",
+            files=files,
+        ),
+        None,
+    )
 
-    # If no pages returned (shouldn't happen), return 0
-    logger.warning("No response from CMR for %s", collection_concept_id)
-    return 0, 0
+    if page is None:
+        logger.warning("No response from CMR for %s", collection_concept_id)
+        return 0, 0
+
+    return page.total_hits, page.took_ms
 
 
 def _build_cache_key(
