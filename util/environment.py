@@ -8,11 +8,11 @@ def get_environment() -> str:
     Return the current deployment environment name.
 
     Reads ``ENVIRONMENT_NAME``, which is injected by Terraform at deploy time.
-    Use ``test`` in CI/CD pipelines. Defaults to ``local`` when the variable
+    Use ``test`` in CI/CD pipelines. Defaults to ``development`` when the variable
     is not set (e.g. local development without a configured ``.env`` file).
 
     Returns:
-        Environment name string (e.g. ``uat``, ``prod``, ``test``, ``local``)
+        Environment name string (e.g. ``uat``, ``prod``, ``test``, ``development``)
     """
     return os.environ.get("ENVIRONMENT_NAME", "development")
 
