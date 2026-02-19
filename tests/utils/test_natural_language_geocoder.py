@@ -21,12 +21,12 @@ class TestNormalizeGeometryToWkt:
         assert result.startswith("POLYGON")
         assert "0 0" in result
 
-    def test_orients_polygon_counter_clockwise(self):
-        """Test that polygons are oriented counter-clockwise (exterior ring CCW)."""
-        # Create a clockwise polygon (CMR requires counter-clockwise)
-        clockwise_polygon = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
+    def test_orients_polygon_exterior_to_ccw(self):
+        """Test that polygons are oriented counter-clockwise (exterior ring counter-clockwise)."""
+        # Create a CW polygon (CMR requires CCW)
+        cw_polygon = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
 
-        result = _normalize_geometry_to_wkt(clockwise_polygon)
+        result = _normalize_geometry_to_wkt(cw_polygon)
 
         assert result is not None
         from shapely import wkt
@@ -34,9 +34,9 @@ class TestNormalizeGeometryToWkt:
         result_geom = wkt.loads(result)
         assert LinearRing(result_geom.exterior.coords).is_ccw
 
-    def test_preserves_counter_clockwise_orientation(self):
+    def test_preserves_ccw_polygon_orientation(self):
         """Test that counter-clockwise polygons remain counter-clockwise."""
-        # Create a counter-clockwise polygon
+        # Create a CCW polygon
         ccw_polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
 
         result = _normalize_geometry_to_wkt(ccw_polygon)
@@ -104,8 +104,126 @@ class TestNormalizeGeometryToWkt:
         with pytest.raises(ValueError, match="Invalid geometry"):
             _normalize_geometry_to_wkt(mock_geom)
 
+    def test_invalid_polygon_repaired_and_exterior_is_ccw(self):
+        """Test that an invalid self-intersecting polygon is repaired and reoriented counter-clockwise."""
+        # Bow-tie shape — self-intersecting, invalid
+        invalid_polygon = Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
+        assert not invalid_polygon.is_valid
 
-class TestConvertTextToGeom:
+        result = _normalize_geometry_to_wkt(invalid_polygon)
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        repaired = shapely_wkt.loads(result)
+        # buffer(0) on a bow-tie typically produces a MultiPolygon
+        if repaired.geom_type == "MultiPolygon":
+            for part in repaired.geoms:
+                assert LinearRing(
+                    part.exterior.coords
+                ).is_ccw, f"Exterior ring of repaired part is not CCW: {part}"
+        else:
+            assert LinearRing(repaired.exterior.coords).is_ccw
+
+    def test_orients_cw_multipolygon_exterior_to_ccw(self):
+        """Test that a MultiPolygon with clockwise exterior rings is reoriented to counter-clockwise."""
+        # Explicitly CW polygons
+        cw_poly1 = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
+        cw_poly2 = Polygon([(2, 0), (2, 1), (3, 1), (3, 0), (2, 0)])
+        assert not LinearRing(cw_poly1.exterior.coords).is_ccw
+        assert not LinearRing(cw_poly2.exterior.coords).is_ccw
+
+        result = _normalize_geometry_to_wkt(MultiPolygon([cw_poly1, cw_poly2]))
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        oriented = shapely_wkt.loads(result)
+        assert oriented.geom_type == "MULTIPOLYGON" or oriented.geom_type == "MultiPolygon"
+        for part in oriented.geoms:
+            assert LinearRing(
+                part.exterior.coords
+            ).is_ccw, f"Exterior ring of MultiPolygon part is not CCW: {part}"
+
+    def test_preserves_ccw_multipolygon_orientation(self):
+        """Test that a MultiPolygon already counter-clockwise stays counter-clockwise after normalization."""
+        ccw_poly1 = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        ccw_poly2 = Polygon([(2, 0), (3, 0), (3, 1), (2, 1), (2, 0)])
+
+        result = _normalize_geometry_to_wkt(MultiPolygon([ccw_poly1, ccw_poly2]))
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        oriented = shapely_wkt.loads(result)
+        for part in oriented.geoms:
+            assert LinearRing(part.exterior.coords).is_ccw
+
+    def test_polygon_with_hole_exterior_ccw_and_hole_cw(self):
+        """Test that a Polygon with a hole has counter-clockwise exterior and clockwise interior ring."""
+        exterior = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        # Interior ring (hole) — deliberately CCW so orient_polygons must flip it to CW
+        hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
+        polygon_with_hole = Polygon(exterior, [hole])
+
+        result = _normalize_geometry_to_wkt(polygon_with_hole)
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        oriented = shapely_wkt.loads(result)
+        assert LinearRing(oriented.exterior.coords).is_ccw, "Exterior ring should be CCW"
+        for interior in oriented.interiors:
+            assert not LinearRing(interior.coords).is_ccw, "Interior ring (hole) should be CW"
+
+    def test_polygon_with_cw_exterior_and_ccw_hole_both_reoriented(self):
+        """Test that a Polygon with a clockwise exterior and counter-clockwise hole has both rings reoriented."""
+        # CW exterior — needs flipping to CCW
+        cw_exterior = [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)]
+        # CCW hole — needs flipping to CW
+        ccw_hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
+        assert not LinearRing(cw_exterior).is_ccw
+        assert LinearRing(ccw_hole).is_ccw
+        polygon_with_hole = Polygon(cw_exterior, [ccw_hole])
+
+        result = _normalize_geometry_to_wkt(polygon_with_hole)
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        oriented = shapely_wkt.loads(result)
+        assert LinearRing(oriented.exterior.coords).is_ccw, "Exterior ring should be CCW"
+        for interior in oriented.interiors:
+            assert not LinearRing(interior.coords).is_ccw, "Interior ring (hole) should be CW"
+
+    def test_multipolygon_with_holes_exterior_ccw_and_holes_cw(self):
+        """Test that each part of a MultiPolygon with holes has counter-clockwise exterior and clockwise holes."""
+        exterior1 = [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)]  # CW exterior
+        hole1 = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]  # CCW hole
+        exterior2 = [(20, 0), (20, 10), (30, 10), (30, 0), (20, 0)]  # CW exterior
+        hole2 = [(22, 2), (24, 2), (24, 4), (22, 4), (22, 2)]  # CCW hole
+        mp = MultiPolygon(
+            [
+                Polygon(exterior1, [hole1]),
+                Polygon(exterior2, [hole2]),
+            ]
+        )
+
+        result = _normalize_geometry_to_wkt(mp)
+
+        assert result is not None
+        from shapely import wkt as shapely_wkt
+
+        oriented = shapely_wkt.loads(result)
+        for part in oriented.geoms:
+            assert LinearRing(
+                part.exterior.coords
+            ).is_ccw, f"Exterior ring of part is not CCW: {part}"
+            for interior in part.interiors:
+                assert not LinearRing(
+                    interior.coords
+                ).is_ccw, f"Interior ring (hole) of part is not CW: {interior}"
+
     """Tests for convert_text_to_geom function."""
 
     @patch("util.natural_language_geocoder.extract_geometry_from_text")

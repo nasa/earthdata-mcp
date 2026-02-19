@@ -15,7 +15,7 @@ from natural_language_geocoding import extract_geometry_from_text
 from natural_language_geocoding.geocode_index.geocode_index_place_lookup import (
     GeocodeIndexPlaceLookup,
 )
-from shapely.ops import orient
+from shapely import orient_polygons
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +123,8 @@ def _normalize_geometry_to_wkt(geometry) -> str | None:
             raise ValueError("Geometry is invalid and could not be repaired")
 
     if geometry.geom_type in ("Polygon", "MultiPolygon"):
-        # Orient with sign=1.0 ensures counter-clockwise exterior rings (CMR requirement)
-        geometry = orient(geometry, sign=1.0)
+        # Forces CCW exterior rings and CW interior rings for CMR
+        geometry = orient_polygons(geometry)
 
     # Convert to WKT
     return geometry.wkt
