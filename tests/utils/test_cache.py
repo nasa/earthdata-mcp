@@ -214,7 +214,7 @@ class TestRedisCacheInitialization:
         mock_redis_class.assert_called_once_with(
             host="localhost",
             port=6380,
-            password="dev-pass",
+            password="dev-pass",  # noqa: S106 - Suppress linting warning, not a real password
             ssl=False,
             socket_connect_timeout=2,
             socket_timeout=2,
@@ -273,6 +273,23 @@ class TestRedisCacheInitialization:
 
         assert client.client is None
 
+    def test_local_redis_creation_failure(self, monkeypatch):
+        """Test graceful handling when the Redis constructor raises with REDIS_HOST set."""
+        monkeypatch.setenv("REDIS_HOST", "localhost")
+
+        mock_redis_class = Mock(side_effect=Exception("Redis creation failed"))
+        monkeypatch.setattr("util.cache.redis.Redis", mock_redis_class)
+
+        mock_logger = Mock()
+        monkeypatch.setattr("util.cache.logger", mock_logger)
+
+        client = RedisCache()
+
+        mock_logger.warning.assert_called_once()
+        assert "Failed to connect to local Redis" in mock_logger.warning.call_args[0][0]
+
+        assert client.client is None
+
 
 class TestIsAvailable:
     """Test the is_available method."""
@@ -285,6 +302,7 @@ class TestIsAvailable:
 
         assert client.is_available() is False
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -305,6 +323,7 @@ class TestIsAvailable:
         # Verify ping was called at least twice (once in init, once in is_available)
         assert mock_client.ping.call_count >= 2
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -338,6 +357,7 @@ class TestGetMethod:
 
         assert result is None
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -359,6 +379,7 @@ class TestGetMethod:
         assert result == test_data
         mock_client.get.assert_called_with("test_key")
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -375,6 +396,7 @@ class TestGetMethod:
         assert result is None
         mock_client.get.assert_called_with("nonexistent_key")
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -408,6 +430,7 @@ class TestSetMethod:
 
         assert result is False
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -425,6 +448,7 @@ class TestSetMethod:
         assert result is True
         mock_client.setex.assert_called_once_with("test_key", 600, json.dumps(test_data))
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -442,6 +466,7 @@ class TestSetMethod:
         assert result is True
         mock_client.setex.assert_called_once_with("test_key", 900, json.dumps(test_data))
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -475,6 +500,7 @@ class TestHgetMethod:
 
         assert result is None
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -495,6 +521,7 @@ class TestHgetMethod:
         assert result == test_data
         mock_client.hget.assert_called_with("kms:scheme:instruments", "MODIS")
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -510,6 +537,7 @@ class TestHgetMethod:
 
         assert result is None
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -543,6 +571,7 @@ class TestHmgetMethod:
 
         assert result == {"field1": None, "field2": None}
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -564,6 +593,7 @@ class TestHmgetMethod:
         assert result == {"MODIS": data1, "ASTER": data2}
         mock_client.hmget.assert_called_with("kms:scheme:instruments", ["MODIS", "ASTER"])
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -582,6 +612,7 @@ class TestHmgetMethod:
         assert result["MODIS"] == data1
         assert result["MISSING"] is None
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -615,6 +646,7 @@ class TestHmsetMethod:
 
         assert result is False
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -642,6 +674,7 @@ class TestHmsetMethod:
         # Verify TTL was set
         mock_client.expire.assert_called_once_with("kms:scheme:instruments", 86400)
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -659,6 +692,7 @@ class TestHmsetMethod:
         assert result is True
         mock_client.hset.assert_not_called()
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -692,6 +726,7 @@ class TestHexistsMethod:
 
         assert result is False
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -710,6 +745,7 @@ class TestHexistsMethod:
         assert result is True
         mock_client.exists.assert_called_with("kms:scheme:instruments")
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
@@ -727,6 +763,7 @@ class TestHexistsMethod:
 
         assert result is False
 
+    @patch.dict(os.environ, {"REDIS_HOST": ""}, clear=False)
     @patch("util.cache.REDIS_SECRET_ID", "test-secret-arn")
     @patch("util.cache.get_redis_credentials")
     @patch("util.cache.redis.Redis")
