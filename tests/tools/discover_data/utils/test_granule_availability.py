@@ -223,28 +223,8 @@ class TestGetCacheTTL:
 class TestValidateGranuleAvailability:
     """Tests for validate_granule_availability function."""
 
-    def test_skips_validation_without_constraints(self, monkeypatch):
-        """Test that validation is skipped when no spatial or temporal constraints exist."""
-        collections = [
-            CollectionMatch(
-                concept_id="C1234-PROVIDER",
-                title="Test collection",
-                similarity_score=0.9,
-                match_type="direct",
-            )
-        ]
-
-        mock_count = Mock()
-        monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
-
-        result = granule_availability.validate_granule_availability(collections, None, None, None)
-
-        assert len(result) == 1
-        assert result[0].concept_id == "C1234-PROVIDER"
-        mock_count.assert_not_called()
-
-    def test_skips_validation_only_when_no_temporal_and_no_spatial(self, monkeypatch):
-        """Test that validation is only skipped when BOTH temporal bounds AND spatial are absent."""
+    def test_validates_without_constraints(self, monkeypatch):
+        """Test that validation runs even when no spatial or temporal constraints exist."""
         collections = [
             CollectionMatch(
                 concept_id="C1234-PROVIDER",
@@ -258,16 +238,14 @@ class TestValidateGranuleAvailability:
         mock_cache.get.return_value = None
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
-        mock_count = Mock(return_value=(10, 5))
+        mock_count = Mock(return_value=(42, 5))
         monkeypatch.setattr(granule_availability, "_count_granules", mock_count)
 
-        # Only temporal_end provided (no temporal_start, no spatial)
-        result = granule_availability.validate_granule_availability(
-            collections, None, datetime(2023, 12, 31, tzinfo=UTC), None
-        )
+        result = granule_availability.validate_granule_availability(collections, None, None, None)
 
         mock_count.assert_called_once()
-        assert result[0].granule_count == 10
+        assert len(result) == 1
+        assert result[0].granule_count == 42
 
     def test_filters_collections_with_zero_granules(self, monkeypatch):
         """Test that collections with zero granules are filtered out."""

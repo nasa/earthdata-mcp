@@ -142,10 +142,11 @@ def validate_granule_availability(
     spatial_wkt: str | None,
 ) -> list[CollectionMatch]:
     """
-    Validate granule availability for collections with spatio-temporal constraints.
+    Validate granule availability for all collections.
 
-    Checks each collection for granules within the constraints. Collections with zero granules
-    are filtered out. Results are cached with TTL based on whether collections are ongoing.
+    Checks each collection for granules, optionally filtered by spatio-temporal constraints.
+    Collections with zero granules are filtered out. Results are cached with TTL based on
+    whether collections are ongoing.
 
     Args:
         collections: List of collections to validate
@@ -154,13 +155,8 @@ def validate_granule_availability(
         spatial_wkt: Optional WKT geometry string for spatial constraint
 
     Returns:
-        list[CollectionMatch] where granule_count > 0 or granule_count is None (validation failed)
+        list[CollectionMatch] where granule_count > 0
     """
-    # Only validate if constraints exist - without them, assume exploratory search
-    if not (temporal_start or temporal_end) and not spatial_wkt:
-        logger.info("Skipping granule validation - no spatial or temporal constraints")
-        return collections
-
     if not collections:
         return collections
 
