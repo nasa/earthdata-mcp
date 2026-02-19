@@ -69,40 +69,79 @@ class TestNormalizeGeometryToWkt:
         with pytest.raises(ValueError, match="Expected Shapely geometry object"):
             _normalize_geometry_to_wkt("not a geometry")
 
-    def test_repairs_invalid_geometry_with_buffer(self):
-        """Test that invalid geometries are repaired using buffer(0)."""
+    def test_repairs_invalid_geometry_with_make_valid(self):
+        """Test that invalid geometries are repaired using make_valid()."""
         # Create a self-intersecting polygon (bow-tie shape)
         invalid_polygon = Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
 
-        # Should not raise, should repair with buffer(0)
+        # Should not raise, should repair with make_valid()
         result = _normalize_geometry_to_wkt(invalid_polygon)
 
         assert result is not None
-        assert result.startswith("POLYGON")
+        # make_valid() on a bow-tie produces a MultiPolygon (two triangles)
+        assert result.startswith("POLYGON") or result.startswith("MULTIPOLYGON")
 
     def test_raises_validation_error_for_unrepairable_geometry(self):
         """Test that geometries that can't be repaired raise ValueError."""
-        # Mock a geometry that is_valid returns False even after buffer
+        # Mock a geometry that is_valid returns False even after make_valid()
         mock_geom = MagicMock()
         mock_geom.geom_type = "Polygon"
         mock_geom.is_empty = False
         mock_geom.is_valid = False
-        mock_geom.buffer.return_value.is_empty = False
-        mock_geom.buffer.return_value.is_valid = False
 
-        with pytest.raises(ValueError, match="could not be repaired"):
-            _normalize_geometry_to_wkt(mock_geom)
+        with patch("util.natural_language_geocoder.make_valid") as mock_make_valid:
+            mock_make_valid.return_value.is_empty = False
+            mock_make_valid.return_value.is_valid = False
+            mock_make_valid.return_value.geom_type = "Polygon"
 
-    def test_raises_validation_error_when_buffer_raises_exception(self):
-        """Test that exceptions during buffer operation are caught."""
+            with pytest.raises(ValueError, match="could not be repaired"):
+                _normalize_geometry_to_wkt(mock_geom)
+
+    def test_raises_validation_error_when_make_valid_raises_exception(self):
+        """Test that exceptions during make_valid() are caught."""
         mock_geom = MagicMock()
         mock_geom.geom_type = "Polygon"
         mock_geom.is_empty = False
         mock_geom.is_valid = False
-        mock_geom.buffer.side_effect = Exception("Buffer failed")
 
-        with pytest.raises(ValueError, match="Invalid geometry"):
-            _normalize_geometry_to_wkt(mock_geom)
+        with patch(
+            "util.natural_language_geocoder.make_valid", side_effect=Exception("make_valid failed")
+        ):
+            with pytest.raises(ValueError, match="Invalid geometry"):
+                _normalize_geometry_to_wkt(mock_geom)
+
+    def test_valid_geometry_skips_make_valid(self):
+        """Test that make_valid() is never called when geometry is already valid."""
+        valid_polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        assert valid_polygon.is_valid
+
+        with patch("util.natural_language_geocoder.make_valid") as mock_make_valid:
+            _normalize_geometry_to_wkt(valid_polygon)
+
+        mock_make_valid.assert_not_called()
+
+    def test_repair_emits_warning_log(self, caplog):
+        """Test that repairing an invalid geometry emits a WARNING log."""
+        invalid_polygon = Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
+        assert not invalid_polygon.is_valid
+
+        with caplog.at_level("WARNING"):
+            _normalize_geometry_to_wkt(invalid_polygon)
+
+        assert any("make_valid" in record.message for record in caplog.records)
+
+    def test_raises_when_make_valid_returns_empty_geometry(self):
+        """Test that a ValueError is raised when make_valid() produces an empty geometry."""
+        mock_geom = MagicMock()
+        mock_geom.geom_type = "Polygon"
+        mock_geom.is_empty = False
+        mock_geom.is_valid = False
+
+        with patch("util.natural_language_geocoder.make_valid") as mock_make_valid:
+            mock_make_valid.return_value.is_empty = True
+
+            with pytest.raises(ValueError, match="empty after make_valid"):
+                _normalize_geometry_to_wkt(mock_geom)
 
     def test_invalid_polygon_repaired_and_exterior_is_ccw(self):
         """Test that an invalid self-intersecting polygon is repaired and reoriented counter-clockwise."""
@@ -116,7 +155,7 @@ class TestNormalizeGeometryToWkt:
         from shapely import wkt as shapely_wkt
 
         repaired = shapely_wkt.loads(result)
-        # buffer(0) on a bow-tie typically produces a MultiPolygon
+        # make_valid() on a bow-tie typically produces a MultiPolygon
         if repaired.geom_type == "MultiPolygon":
             for part in repaired.geoms:
                 assert LinearRing(
