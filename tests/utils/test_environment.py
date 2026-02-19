@@ -26,36 +26,30 @@ class TestGetEnvironment:
 
         assert get_environment() == "test"
 
-    def test_defaults_to_local_when_unset(self, monkeypatch):
-        """Should default to 'local' when ENVIRONMENT_NAME is not set."""
+    def test_defaults_to_development_when_unset(self, monkeypatch):
+        """Should default to 'development' when ENVIRONMENT_NAME is not set."""
         monkeypatch.delenv("ENVIRONMENT_NAME", raising=False)
 
-        assert get_environment() == "local"
+        assert get_environment() == "development"
 
 
 class TestGetClientId:
     """Tests for get_client_id()."""
 
     def test_builds_client_id_from_environment(self, monkeypatch):
-        """Should combine environment and app into the EED client ID format."""
+        """Should combine environment into the EED client ID format."""
         monkeypatch.setenv("ENVIRONMENT_NAME", "uat")
 
         assert get_client_id() == "eed-uat-mcp"
 
-    def test_uses_custom_app_name(self, monkeypatch):
-        """Should accept a custom app suffix."""
+    def test_returns_prod_client_id(self, monkeypatch):
+        """Should return the correct production client ID."""
         monkeypatch.setenv("ENVIRONMENT_NAME", "prod")
 
-        assert get_client_id(app="ingest") == "eed-prod-ingest"
+        assert get_client_id() == "eed-prod-mcp"
 
-    def test_defaults_app_to_mcp(self, monkeypatch):
-        """Default app name should be 'mcp'."""
-        monkeypatch.setenv("ENVIRONMENT_NAME", "sit")
-
-        assert get_client_id() == "eed-sit-mcp"
-
-    def test_defaults_to_local_when_environment_unset(self, monkeypatch):
-        """Should use 'local' environment when ENVIRONMENT_NAME is not set."""
+    def test_defaults_to_development_when_environment_unset(self, monkeypatch):
+        """Should use 'development' environment when ENVIRONMENT_NAME is not set."""
         monkeypatch.delenv("ENVIRONMENT_NAME", raising=False)
 
-        assert get_client_id() == "eed-local-mcp"
+        assert get_client_id() == "eed-development-mcp"

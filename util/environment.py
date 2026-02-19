@@ -14,19 +14,16 @@ def get_environment() -> str:
     Returns:
         Environment name string (e.g. ``uat``, ``prod``, ``test``, ``local``)
     """
-    return os.environ.get("ENVIRONMENT_NAME", "local")
+    return os.environ.get("ENVIRONMENT_NAME", "development")
 
 
-def get_client_id(app: str = "mcp") -> str:
+def get_client_id() -> str:
     """
-    Build an EED client identifier for the given application.
+    Build an client identifier for the given application.
 
-    Format: ``eed-{environment}-{app}``
-
-    Args:
-        app: Application name suffix (default: ``mcp``)
+    Format: ``eed-{environment}-mcp``
 
     Returns:
         Client ID string (e.g. ``eed-uat-mcp``)
     """
-    return f"eed-{get_environment()}-{app}"
+    return f"eed-{get_environment()}-mcp"
