@@ -314,7 +314,7 @@ class TestValidateGranuleAvailability:
         ]
 
         mock_cache = Mock()
-        mock_cache.get.return_value = '{"count": 50, "timestamp": 1234567890}'
+        mock_cache.get.return_value = {"count": 50, "timestamp": 1234567890}
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
         result = granule_availability.validate_granule_availability(
@@ -337,7 +337,7 @@ class TestValidateGranuleAvailability:
         ]
 
         mock_cache = Mock()
-        mock_cache.get.return_value = '{"count": 0, "timestamp": 1234567890}'
+        mock_cache.get.return_value = {"count": 0, "timestamp": 1234567890}
         monkeypatch.setattr(granule_availability, "get_cache_client", lambda: mock_cache)
 
         result = granule_availability.validate_granule_availability(

@@ -340,7 +340,7 @@ def test_determine_status_variants():
     indirect = _make_collection("C2", match_type="via_variable")
 
     assert (
-        tool._determine_status([], [], [], all_filtered_by_granule_validation=True)
+        tool._determine_status([], False, [], all_filtered_by_granule_validation=True)
         == tool.DiscoveryStatus.NO_GRANULES_IN_CONSTRAINTS
     )
     assert (
@@ -348,7 +348,7 @@ def test_determine_status_variants():
         == tool.DiscoveryStatus.NO_GRANULES_IN_CONSTRAINTS
     )
     assert (
-        tool._determine_status([], [], [], all_filtered_by_granule_validation=False)
+        tool._determine_status([], False, [], all_filtered_by_granule_validation=False)
         == tool.DiscoveryStatus.NO_RESULTS
     )
     assert (

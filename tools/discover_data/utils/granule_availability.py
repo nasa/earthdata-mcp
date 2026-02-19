@@ -172,8 +172,7 @@ def validate_granule_availability(
 
             cached_result = cache.get(cache_key)
             if cached_result:
-                cached_data = json.loads(cached_result)
-                collection.granule_count = cached_data["count"]
+                collection.granule_count = cached_result["count"]
             else:
                 task = executor.submit(
                     _count_granules,
@@ -199,7 +198,7 @@ def validate_granule_availability(
                 ttl = _get_cache_ttl(collection.is_ongoing)
                 cache.set(
                     cache_key,
-                    json.dumps({"count": hits_count, "timestamp": time.time()}),
+                    {"count": hits_count, "timestamp": time.time()},
                     ttl=ttl,
                 )
 
