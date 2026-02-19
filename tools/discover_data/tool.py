@@ -21,7 +21,10 @@ from tools.discover_data.utils.disambiguation import (
     filter_by_user_refinements,
 )
 from tools.discover_data.utils.embedding_search import search_all_entity_types
-from tools.discover_data.utils.granule_availability import validate_granule_availability
+from tools.discover_data.utils.granule_availability import (
+    GranuleValidationError,
+    validate_granule_availability,
+)
 from tools.discover_data.utils.query_expansion import (
     analyze_embedding_results,
     generate_expansion_questions,
@@ -206,8 +209,24 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
         return output.model_dump()
 
+    except GranuleValidationError:
+        logger.warning("Granule availability check failed", exc_info=True)
+
+        trace_update(
+            tags=["error"],
+            metadata={"error_type": "GranuleValidationError"},
+        )
+
+        return DiscoverDataOutput(
+            status=DiscoveryStatus.ERROR,
+            error_message=(
+                "Granule availability check failed due to a service error. "
+                "Please try your request again."
+            ),
+        ).model_dump()
+
     except Exception as e:
-        logger.exception("Error in discover_data")
+        logger.exception("Error in discover_data: %s", e)
 
         trace_update(
             tags=["error"],
@@ -219,7 +238,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
         return DiscoverDataOutput(
             status=DiscoveryStatus.ERROR,
-            error_message=str(e),
+            error_message="An unexpected error occurred. Please try your request again.",
         ).model_dump()
 
 

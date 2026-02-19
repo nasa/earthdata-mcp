@@ -24,6 +24,11 @@ from util.cmr.client import search_cmr
 
 logger = logging.getLogger(__name__)
 
+
+class GranuleValidationError(Exception):
+    """Raised when one or more collections fail CMR granule validation."""
+
+
 GRANULE_VALIDATION_MAX_WORKERS = int(os.environ.get("GRANULE_VALIDATION_MAX_WORKERS", "10"))
 
 
@@ -213,14 +218,16 @@ def validate_granule_availability(
                     exc_info=True,
                 )
                 failures += 1
-                collection.granule_count = None
+
+    if failures > 0:
+        raise GranuleValidationError(
+            f"CMR granule validation failed for {failures} of "
+            f"{len(pending_validations)} collection(s)"
+        )
 
     validated = []
     for collection in collections:
-        if collection.granule_count is None:
-            # CMR failure — keep rather than silently drop
-            validated.append(collection)
-        elif collection.granule_count > 0:
+        if collection.granule_count > 0:
             validated.append(collection)
         else:
             zero_granule_count += 1

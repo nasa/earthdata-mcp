@@ -386,7 +386,8 @@ def test_describe_search_strategy_counts():
 
 
 def test_discover_data_error_handling(monkeypatch):
-    """Discover data should catch exceptions and return error status."""
+    """Discover data should catch unexpected exceptions, return a generic user-facing
+    message (not the internal error detail), and set status to error."""
     tool = _load_tool()
 
     # Create a mock that raises an exception
@@ -399,7 +400,40 @@ def test_discover_data_error_handling(monkeypatch):
     output = tool.discover_data(query)
 
     assert output["status"] == "error"
-    assert "Extraction failed" in output["error_message"]
+    assert output["error_message"] == "An unexpected error occurred. Please try your request again."
+    # Internal error detail must not be exposed to the caller
+    assert "Extraction failed" not in output["error_message"]
+
+
+def test_discover_data_granule_validation_error(monkeypatch):
+    """GranuleValidationError from validate_granule_availability should produce a
+    specific user-facing message distinct from the generic error handler."""
+    from tools.discover_data.utils.granule_availability import GranuleValidationError
+
+    tool = _load_tool()
+
+    temporal = TemporalConstraint(start_date=datetime(2020, 1, 1), end_date=datetime(2020, 12, 31))
+    spatial = SpatialConstraint()
+
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_, **__: (temporal, spatial))
+    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_, **__: [])
+    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_, **__: [])
+    monkeypatch.setattr(tool, "hydrate_collections", lambda *_, **__: [_make_collection("C1")])
+
+    def _raise_granule_error(*_):
+        raise GranuleValidationError("CMR granule validation failed for 1 of 1 collection(s)")
+
+    monkeypatch.setattr(tool, "validate_granule_availability", _raise_granule_error)
+
+    output = tool.discover_data(DiscoverDataInput(query="test"))
+
+    assert output["status"] == "error"
+    assert output["error_message"] == (
+        "Granule availability check failed due to a service error. "
+        "Please try your request again."
+    )
+    # Internal CMR detail must not be exposed to the caller
+    assert "CMR" not in output["error_message"]
 
 
 def test_discover_data_with_langfuse(monkeypatch):
