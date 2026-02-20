@@ -14,7 +14,7 @@ class EarthdataRAGClient:
 
     def __init__(self, server_url: str):
         self.server_url = server_url
-        self.client = httpx.Client(timeout=60.0)
+        self.client = httpx.Client(timeout=500.0)
         self.session_id: Optional[str] = None
         self._initialize_session()
 
@@ -36,41 +36,40 @@ class EarthdataRAGClient:
             }
             logger.info("Initializing MCP session...")
 
-            response = self.client.post(
+            # Use streaming to handle SSE response
+            with self.client.stream(
+                "POST",
                 self.server_url,
                 json=init_request,
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json, text/event-stream",
                 },
-            )
+            ) as response:
+                logger.debug(f"Initialize response status: {response.status_code}")
+                logger.debug(f"Response headers: {dict(response.headers)}")
 
-            logger.debug(f"Initialize response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
-            logger.debug(f"Response text: {response.text[:500]}")
+                response.raise_for_status()
 
-            response.raise_for_status()
+                # Try to get session ID from response header first
+                self.session_id = response.headers.get("mcp-session-id")
+                if self.session_id:
+                    logger.info(f"Got session ID from header: {self.session_id}")
 
-            # Try to get session ID from response header first
-            self.session_id = response.headers.get("mcp-session-id")
-            if self.session_id:
-                logger.info(f"Got session ID from header: {self.session_id}")
-                return
-
-            # Otherwise parse from SSE response body
-            for line in response.text.split("\n"):
-                if line.startswith("data: "):
-                    data = line[6:].strip()
-                    if data and data != "[DONE]":
-                        try:
-                            result = json.loads(data)
-                            logger.debug(
-                                f"Initialize result: {json.dumps(result, indent=2)}"
-                            )
-                            break
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"JSON decode error: {e}")
-                            continue
+                # Parse SSE response body
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:].strip()
+                        if data and data != "[DONE]":
+                            try:
+                                result = json.loads(data)
+                                logger.debug(
+                                    f"Initialize result: {json.dumps(result, indent=2)}"
+                                )
+                                break
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"JSON decode error: {e}")
+                                continue
 
             if not self.session_id:
                 logger.warning("No session ID received from server")
@@ -99,32 +98,31 @@ class EarthdataRAGClient:
                 headers["mcp-session-id"] = self.session_id
 
             logger.info("Listing available tools...")
-            response = self.client.post(
+            with self.client.stream(
+                "POST",
                 self.server_url,
                 json=list_request,
                 headers=headers,
-            )
+            ) as response:
+                logger.debug(f"List tools response status: {response.status_code}")
 
-            logger.debug(f"List tools response status: {response.status_code}")
-            logger.debug(f"Response text: {response.text}")
-
-            # Parse SSE response
-            for line in response.text.split("\n"):
-                if line.startswith("data: "):
-                    data = line[6:].strip()
-                    if data and data != "[DONE]":
-                        try:
-                            result = json.loads(data)
-                            if "result" in result and "tools" in result["result"]:
-                                tools = result["result"]["tools"]
-                                logger.info(f"Available tools ({len(tools)}):")
-                                for tool in tools:
-                                    logger.info(
-                                        f"  - {tool.get('name')}: {tool.get('description', '')[:80]}"
-                                    )
-                            break
-                        except json.JSONDecodeError:
-                            continue
+                # Parse SSE response
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:].strip()
+                        if data and data != "[DONE]":
+                            try:
+                                result = json.loads(data)
+                                if "result" in result and "tools" in result["result"]:
+                                    tools = result["result"]["tools"]
+                                    logger.info(f"Available tools ({len(tools)}):")
+                                    for tool in tools:
+                                        logger.info(
+                                            f"  - {tool.get('name')}: {tool.get('description', '')[:80]}"
+                                        )
+                                break
+                            except json.JSONDecodeError:
+                                continue
 
         except Exception as e:
             logger.error(f"Error listing tools: {e}")
@@ -170,29 +168,28 @@ class EarthdataRAGClient:
             logger.debug(f"Request: {json.dumps(request_json, indent=2)}")
             logger.debug(f"Headers: {headers}")
 
-            # Call the MCP server's discover_data tool
-            response = self.client.post(
+            # Call the MCP server's discover_data tool using streaming
+            with self.client.stream(
+                "POST",
                 self.server_url,
                 json=request_json,
                 headers=headers,
-            )
+            ) as response:
+                logger.debug(f"Response status: {response.status_code}")
+                logger.debug(f"Response headers: {dict(response.headers)}")
 
-            logger.debug(f"Response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
-            logger.debug(f"Response text: {response.text}")
+                response.raise_for_status()
 
-            response.raise_for_status()
-
-            # Parse SSE response
-            result_data = None
-            for line in response.text.split("\n"):
-                if line.startswith("data: "):
-                    data = line[6:].strip()  # Remove 'data: ' prefix
-                    if data and data != "[DONE]":
-                        try:
-                            result_data = json.loads(data)
-                        except json.JSONDecodeError:
-                            continue
+                # Parse SSE response
+                result_data = None
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:].strip()  # Remove 'data: ' prefix
+                        if data and data != "[DONE]":
+                            try:
+                                result_data = json.loads(data)
+                            except json.JSONDecodeError:
+                                continue
 
             if not result_data:
                 return {

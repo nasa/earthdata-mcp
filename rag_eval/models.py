@@ -17,8 +17,7 @@ class DatasetRelevanceInput(BaseModel):
     """Input for dataset relevance evaluation"""
 
     question: str
-    dataset_title: str
-    dataset_abstract: str
+    dataset: dict = Field(description="Dataset fields as key-value pairs")
 
 
 class DatasetRelevancePrompt(
@@ -27,6 +26,8 @@ class DatasetRelevancePrompt(
     """Prompt for evaluating dataset relevance to a user question."""
 
     instruction = """You are evaluating the relevance of an Earth science dataset to a user's question.
+
+The dataset is provided as a collection of fields. Review all available fields to understand what the dataset contains.
     
 Score the dataset from 0.0 to 1.0 based on how well it matches the user's information need:
 - 1.0: Perfect match, directly answers the question
@@ -44,8 +45,10 @@ Consider: topic match, temporal coverage, spatial coverage, and data type releva
         (
             DatasetRelevanceInput(
                 question="What datasets track sea ice extent in the Arctic?",
-                dataset_title="MODIS Sea Ice Extent Daily",
-                dataset_abstract="Daily sea ice extent measurements from MODIS covering polar regions including Arctic and Antarctic from 2000-present.",
+                dataset={
+                    "title": "MODIS Sea Ice Extent Daily",
+                    "abstract": "Daily sea ice extent measurements from MODIS covering polar regions including Arctic and Antarctic from 2000-present.",
+                },
             ),
             DatasetRelevanceScore(
                 relevance_score=0.95,
@@ -55,8 +58,10 @@ Consider: topic match, temporal coverage, spatial coverage, and data type releva
         (
             DatasetRelevanceInput(
                 question="What datasets track sea ice extent in the Arctic?",
-                dataset_title="Global Ocean Temperature Analysis",
-                dataset_abstract="Monthly global ocean temperature data at various depths from 1950-2023.",
+                dataset={
+                    "title": "Global Ocean Temperature Analysis",
+                    "abstract": "Monthly global ocean temperature data at various depths from 1950-2023.",
+                },
             ),
             DatasetRelevanceScore(
                 relevance_score=0.2,
