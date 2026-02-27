@@ -1,28 +1,25 @@
 """Offline RAG evaluation for Earthdata MCP server."""
 
-import asyncio
-import json
 import logging
 import os
-from pathlib import Path
+from datetime import datetime
 
 import nest_asyncio
 from dotenv import load_dotenv
-from ragas import Dataset
-from ragas.metrics import (
+from ragas.metrics.collections import (
+    AnswerRelevancy,
+    ContextPrecision,
+    ContextRecall,
     Faithfulness,
-    LLMContextPrecisionWithoutReference,
 )
 
 from langfuse import Evaluation
-from rag_eval.mcp_client import EarthdataRAGClient
 from rag_eval.models import DatasetRelevanceInput, DatasetRelevancePrompt
 from rag_eval.ragas_utils import (
     create_bedrock_llm,
     create_bedrock_embeddings,
-    init_ragas_metrics,
-    score_with_ragas,
 )
+from tools.discover_data.utils.embedding_search import search_all_entity_types
 from util.langfuse import get_langfuse, flush_langfuse
 
 # Configure logging
@@ -122,78 +119,116 @@ def generate_answer_from_collections(
 
 
 class EarthdataEvaluator:
-    """Evaluator for Earthdata RAG system using Ragas metrics and Langfuse experiments"""
+    """
+    Evaluator for Earthdata RAG system using Langfuse experiments SDK.
+
+    Implements the Langfuse experiment pattern:
+    1. Task function: Runs your RAG system on each dataset item
+    2. Item-level evaluators: Score each query/response pair individually
+    3. Run-level evaluators: Aggregate metrics across all items
+
+    Evaluates Phase 2 retrieval (embedding search) directly.
+    """
 
     def __init__(
         self,
-        mcp_server_url: str,
-        llm_model: str = "amazon.nova-pro-v1:0",
-        temperature: float = 0.01,
-        trace_name: str = "rag",
+        trace_name: str | None = None,
     ):
         """
         Initialize the evaluator.
 
         Args:
-            mcp_server_url: URL of the MCP server to evaluate
-            llm_model: Bedrock LLM model for evaluation scoring
-            temperature: LLM temperature
-            trace_name: Name for Langfuse traces
+            trace_name: Name for Langfuse traces (defaults to TRACE_NAME env var or "rag")
         """
-        # Set up RAG client
-        self.rag_client = EarthdataRAGClient(server_url=mcp_server_url)
-        self.trace_name = trace_name
+        self.trace_name = trace_name or os.getenv("TRACE_NAME") or "rag"
 
     def create_task_function(self):
         """
         Create task function for run_experiment.
 
         The task function is what Langfuse calls for EACH dataset item.
-        It's the "system under test" - it runs your RAG pipeline on a question
+        It's the "system under test" - it runs embedding search on a question
         and returns the output that evaluators will score.
 
         Returns:
-            Task function that queries the MCP server
+            Task function that performs Phase 2 search
         """
+        return self._create_phase2_task()
+
+    def _create_phase2_task(self):
+        """Create task function for Phase 2 retrieval evaluation."""
 
         def task(*, item, **kwargs):
             """
-            Task function - this is YOUR SYSTEM that gets evaluated.
+            Phase 2 task - evaluate embedding search directly.
 
-            Langfuse calls this once per dataset item (question).
-
-            Flow:
-            1. Extract question from dataset item
-            2. Query MCP server (your RAG system)
-            3. Return results for evaluators to score
-
-            Args:
-                item: DatasetItemClient with input={"question": "..."}
-                **kwargs: Additional Langfuse context
+            Works with existing end-to-end datasets!
+            - Uses "question" or "query" from input
+            - Calls search_all_entity_types directly (Phase 2)
+            - Returns collections and answer for Ragas metrics
 
             Returns:
-                dict with answer, collections, question
-                (evaluators receive this as 'output' parameter)
+                dict with collections, answer, and question (same format as end-to-end)
             """
-            # Extract question from dataset item
-            question = item.input.get("question")
+            # Extract query from dataset item (support both formats)
+            query = item.input.get("query") or item.input.get("question")
 
-            # Query MCP server
-            response = self.rag_client.query(question)
+            # Execute Phase 2 search directly
+            results = search_all_entity_types(
+                query_text=query,
+                similarity_threshold=0.3,
+                limit=15,
+            )
 
-            # Extract collections and answer
+            # Get concept IDs for hydration
+            concept_ids = [
+                r["external_id"] for r in results if r["type"] == "collection"
+            ]
+
+            # Hydrate collections from database to get proper title/abstract
+            from util.datastores import get_datastore
+
+            datastore = get_datastore()
+            collection_data = datastore.fetch_collections_by_ids(concept_ids)
+
+            # Convert results to collection format for Ragas evaluation
             collections = []
-            if "raw_result" in response:
-                collections = response["raw_result"].get("collections", [])
+            for r in results:
+                if r["type"] == "collection":
+                    concept_id = r["external_id"]
+                    data = collection_data.get(concept_id, {})
+                    metadata = data.get("metadata", {})
 
-            answer = response.get("answer", "")
+                    collections.append(
+                        {
+                            "title": metadata.get("EntryTitle", concept_id),
+                            "abstract": metadata.get(
+                                "Abstract",
+                                r.get("text_content", "No description available"),
+                            ),
+                            "concept_id": concept_id,
+                            "similarity_score": r["similarity"],
+                        }
+                    )
+
+            # Generate a simple answer from collections
+            if collections:
+                answer = f"Found {len(collections)} relevant data collections based on Phase 2 search."
+            else:
+                answer = "No relevant data collections found in Phase 2 search."
 
             # Return output with both answer and collections for evaluators
-            return {
+            result = {
                 "answer": answer,
                 "collections": collections,
-                "question": question,
+                "question": query,
             }
+
+            # Add reference (ground truth answer) if present in dataset
+            if item.expected_output and "reference" in item.expected_output:
+                result["reference"] = item.expected_output["reference"]
+
+            return result
 
         return task
 
@@ -204,177 +239,152 @@ class EarthdataEvaluator:
         Returns:
             List of evaluator functions
         """
+        return self._create_phase2_evaluators()
+
+    def _create_phase2_evaluators(self):
+        """Create evaluators for Phase 2 retrieval evaluation.
+
+        Returns individual evaluator functions for:
+        1. Individual collection relevance scores
+        2. Context precision (with reference)
+        3. Context recall (with reference)
+        """
         evaluators = []
 
-        # Evaluator for average dataset relevance
-        def avg_dataset_relevance_evaluator(*, output, **kwargs):
-            """Evaluate average dataset relevance."""
+        # Evaluator for individual collection relevance scores
+        async def collection_relevance_evaluator(*, output, **kwargs):
+            """Score each collection individually for relevance."""
             try:
                 question = output.get("question", "")
                 collections = output.get("collections", [])
 
-                logger.info(
-                    f"Computing avg relevance for {len(collections)} collections"
-                )
+                if not collections:
+                    logger.info("No collections to evaluate")
+                    return []
 
-                scores = SingleEvaluation.compute_dataset_relevance_scores(
-                    question=question,
-                    collections=collections,
-                )
-
-                avg_value = scores.get("avg_relevance")
-                logger.info(f"Avg relevance computed: {avg_value}")
-
-                if avg_value is None:
-                    logger.warning("avg_relevance is None, skipping evaluation")
-                    return None
-
-                return Evaluation(
-                    name="avg_dataset_relevance",
-                    value=avg_value,
-                    comment=f"Average relevance: {avg_value:.3f}",
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error in avg_dataset_relevance_evaluator: {e}", exc_info=True
-                )
-                return None
-
-        # Evaluator for max dataset relevance
-        def max_dataset_relevance_evaluator(*, output, **kwargs):
-            """Evaluate max dataset relevance."""
-            try:
-                question = output.get("question", "")
-                collections = output.get("collections", [])
-
-                logger.info(
-                    f"Computing max relevance for {len(collections)} collections"
-                )
-
-                scores = SingleEvaluation.compute_dataset_relevance_scores(
-                    question=question,
-                    collections=collections,
-                )
-
-                max_value = scores.get("max_relevance")
-                logger.info(f"Max relevance computed: {max_value}")
-
-                if max_value is None:
-                    logger.warning("max_relevance is None, skipping evaluation")
-                    return None
-
-                return Evaluation(
-                    name="max_dataset_relevance",
-                    value=max_value,
-                    comment=f"Max relevance: {max_value:.3f}",
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error in max_dataset_relevance_evaluator: {e}", exc_info=True
-                )
-                return None
-
-        # Evaluator for faithfulness (Ragas)
-        def faithfulness_evaluator(*, output, **kwargs):
-            """Evaluate faithfulness using Ragas."""
-            try:
-                question = output.get("question", "")
-                collections = output.get("collections", [])
-                answer = output.get("answer", "")
-
-                logger.info(f"Computing faithfulness for answer: {answer[:100]}...")
-
-                # Generate contexts from collections
-                contexts = generate_contexts_from_collections(
-                    collections,
-                    fields=["title", "abstract"],
-                )
-
-                logger.info(f"Generated {len(contexts)} contexts")
-
-                score = SingleEvaluation.compute_faithfulness(
-                    question=question,
-                    contexts=contexts,
-                    answer=answer,
-                )
-
-                logger.info(f"Faithfulness score computed: {score}")
-
-                if score is None:
-                    logger.warning("Faithfulness score is None, skipping evaluation")
-                    return None
-
-                return Evaluation(
-                    name="faithfulness",
-                    value=score,
-                    comment=f"Faithfulness: {score:.3f}",
-                )
-            except Exception as e:
-                logger.error(f"Error in faithfulness_evaluator: {e}", exc_info=True)
-                return None
-
-        # Evaluator for context precision (Ragas)
-        def context_precision_evaluator(*, output, **kwargs):
-            """Evaluate context precision using Ragas."""
-            try:
-                question = output.get("question", "")
-                collections = output.get("collections", [])
-                answer = output.get("answer", "")
-
-                logger.info(
-                    f"Computing context precision for {len(collections)} collections"
-                )
-
-                # Generate contexts from collections
-                contexts = generate_contexts_from_collections(
-                    collections,
-                    fields=["title", "abstract"],
-                )
-
-                logger.info(f"Generated {len(contexts)} contexts")
-
-                score = SingleEvaluation.compute_context_precision(
-                    question=question,
-                    contexts=contexts,
-                    answer=answer,
-                )
-
-                logger.info(f"Context precision score computed: {score}")
-
-                if score is None:
-                    logger.warning(
-                        "Context precision score is None, skipping evaluation"
+                # Get all collection relevance scores using shared logic
+                relevance_data = (
+                    await SingleEvaluation.compute_dataset_relevance_scores(
+                        question=question,
+                        collections=collections,
                     )
+                )
+
+                individual_scores = relevance_data.get("individual_scores", [])
+
+                # Create individual Evaluation objects for each scored collection
+                evaluations = []
+                score_idx = 0
+                for i, collection in enumerate(collections):
+                    if score_idx < len(individual_scores):
+                        score = individual_scores[score_idx]
+                        score_idx += 1
+
+                        # Create rich metadata comment
+                        comment = (
+                            f"Query: '{question}' | "
+                            f"Concept: {collection.get('concept_id', 'unknown')} | "
+                            f"Title: {collection.get('title', '')} | "
+                            f"Abstract: {collection.get('abstract', '')[:200]}..."
+                        )
+
+                        evaluations.append(
+                            Evaluation(
+                                name=f"phase2_collection_{i+1}_relevance",
+                                value=score,
+                                comment=comment,
+                            )
+                        )
+
+                logger.info(
+                    f"Scored {len(individual_scores)}/{len(collections)} collections"
+                )
+                return evaluations
+
+            except Exception as e:
+                logger.error(
+                    f"Error in collection_relevance_evaluator: {e}", exc_info=True
+                )
+                return []
+
+        # Evaluator for context precision with reference
+        async def phase2_context_precision_evaluator(*, output, **kwargs):
+            """Evaluate context precision using reference (ground truth)."""
+            try:
+                question = output.get("question", "")
+                collections = output.get("collections", [])
+                reference = output.get("reference")
+
+                if not reference or not collections:
+                    return None
+
+                contexts = generate_contexts_from_collections(
+                    collections, fields=["title", "abstract"]
+                )
+
+                score = await SingleEvaluation.compute_context_precision_with_reference(
+                    question=question,
+                    contexts=contexts,
+                    answer=None,
+                    reference=reference,
+                )
+
+                if score is None:
                     return None
 
                 return Evaluation(
-                    name="context_precision",
+                    name="phase2_context_precision",
                     value=score,
-                    comment=f"Context precision: {score:.3f}",
+                    comment="Measures relevance of retrieved contexts to ground truth",
                 )
+
             except Exception as e:
                 logger.error(
-                    f"Error in context_precision_evaluator: {e}", exc_info=True
+                    f"Error in phase2_context_precision_evaluator: {e}", exc_info=True
                 )
                 return None
 
-        # Evaluator for number of datasets returned
-        def num_datasets_evaluator(*, output, **kwargs):
-            """Track number of datasets returned."""
-            collections = output.get("collections", [])
-            return Evaluation(
-                name="num_datasets_returned",
-                value=len(collections),
-                comment=f"Returned {len(collections)} collections",
-            )
+        # Evaluator for context recall
+        async def phase2_context_recall_evaluator(*, output, **kwargs):
+            """Evaluate context recall using reference (ground truth)."""
+            try:
+                question = output.get("question", "")
+                collections = output.get("collections", [])
+                reference = output.get("reference")
+
+                if not reference or not collections:
+                    return None
+
+                contexts = generate_contexts_from_collections(
+                    collections, fields=["title", "abstract"]
+                )
+
+                score = await SingleEvaluation.compute_context_recall(
+                    question=question,
+                    contexts=contexts,
+                    reference=reference,
+                )
+
+                if score is None:
+                    return None
+
+                return Evaluation(
+                    name="phase2_context_recall",
+                    value=score,
+                    comment="Measures coverage of ground truth in retrieved contexts",
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Error in phase2_context_recall_evaluator: {e}", exc_info=True
+                )
+                return None
 
         evaluators.extend(
             [
-                avg_dataset_relevance_evaluator,
-                max_dataset_relevance_evaluator,
-                faithfulness_evaluator,
-                context_precision_evaluator,
-                num_datasets_evaluator,
+                collection_relevance_evaluator,
+                phase2_context_precision_evaluator,
+                phase2_context_recall_evaluator,
             ]
         )
 
@@ -382,123 +392,16 @@ class EarthdataEvaluator:
 
     def create_run_evaluators(self):
         """
-        Create run-level evaluator functions for aggregate metrics.
+        Create run-level evaluator functions (executed once after all items).
 
-        DIFFERENCE FROM create_evaluators:
-        - Item-level evaluators (create_evaluators): Run on EACH test case
-          → "What's the faithfulness of question 1? question 2? etc."
-        - Run-level evaluators (create_run_evaluators): Aggregate across ALL test cases
-          → "What's the AVERAGE faithfulness across the entire experiment?"
-
-        These run AFTER all item-level evaluations are complete.
+        Run-level evaluators aggregate metrics across all dataset items.
+        They receive item_results containing all item-level evaluations.
 
         Returns:
             List of run-level evaluator functions
         """
-        run_evaluators = []
-
-        # Run-level: Average of average dataset relevance
-        def run_avg_dataset_relevance(*, item_results, **kwargs):
-            """Calculate average dataset relevance across all test cases."""
-            scores = [
-                eval.value
-                for result in item_results
-                for eval in result.evaluations
-                if eval.name == "avg_dataset_relevance" and eval.value is not None
-            ]
-
-            if not scores:
-                logger.warning(
-                    "No avg_dataset_relevance scores to aggregate, skipping run-level evaluator"
-                )
-                return None  # Don't create an Evaluation with None value
-
-            avg = sum(scores) / len(scores)
-            return Evaluation(
-                name="run_avg_dataset_relevance",
-                value=avg,
-                comment=f"Average dataset relevance across {len(scores)} test cases: {avg:.3f}",
-            )
-
-        # Run-level: Average faithfulness
-        def run_avg_faithfulness(*, item_results, **kwargs):
-            """Calculate average faithfulness across all test cases."""
-            scores = [
-                eval.value
-                for result in item_results
-                for eval in result.evaluations
-                if eval.name == "faithfulness" and eval.value is not None
-            ]
-
-            if not scores:
-                logger.warning(
-                    "No faithfulness scores to aggregate, skipping run-level evaluator"
-                )
-                return None
-
-            avg = sum(scores) / len(scores)
-            return Evaluation(
-                name="run_avg_faithfulness",
-                value=avg,
-                comment=f"Average faithfulness across {len(scores)} test cases: {avg:.3f}",
-            )
-
-        # Run-level: Average context precision
-        def run_avg_context_precision(*, item_results, **kwargs):
-            """Calculate average context precision across all test cases."""
-            scores = [
-                eval.value
-                for result in item_results
-                for eval in result.evaluations
-                if eval.name == "context_precision" and eval.value is not None
-            ]
-
-            if not scores:
-                logger.warning(
-                    "No context_precision scores to aggregate, skipping run-level evaluator"
-                )
-                return None
-
-            avg = sum(scores) / len(scores)
-            return Evaluation(
-                name="run_avg_context_precision",
-                value=avg,
-                comment=f"Average context precision across {len(scores)} test cases: {avg:.3f}",
-            )
-
-        # Run-level: Average number of datasets
-        def run_avg_num_datasets(*, item_results, **kwargs):
-            """Calculate average number of datasets returned."""
-            counts = [
-                eval.value
-                for result in item_results
-                for eval in result.evaluations
-                if eval.name == "num_datasets_returned" and eval.value is not None
-            ]
-
-            if not counts:
-                logger.warning(
-                    "No num_datasets_returned scores to aggregate, skipping run-level evaluator"
-                )
-                return None
-
-            avg = sum(counts) / len(counts)
-            return Evaluation(
-                name="run_avg_num_datasets",
-                value=avg,
-                comment=f"Average datasets returned: {avg:.1f}",
-            )
-
-        run_evaluators.extend(
-            [
-                run_avg_dataset_relevance,
-                run_avg_faithfulness,
-                run_avg_context_precision,
-                run_avg_num_datasets,
-            ]
-        )
-
-        return run_evaluators
+        # No run-level evaluators for either mode
+        return []
 
     def run_experiment(
         self,
@@ -508,63 +411,64 @@ class EarthdataEvaluator:
         max_concurrency: int = 3,
     ):
         """
-        Run experiment on a Langfuse dataset using run_experiment.
+        Run Langfuse experiment on a dataset.
+
+        Implements Langfuse experiments SDK pattern:
+        - Task: Executes RAG system on each dataset item
+        - Item evaluators: Score each query/response pair
+        - Run evaluators: Aggregate across all items
 
         Args:
-            dataset_name: Name of the Langfuse dataset
-            experiment_name: Name for this experiment run
-            experiment_description: Description for this experiment
-            max_concurrency: Maximum concurrent task executions
+            dataset_name: Langfuse dataset name
+            experiment_name: Experiment identifier (auto-generated if not provided)
+            experiment_description: Human-readable description
+            max_concurrency: Parallel execution limit
 
         Returns:
-            Experiment result object
+            Experiment result with aggregated metrics
         """
         langfuse = get_langfuse()
-
-        # Load dataset from Langfuse
-        logger.info(f"Loading dataset: {dataset_name}")
         dataset = langfuse.get_dataset(dataset_name)
 
-        # Create task and evaluators
+        # Auto-generate experiment name if needed
+        if not experiment_name:
+            experiment_name = f"{self.trace_name}_phase2_{dataset_name}"
+
+        # Generate unique run name with timestamp
+        run_name = f"{experiment_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        # Prepare experiment components
         task = self.create_task_function()
         evaluators = self.create_evaluators()
         run_evaluators = self.create_run_evaluators()
 
-        # Set default experiment name if not provided
-        if not experiment_name:
-            experiment_name = f"{dataset_name}_evaluation"
-
-        # Run experiment
-        logger.info(f"Running experiment: {experiment_name}")
+        # Log experiment configuration
+        logger.info(f"Starting experiment: {experiment_name}")
+        logger.info(f"Run name: {run_name}")
+        logger.info(f"Mode: phase2_retrieval")
         logger.info(f"Dataset: {dataset_name} ({len(dataset.items)} items)")
-        logger.info(
-            f"Evaluators: {len(evaluators)} item-level, {len(run_evaluators)} run-level"
-        )
+        logger.info(f"Item evaluators: {len(evaluators)}")
+        logger.info(f"Run evaluators: {len(run_evaluators)}")
 
+        # Execute experiment
         result = dataset.run_experiment(
             name=experiment_name,
-            description=experiment_description or f"Evaluation of {dataset_name}",
+            run_name=run_name,
+            description=experiment_description or "Phase 2 retrieval evaluation",
             task=task,
             evaluators=evaluators,
             run_evaluators=run_evaluators,
             max_concurrency=max_concurrency,
         )
 
-        # Print results
+        # Display results
         logger.info("=" * 70)
-        logger.info("Experiment Results:")
+        logger.info("Experiment Complete")
         logger.info("=" * 70)
         print(result.format())
 
-        # Flush to ensure all data is sent
         flush_langfuse()
-
         return result
-
-    def close(self):
-        """Close the RAG client connection"""
-        if hasattr(self, "rag_client"):
-            self.rag_client.close()
 
 
 class SingleEvaluation:
@@ -579,7 +483,6 @@ class SingleEvaluation:
     _llm = None
     _embeddings = None
     _relevance_prompt = None
-    _metrics = None
 
     @classmethod
     def _initialize_components(cls):
@@ -593,15 +496,75 @@ class SingleEvaluation:
             cls._embeddings = create_bedrock_embeddings()
             cls._relevance_prompt = DatasetRelevancePrompt()
 
-            # Initialize Ragas metrics
-            cls._metrics = [
-                Faithfulness(),
-                LLMContextPrecisionWithoutReference(),
-            ]
-            init_ragas_metrics(cls._metrics, cls._llm, cls._embeddings)
+    @classmethod
+    async def compute_single_collection_relevance(
+        cls,
+        question: str,
+        collection: dict,
+        collection_fields: list[str] | None = None,
+    ) -> float | None:
+        """
+        Compute relevance score for a single collection.
+
+        Args:
+            question: User query
+            collection: Single collection dict
+            collection_fields: Fields to extract from collection (default: ["title", "abstract"])
+
+        Returns:
+            Relevance score (0-1) or None if error
+        """
+        cls._initialize_components()
+
+        # Default collection fields
+        if collection_fields is None:
+            collection_fields = ["title", "abstract"]
+
+        try:
+            # Extract only the specified fields for relevance scoring
+            dataset_subset = {
+                field: collection.get(field, "") for field in collection_fields
+            }
+
+            prompt_input = DatasetRelevanceInput(
+                question=question,
+                dataset=dataset_subset,
+            )
+
+            # Retry up to 3 times with exponential backoff
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # PydanticPrompt.generate() is async
+                    result = await cls._relevance_prompt.generate(
+                        data=prompt_input, llm=cls._llm
+                    )
+                    return result.relevance_score
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                        logger.warning(
+                            f"Attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {wait_time}s..."
+                        )
+                        import time
+
+                        time.sleep(wait_time)
+                    else:
+                        # Final attempt failed - log and return None
+                        concept_id = collection.get("concept_id", "unknown")
+                        logger.warning(
+                            f"Failed to score collection {concept_id} after {max_retries} attempts: {e}"
+                        )
+                        return None
+
+        except Exception as e:
+            # Catch any unexpected errors outside retry logic
+            concept_id = collection.get("concept_id", "unknown")
+            logger.error(f"Unexpected error scoring collection {concept_id}: {e}")
+            return None
 
     @classmethod
-    def compute_dataset_relevance_scores(
+    async def compute_dataset_relevance_scores(
         cls,
         question: str,
         collections: list[dict],
@@ -624,27 +587,16 @@ class SingleEvaluation:
         if collection_fields is None:
             collection_fields = ["title", "abstract"]
 
-        # Score individual collections using relevance prompt
+        # Score individual collections using the single collection helper
         collection_scores = []
         for collection in collections:
-            try:
-                # Extract only the specified fields for relevance scoring
-                dataset_subset = {
-                    field: collection.get(field, "") for field in collection_fields
-                }
-
-                prompt_input = DatasetRelevanceInput(
-                    question=question,
-                    dataset=dataset_subset,
-                )
-                # PydanticPrompt.generate() is async - asyncio.run() works with nest_asyncio
-                result = asyncio.run(
-                    cls._relevance_prompt.generate(data=prompt_input, llm=cls._llm)
-                )
-                collection_scores.append(result.relevance_score)
-            except Exception as e:
-                logger.warning(f"Error scoring collection: {e}")
-                continue
+            score = await cls.compute_single_collection_relevance(
+                question=question,
+                collection=collection,
+                collection_fields=collection_fields,
+            )
+            if score is not None:
+                collection_scores.append(score)
 
         # Compute aggregates
         result = {
@@ -660,7 +612,7 @@ class SingleEvaluation:
         return result
 
     @classmethod
-    def compute_faithfulness(
+    async def compute_faithfulness(
         cls,
         question: str,
         contexts: list[str],
@@ -680,33 +632,62 @@ class SingleEvaluation:
         cls._initialize_components()
 
         try:
-            # Use the first metric which is Faithfulness
-            faithfulness_metric = cls._metrics[0]
-            ragas_scores = score_with_ragas(
-                [faithfulness_metric],
-                question,
-                contexts,
-                answer,
+            metric = Faithfulness(llm=cls._llm, embeddings=cls._embeddings)
+            result = await metric.ascore(
+                user_input=question,
+                retrieved_contexts=contexts,
+                answer=answer,
             )
-            return ragas_scores.get("faithfulness")
+            return result.value
         except Exception as e:
             logger.warning(f"Error computing faithfulness: {e}")
             return None
 
     @classmethod
-    def compute_context_precision(
+    async def compute_answer_relevancy(
         cls,
         question: str,
-        contexts: list[str],
         answer: str,
     ) -> float | None:
         """
-        Compute context precision score using Ragas.
+        Compute answer relevancy score using Ragas.
+
+        Args:
+            question: User query
+            answer: Generated answer
+
+        Returns:
+            Answer relevancy score (0-1) or None if error
+        """
+        cls._initialize_components()
+
+        try:
+            metric = AnswerRelevancy(llm=cls._llm, embeddings=cls._embeddings)
+            result = await metric.ascore(
+                user_input=question,
+                answer=answer,
+            )
+            return result.value
+        except Exception as e:
+            logger.warning(f"Error computing answer relevancy: {e}")
+            return None
+
+    @classmethod
+    async def compute_context_precision_with_reference(
+        cls,
+        question: str,
+        contexts: list[str],
+        answer: str | None,
+        reference: str,
+    ) -> float | None:
+        """
+        Compute context precision with reference using Ragas.
 
         Args:
             question: User query
             contexts: Retrieved contexts
-            answer: Generated answer
+            answer: Generated answer (not used by ContextPrecision with reference, can be None)
+            reference: Reference answer (ground truth)
 
         Returns:
             Context precision score (0-1) or None if error
@@ -714,170 +695,53 @@ class SingleEvaluation:
         cls._initialize_components()
 
         try:
-            # Use the second metric which is LLMContextPrecisionWithoutReference
-            context_precision_metric = cls._metrics[1]
-            ragas_scores = score_with_ragas(
-                [context_precision_metric],
-                question,
-                contexts,
-                answer,
+            metric = ContextPrecision(llm=cls._llm)
+            result = await metric.ascore(
+                user_input=question,
+                retrieved_contexts=contexts,
+                reference=reference,
             )
-            return ragas_scores.get("context_precision")
+            return result.value
         except Exception as e:
-            logger.warning(f"Error computing context precision: {e}")
+            logger.warning(f"Error computing context precision with reference: {e}")
             return None
 
     @classmethod
-    def evaluate_single(
+    async def compute_context_recall(
         cls,
         question: str,
-        collections: list[dict],
-        contexts: list[str] | None = None,
-        answer: str | None = None,
-        collection_fields: list[str] | None = None,
-    ) -> dict[str, float]:
+        contexts: list[str],
+        reference: str,
+    ) -> float | None:
         """
-        Evaluate a single query/response and return all scores.
-
-        This is the core evaluation that both batch and online evaluation use.
-        The caller is responsible for sending scores to Langfuse.
+        Compute context recall using Ragas.
 
         Args:
             question: User query
-            collections: List of collection dicts
-            contexts: Retrieved contexts (auto-generated from collections if not provided)
-            answer: Generated answer (SHOULD be actual system output; auto-generated only for testing)
-            collection_fields: Fields to extract from collections (default: ["title", "abstract"])
-                              First field is used as primary identifier, second for detailed description
+            contexts: Retrieved contexts
+            reference: Reference answer (ground truth)
 
         Returns:
-            Dictionary of all scores with metadata: {"metric_name": {"value": X, "comment": "...", "data_type": "NUMERIC"}}
+            Context recall score (0-1) or None if error
         """
         cls._initialize_components()
-        all_scores = {}
 
-        # Default collection fields
-        if collection_fields is None:
-            collection_fields = ["title", "abstract"]
-
-        # Auto-generate contexts if not provided
-        if contexts is None:
-            contexts = generate_contexts_from_collections(
-                collections, collection_fields
+        try:
+            metric = ContextRecall(llm=cls._llm)
+            result = await metric.ascore(
+                user_input=question,
+                retrieved_contexts=contexts,
+                reference=reference,
             )
-
-        # Auto-generate answer if not provided
-        # WARNING: This creates circularity - only use for testing!
-        if answer is None:
-            logger.warning(
-                "Auto-generating answer from collections. "
-                "For real evaluation, provide the actual system-generated answer "
-                "to avoid circular evaluation (answer derived from same contexts)."
-            )
-            answer = generate_answer_from_collections(collections, collection_fields)
-
-        # Define metrics metadata - makes it easy to add/remove metrics
-        # Each metric has: name, compute function, comment, data type, result keys
-        metrics_metadata = [
-            {
-                "name": "dataset_relevance",
-                "compute": lambda: cls.compute_dataset_relevance_scores(
-                    question=question,
-                    collections=collections,
-                    collection_fields=collection_fields,
-                ),
-                "results": [
-                    {
-                        "key": "individual_scores",
-                        "score_name": "individual_dataset_scores",
-                        "comment": "Individual relevance scores for each dataset",
-                        "data_type": "LIST",
-                    },
-                    {
-                        "key": "avg_relevance",
-                        "score_name": "avg_dataset_relevance",
-                        "comment": "Average relevance of individual datasets",
-                        "data_type": "NUMERIC",
-                    },
-                    {
-                        "key": "max_relevance",
-                        "score_name": "max_dataset_relevance",
-                        "comment": "Best dataset relevance score",
-                        "data_type": "NUMERIC",
-                    },
-                ],
-            },
-            {
-                "name": "faithfulness",
-                "compute": lambda: cls.compute_faithfulness(
-                    question=question,
-                    contexts=contexts,
-                    answer=answer,
-                ),
-                "results": [
-                    {
-                        "key": None,  # Direct scalar result
-                        "score_name": "faithfulness",
-                        "comment": "Ragas faithfulness metric",
-                        "data_type": "NUMERIC",
-                    },
-                ],
-            },
-            {
-                "name": "context_precision",
-                "compute": lambda: cls.compute_context_precision(
-                    question=question,
-                    contexts=contexts,
-                    answer=answer,
-                ),
-                "results": [
-                    {
-                        "key": None,  # Direct scalar result
-                        "score_name": "context_precision",
-                        "comment": "Ragas context_precision metric",
-                        "data_type": "NUMERIC",
-                    },
-                ],
-            },
-        ]
-
-        # Compute all metrics dynamically
-        for metric_meta in metrics_metadata:
-            try:
-                result = metric_meta["compute"]()
-
-                # Process each result defined in metadata
-                for result_spec in metric_meta["results"]:
-                    if result_spec["key"] is None:
-                        # Direct scalar result
-                        value = result
-                    else:
-                        # Dict result - extract specific key
-                        value = (
-                            result.get(result_spec["key"])
-                            if isinstance(result, dict)
-                            else None
-                        )
-
-                    # Only add if value is not None
-                    if value is not None:
-                        all_scores[result_spec["score_name"]] = {
-                            "value": value,
-                            "comment": result_spec["comment"],
-                            "data_type": result_spec["data_type"],
-                        }
-            except Exception as e:
-                logger.warning(f"Error computing {metric_meta['name']}: {e}")
-
-        return all_scores
+            return result.value
+        except Exception as e:
+            logger.warning(f"Error computing context recall: {e}")
+            return None
 
 
 def main():
     """Main entry point for running evaluations."""
     # Get configuration from environment
-    mcp_server_url = os.getenv(
-        "MCP_SERVER_URL", "https://cmr.sit.earthdata.nasa.gov/mcp"
-    )
     dataset_name = os.getenv("DATASET_NAME")
     experiment_name = os.getenv("EXPERIMENT_NAME")
     max_concurrency = int(os.getenv("MAX_CONCURRENCY", "3"))
@@ -889,25 +753,14 @@ def main():
         )
 
     # Initialize evaluator
-    evaluator = EarthdataEvaluator(
-        mcp_server_url=mcp_server_url,
+    evaluator = EarthdataEvaluator()
+
+    # Run experiment using run_experiment API
+    result = evaluator.run_experiment(
+        dataset_name=dataset_name,
+        experiment_name=experiment_name,
+        max_concurrency=max_concurrency,
     )
-
-    try:
-        # Run experiment using run_experiment API
-        result = evaluator.run_experiment(
-            dataset_name=dataset_name,
-            experiment_name=experiment_name,
-            max_concurrency=max_concurrency,
-        )
-
-        logger.info("=" * 70)
-        logger.info("Evaluation complete!")
-        logger.info(f"View results in Langfuse UI: {os.getenv('LANGFUSE_BASE_URL')}")
-
-    finally:
-        # Clean up resources
-        evaluator.close()
 
 
 if __name__ == "__main__":
