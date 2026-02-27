@@ -3,7 +3,9 @@
 import logging
 import os
 from datetime import datetime
+import time
 
+import asyncio
 import nest_asyncio
 from dotenv import load_dotenv
 from ragas.metrics.collections import (
@@ -22,18 +24,7 @@ from rag_eval.ragas_utils import (
 from tools.discover_data.utils.embedding_search import search_all_entity_types
 from util.langfuse import get_langfuse, flush_langfuse
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 logger = logging.getLogger(__name__)
-
-# Load environment variables from .env file (override existing ones)
-load_dotenv(override=True)
-
-# Apply nest_asyncio to allow nested event loops (for PydanticPrompt.generate in evaluators)
-nest_asyncio.apply()
-
 
 # === Evaluation Utility Functions ===
 
@@ -518,9 +509,8 @@ class SingleEvaluation:
                             e,
                             wait_time,
                         )
-                        import time
 
-                        time.sleep(wait_time)
+                        await asyncio.sleep(wait_time)
                     else:
                         # Final attempt failed - log and return None
                         concept_id = collection.get("concept_id", "unknown")
@@ -713,6 +703,19 @@ class SingleEvaluation:
 
 
 def main():
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+    # Load environment variables from .env file (override existing ones)
+    load_dotenv(override=True)
+
+    # Apply nest_asyncio to allow nested event loops (for PydanticPrompt.generate in evaluators)
+    nest_asyncio.apply()
+
     """Main entry point for running evaluations."""
     # Get configuration from environment
     dataset_name = os.getenv("DATASET_NAME")
