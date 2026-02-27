@@ -47,6 +47,7 @@ from ragas.testset.synthesizers.single_hop.specific import (
 from ragas.testset import TestsetGenerator
 
 from util.database import get_db_connection
+from util.langfuse import get_langfuse
 
 # Load environment variables
 load_dotenv()
@@ -561,6 +562,76 @@ class EarthdataTestSetGenerator:
 
         return test_data
 
+    def push_to_langfuse(
+        self,
+        test_data: dict,
+        dataset_name: str,
+        description: str | None = None,
+    ) -> None:
+        """
+        Push generated test dataset to Langfuse.
+
+        Args:
+            test_data: Generated test dataset dictionary
+            dataset_name: Name for the Langfuse dataset (e.g., 'earthdata/synthetic-v1')
+            description: Optional description for the dataset
+        """
+        langfuse = get_langfuse()
+
+        # Create or update dataset in Langfuse
+        print(f"\nPushing to Langfuse dataset: {dataset_name}")
+        dataset_description = description or test_data.get(
+            "description", "Synthetic Earthdata RAG evaluation dataset"
+        )
+
+        langfuse.create_dataset(
+            name=dataset_name,
+            description=dataset_description,
+            metadata={
+                "version": test_data.get("version", "1.0"),
+                "generated_at": test_data.get("generated_at"),
+                "generator": test_data.get("generator", "ragas"),
+                "testset_size": len(test_data.get("test_cases", [])),
+                "config": test_data.get("config", {}),
+            },
+        )
+
+        # Add dataset items
+        test_cases = test_data.get("test_cases", [])
+        print(f"Pushing {len(test_cases)} test cases to Langfuse...")
+
+        success_count = 0
+        for idx, test_case in enumerate(test_cases, 1):
+            try:
+                langfuse.create_dataset_item(
+                    dataset_name=dataset_name,
+                    input={
+                        "question": test_case["question"],
+                    },
+                    expected_output={
+                        "reference": test_case.get("reference", ""),
+                        "reference_contexts": test_case.get("reference_contexts", []),
+                    },
+                    metadata={
+                        "question_id": test_case.get("question_id", f"q{idx:03d}"),
+                        "synthesizer_name": test_case.get(
+                            "synthesizer_name", "synthetic"
+                        ),
+                        "persona": test_case.get("metadata", {}).get("persona"),
+                        "query_type": test_case.get("metadata", {}).get("query_type"),
+                        "topic": test_case.get("metadata", {}).get("topic"),
+                    },
+                )
+                success_count += 1
+                print(f"  ✓ {idx}/{len(test_cases)}: Added test case")
+            except Exception as e:
+                print(f"  ✗ {idx}/{len(test_cases)}: Failed - {e}")
+
+        print(
+            f"\n✓ Successfully pushed {success_count}/{len(test_cases)} test cases to Langfuse"
+        )
+        print(f"Dataset: {dataset_name}")
+
 
 def main():
     """
@@ -573,6 +644,10 @@ def main():
         # Using OpenAI (set environment variable):
         export USE_OPENAI=true
         export OPENAI_API_KEY='your-api-key'
+        python test_set_generator.py
+
+        # Skip Langfuse push:
+        export SKIP_LANGFUSE_PUSH=true
         python test_set_generator.py
     """
     print("=" * 70)
@@ -606,7 +681,7 @@ def main():
     output_path = f"evals/datasets/earthdata_synthetic_{timestamp}.json"
 
     test_data = generator.generate_testset(
-        testset_size=5,  # Generate 20 test questions
+        testset_size=5,  # Generate 5 test questions
         output_path=output_path,
     )
 
@@ -620,6 +695,31 @@ def main():
     print("\nSample questions:")
     for i, test_case in enumerate(test_data["test_cases"][:3], 1):
         print(f"\n{i}. {test_case['question']}")
+
+    # Push to Langfuse (unless disabled)
+    skip_push = os.getenv("SKIP_LANGFUSE_PUSH", "false").lower() == "true"
+    if not skip_push:
+        print("\n" + "=" * 70)
+        print("Pushing to Langfuse...")
+        print("=" * 70)
+
+        # Create dataset name with timestamp
+        dataset_name = f"earthdata/synthetic-{timestamp}"
+        description = f"Synthetic test set generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        try:
+            generator.push_to_langfuse(
+                test_data=test_data,
+                dataset_name=dataset_name,
+                description=description,
+            )
+            print("\n✓ Dataset successfully pushed to Langfuse!")
+            print(f"View at: {os.getenv('LANGFUSE_BASE_URL')}/datasets/{dataset_name}")
+        except Exception as e:
+            print(f"\n✗ Failed to push to Langfuse: {e}")
+            print("Dataset saved locally but not uploaded to Langfuse.")
+    else:
+        print("\n⊘ Skipping Langfuse push (SKIP_LANGFUSE_PUSH=true)")
 
 
 if __name__ == "__main__":
