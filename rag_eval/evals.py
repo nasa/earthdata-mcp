@@ -3,7 +3,6 @@
 import logging
 import os
 from datetime import datetime
-import time
 
 import asyncio
 import nest_asyncio
@@ -67,6 +66,43 @@ def generate_contexts_from_collections(
         List of formatted context strings
     """
     return [format_collection_context(c, fields) for c in collections]
+
+
+def generate_answer_from_collections(
+    collections: list[dict],
+    fields: list[str],
+) -> str:
+    """
+    Generate a simple answer from collections.
+
+    WARNING: For evaluation purposes, you should use the actual system-generated
+    answer, not this auto-generated one. Using this creates circularity where
+    contexts and answer are derived from the same source, artificially inflating
+    metrics like Faithfulness.
+
+    This function is only useful for:
+    - Testing/debugging
+    - Cases where you only have collections but no generated answer
+
+    Args:
+        collections: List of collection dictionaries
+        fields: Fields used (first field assumed to be the primary identifier)
+
+    Returns:
+        Simple answer string
+    """
+    if not collections:
+        return "No relevant data collections were found for your query."
+
+    # Use first field as primary identifier (usually title)
+    primary_field = fields[0] if fields else next(iter(collections[0].keys()), "id")
+    top_identifiers = ", ".join(
+        str(c.get(primary_field, "Unknown")) for c in collections[:3]
+    )
+    return (
+        f"Found {len(collections)} relevant data collections. "
+        f"Top matches include: {top_identifiers}."
+    )
 
 
 # === Evaluation Classes ===
@@ -703,7 +739,7 @@ class SingleEvaluation:
 
 
 def main():
-
+    """Main entry point for running evaluations."""
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
@@ -716,7 +752,6 @@ def main():
     # Apply nest_asyncio to allow nested event loops (for PydanticPrompt.generate in evaluators)
     nest_asyncio.apply()
 
-    """Main entry point for running evaluations."""
     # Get configuration from environment
     dataset_name = os.getenv("DATASET_NAME")
     experiment_name = os.getenv("EXPERIMENT_NAME")
