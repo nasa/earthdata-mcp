@@ -3,7 +3,9 @@
 import logging
 import os
 from datetime import datetime
+import time
 
+import asyncio
 import nest_asyncio
 from tenacity import (
     retry,
@@ -680,6 +682,19 @@ class SingleEvaluation:
 
 
 def main():
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+    # Load environment variables from .env file (override existing ones)
+    load_dotenv(override=True)
+
+    # Apply nest_asyncio to allow nested event loops (for PydanticPrompt.generate in evaluators)
+    nest_asyncio.apply()
+
     """Main entry point for running evaluations."""
     # Configure logging
     logging.basicConfig(
