@@ -342,7 +342,6 @@ class TestSingleEvaluation:
         score = await SingleEvaluation.compute_context_precision_with_reference(
             question=sample_question,
             contexts=["Context 1"],
-            answer=None,
             reference="Ground truth",
         )
 
@@ -934,7 +933,7 @@ class TestSingleEvaluationErrorHandling:
         mock_context_precision.return_value = mock_metric
 
         score = await SingleEvaluation.compute_context_precision_with_reference(
-            question=sample_question, contexts=["Context"], answer=None, reference="ref"
+            question=sample_question, contexts=["Context"], reference="ref"
         )
 
         assert score is None

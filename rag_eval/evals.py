@@ -158,7 +158,7 @@ class EarthdataEvaluator:
     def _create_phase2_task(self):
         """Create task function for Phase 2 retrieval evaluation."""
 
-        def task(*, item, **kwargs):
+        def task(*, item, **_kwargs):
             """
             Phase 2 task - evaluate embedding search directly.
 
@@ -252,7 +252,7 @@ class EarthdataEvaluator:
         evaluators = []
 
         # Evaluator for individual collection relevance scores
-        async def collection_relevance_evaluator(*, output, **kwargs):
+        async def collection_relevance_evaluator(*, output, **_kwargs):
             """Score each collection individually for relevance."""
             try:
                 question = output.get("question", "")
@@ -308,7 +308,7 @@ class EarthdataEvaluator:
                 return []
 
         # Evaluator for context precision with reference
-        async def phase2_context_precision_evaluator(*, output, **kwargs):
+        async def phase2_context_precision_evaluator(*, output, **_kwargs):
             """Evaluate context precision using reference (ground truth)."""
             try:
                 question = output.get("question", "")
@@ -325,7 +325,6 @@ class EarthdataEvaluator:
                 score = await SingleEvaluation.compute_context_precision_with_reference(
                     question=question,
                     contexts=contexts,
-                    answer=None,
                     reference=reference,
                 )
 
@@ -345,7 +344,7 @@ class EarthdataEvaluator:
                 return None
 
         # Evaluator for context recall
-        async def phase2_context_recall_evaluator(*, output, **kwargs):
+        async def phase2_context_recall_evaluator(*, output, **_kwargs):
             """Evaluate context recall using reference (ground truth)."""
             try:
                 question = output.get("question", "")
@@ -682,7 +681,6 @@ class SingleEvaluation:
         cls,
         question: str,
         contexts: list[str],
-        answer: str | None,
         reference: str,
     ) -> float | None:
         """
@@ -691,7 +689,6 @@ class SingleEvaluation:
         Args:
             question: User query
             contexts: Retrieved contexts
-            answer: Generated answer (not used by ContextPrecision with reference, can be None)
             reference: Reference answer (ground truth)
 
         Returns:
