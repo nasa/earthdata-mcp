@@ -297,7 +297,11 @@ class EarthdataEvaluator:
                 return Evaluation(
                     name="phase2_context_precision",
                     value=score,
-                    comment="Measures relevance of retrieved contexts to ground truth",
+                    comment=(
+                        "Context Precision measures how well a retriever ranks relevant "
+                        "chunks above irrelevant ones by evaluating whether relevant "
+                        "information appears near the top of the results."
+                    ),
                 )
 
             except Exception as e:
@@ -308,7 +312,7 @@ class EarthdataEvaluator:
 
         # Evaluator for context recall
         async def phase2_context_recall_evaluator(*, output, **_kwargs):
-            """Evaluate context recall using reference (ground truth)."""
+            """Evaluate context recall using reference (approximation based on claims)."""
             try:
                 question = output.get("question", "")
                 collections = output.get("collections", [])
@@ -333,7 +337,11 @@ class EarthdataEvaluator:
                 return Evaluation(
                     name="phase2_context_recall",
                     value=score,
-                    comment="Measures coverage of ground truth in retrieved contexts",
+                    comment=(
+                        "Context Recall measures how well a retrieval system avoids missing "
+                        "important information by checking whether all key claims in a "
+                        "reference answer can be supported by the retrieved context."
+                    ),
                 )
 
             except Exception as e:
