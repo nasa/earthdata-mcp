@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 
-from langfuse import Evaluation
 from rag_eval.evals import (
     EarthdataEvaluator,
     SingleEvaluation,
@@ -716,7 +715,7 @@ class TestEarthdataEvaluator:
     @patch("rag_eval.evals.search_all_entity_types")
     @patch("util.datastores.get_datastore")
     def test_phase2_task_execution_no_search_results(
-        self, mock_get_datastore, mock_search
+        self, _mock_get_datastore, mock_search
     ):
         """Test Phase 2 task execution with no search results."""
         mock_search.return_value = []
@@ -737,7 +736,7 @@ class TestEarthdataEvaluator:
 
     @patch("rag_eval.evals.get_langfuse")
     @patch("rag_eval.evals.flush_langfuse")
-    def test_run_experiment_with_custom_name(self, mock_flush, mock_get_langfuse):
+    def test_run_experiment_with_custom_name(self, _mock_flush, mock_get_langfuse):
         """Test running an experiment with custom name."""
         mock_dataset = MagicMock()
         mock_dataset.items = []
@@ -764,7 +763,7 @@ class TestEarthdataEvaluator:
 
     @patch("rag_eval.evals.get_langfuse")
     @patch("rag_eval.evals.flush_langfuse")
-    def test_run_experiment_auto_generates_name(self, mock_flush, mock_get_langfuse):
+    def test_run_experiment_auto_generates_name(self, _mock_flush, mock_get_langfuse):
         """Test that experiment name is auto-generated when not provided."""
         mock_dataset = MagicMock()
         mock_dataset.items = []
@@ -1006,7 +1005,7 @@ class TestMainFunction:
 
         mock_llm_factory.return_value = MagicMock()
 
-        result = create_bedrock_llm()
+        create_bedrock_llm()
 
         mock_llm_factory.assert_called_once()
         call_args = mock_llm_factory.call_args
@@ -1021,7 +1020,7 @@ class TestMainFunction:
 
         mock_llm_factory.return_value = MagicMock()
 
-        result = create_bedrock_llm(
+        create_bedrock_llm(
             model="amazon.nova-lite-v1:0", temperature=0.5, max_tokens=2000
         )
 
@@ -1038,7 +1037,7 @@ class TestMainFunction:
 
         mock_embedding_factory.return_value = MagicMock()
 
-        result = create_bedrock_embeddings()
+        create_bedrock_embeddings()
 
         mock_embedding_factory.assert_called_once_with(
             "litellm", model="bedrock/amazon.titan-embed-text-v2:0"
@@ -1051,7 +1050,7 @@ class TestMainFunction:
 
         mock_embedding_factory.return_value = MagicMock()
 
-        result = create_bedrock_embeddings(model="cohere.embed-english-v3")
+        create_bedrock_embeddings(model="cohere.embed-english-v3")
 
         mock_embedding_factory.assert_called_once_with(
             "litellm", model="bedrock/cohere.embed-english-v3"

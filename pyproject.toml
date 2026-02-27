@@ -60,6 +60,13 @@ disable = [
     "no-member",  # False positives with Pydantic FieldInfo and dynamic attributes
     "consider-iterating-dictionary",  # Sometimes explicit .keys() is clearer
     "duplicate-code",  # Test helpers share intentionally similar scaffolding
+    "import-error",  # CI environment handles dependencies differently
+    "too-many-positional-arguments",  # Python 3.13+ warning, acceptable for test mocks
+    "too-many-public-methods",  # Test classes naturally have many test methods
+    "too-many-lines",  # Test files can be long; modularity isn't always beneficial
+    "use-implicit-booleaness-not-comparison",  # Explicit [] checks clearer in tests
+    "too-many-branches",  # Complex logic in MCP client acceptable
+    "too-many-nested-blocks",  # SSE parsing requires nested structure
 ]
 
 [tool.pylint.design]
