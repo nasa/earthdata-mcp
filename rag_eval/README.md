@@ -1,22 +1,21 @@
 # RAG Evaluation
 
-Evaluate a RAG (Retrieval Augmented Generation) system with custom metrics
+Evaluate a RAG (Retrieval Augmented Generation) system with custom metrics using AWS Bedrock and Ragas.
 
 ## Quick Start
 
-### 1. Set Your API Key
+### 1. Configure AWS Credentials
 
-Choose your LLM provider:
+The evaluation uses AWS Bedrock for LLM and embeddings:
 
 ```bash
-# OpenAI (default)
-export OPENAI_API_KEY="your-openai-key"
+# Set AWS credentials
+export AWS_DEFAULT_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="your-access-key"
+export AWS_SECRET_ACCESS_KEY="your-secret-key"
 
-# Or use Anthropic Claude
-export ANTHROPIC_API_KEY="your-anthropic-key"
-
-# Or use Google Gemini
-export GOOGLE_API_KEY="your-google-key"
+# Or use AWS profile
+export AWS_PROFILE="your-profile"
 ```
 
 ### 2. Install Dependencies
@@ -49,45 +48,29 @@ python evals.py
 
 ## Project Structure
 
-```
+```text
 rag_eval/
 ├── README.md           # This file
 ├── pyproject.toml      # Project configuration
-├── rag.py              # Your RAG application code
 ├── evals.py            # Evaluation workflow
-├── __init__.py         # Makes this a Python package
-└── evals/              # Evaluation-related data
-    ├── datasets/       # Test datasets
-    ├── experiments/    # Experiment results
-    └── logs/           # Evaluation logs and traces
+├── models.py           # Pydantic models for evaluation
+├── ragas_utils.py      # Ragas LLM/embeddings factory functions
+└── __init__.py         # Makes this a Python package
 ```
 
 ## Customization
 
 ### Modify the LLM Provider
 
-In `evals.py`, update the LLM configuration:
-
-```python
-from ragas.llms import llm_factory
-
-# Use Anthropic Claude
-llm = llm_factory("claude-3-5-sonnet-20241022", provider="anthropic")
-
-# Use Google Gemini
-llm = llm_factory("gemini-1.5-pro", provider="google")
-
-# Use local Ollama
-llm = llm_factory("mistral", provider="ollama", base_url="http://localhost:11434")
-```
+In [ragas_utils.py](ragas_utils.py), the default configuration uses AWS Bedrock with `amazon.nova-pro-v1:0`. To change providers, update the `create_bedrock_llm()` and `create_bedrock_embeddings()` functions.
 
 ### Customize Test Cases
 
-Edit the `load_dataset()` function in `evals.py` to add or modify test cases.
+Edit the dataset loading in [evals.py](evals.py) to add or modify test cases.
 
 ### Change Evaluation Metrics
 
-Update the `my_metric` definition in `evals.py` to use different grading criteria.
+Update the evaluator configuration in [evals.py](evals.py) to use different Ragas metrics.
 
 ## Documentation
 

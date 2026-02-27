@@ -36,7 +36,7 @@
       "synthesizer_name": "manual",
       "metadata": {
         "query_type": "semantic",
-        "topic": "agriculture",
+        "topic": "forestry",
         "expected_keywords": ["forest", "forestry", "trees", "forest management"]
       }
     },
