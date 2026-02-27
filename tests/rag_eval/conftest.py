@@ -69,6 +69,8 @@ def mock_dataset_item():
     """Mock Langfuse dataset item."""
 
     class MockDatasetItem:
+        """Mock class for Langfuse dataset items."""
+
         def __init__(self, question):
             self.input = {"question": question}
             self.id = "test-item-1"

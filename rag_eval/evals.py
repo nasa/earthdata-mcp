@@ -297,13 +297,13 @@ class EarthdataEvaluator:
                         )
 
                 logger.info(
-                    f"Scored {len(individual_scores)}/{len(collections)} collections"
+                    "Scored %d/%d collections", len(individual_scores), len(collections)
                 )
                 return evaluations
 
             except Exception as e:
                 logger.error(
-                    f"Error in collection_relevance_evaluator: {e}", exc_info=True
+                    "Error in collection_relevance_evaluator: %s", e, exc_info=True
                 )
                 return []
 
@@ -340,7 +340,7 @@ class EarthdataEvaluator:
 
             except Exception as e:
                 logger.error(
-                    f"Error in phase2_context_precision_evaluator: {e}", exc_info=True
+                    "Error in context_precision_evaluator: %s", e, exc_info=True
                 )
                 return None
 
@@ -375,9 +375,7 @@ class EarthdataEvaluator:
                 )
 
             except Exception as e:
-                logger.error(
-                    f"Error in phase2_context_recall_evaluator: {e}", exc_info=True
-                )
+                logger.error("Error in context_recall_evaluator: %s", e, exc_info=True)
                 return None
 
         evaluators.extend(
@@ -443,12 +441,12 @@ class EarthdataEvaluator:
         run_evaluators = self.create_run_evaluators()
 
         # Log experiment configuration
-        logger.info(f"Starting experiment: {experiment_name}")
-        logger.info(f"Run name: {run_name}")
-        logger.info(f"Mode: phase2_retrieval")
-        logger.info(f"Dataset: {dataset_name} ({len(dataset.items)} items)")
-        logger.info(f"Item evaluators: {len(evaluators)}")
-        logger.info(f"Run evaluators: {len(run_evaluators)}")
+        logger.info("Starting experiment: %s", experiment_name)
+        logger.info("Run name: %s", run_name)
+        logger.info("Mode: phase2_retrieval")
+        logger.info("Dataset: %s (%d items)", dataset_name, len(dataset.items))
+        logger.info("Item evaluators: %d", len(evaluators))
+        logger.info("Run evaluators: %d", len(run_evaluators))
 
         # Execute experiment
         result = dataset.run_experiment(
@@ -544,7 +542,11 @@ class SingleEvaluation:
                     if attempt < max_retries - 1:
                         wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
                         logger.warning(
-                            f"Attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {wait_time}s..."
+                            "Attempt %d/%d failed: %s. Retrying in %ds...",
+                            attempt + 1,
+                            max_retries,
+                            e,
+                            wait_time,
                         )
                         import time
 
@@ -553,14 +555,17 @@ class SingleEvaluation:
                         # Final attempt failed - log and return None
                         concept_id = collection.get("concept_id", "unknown")
                         logger.warning(
-                            f"Failed to score collection {concept_id} after {max_retries} attempts: {e}"
+                            "Failed to score collection %s after %d attempts: %s",
+                            concept_id,
+                            max_retries,
+                            e,
                         )
                         return None
 
         except Exception as e:
             # Catch any unexpected errors outside retry logic
             concept_id = collection.get("concept_id", "unknown")
-            logger.error(f"Unexpected error scoring collection {concept_id}: {e}")
+            logger.error("Unexpected error scoring collection %s: %s", concept_id, e)
             return None
 
     @classmethod
@@ -636,11 +641,11 @@ class SingleEvaluation:
             result = await metric.ascore(
                 user_input=question,
                 retrieved_contexts=contexts,
-                answer=answer,
+                response=answer,
             )
             return result.value
         except Exception as e:
-            logger.warning(f"Error computing faithfulness: {e}")
+            logger.warning("Error computing faithfulness: %s", e)
             return None
 
     @classmethod
@@ -665,11 +670,11 @@ class SingleEvaluation:
             metric = AnswerRelevancy(llm=cls._llm, embeddings=cls._embeddings)
             result = await metric.ascore(
                 user_input=question,
-                answer=answer,
+                response=answer,
             )
             return result.value
         except Exception as e:
-            logger.warning(f"Error computing answer relevancy: {e}")
+            logger.warning("Error computing answer relevancy: %s", e)
             return None
 
     @classmethod
@@ -703,7 +708,7 @@ class SingleEvaluation:
             )
             return result.value
         except Exception as e:
-            logger.warning(f"Error computing context precision with reference: {e}")
+            logger.warning("Error computing context precision with reference: %s", e)
             return None
 
     @classmethod
@@ -735,7 +740,7 @@ class SingleEvaluation:
             )
             return result.value
         except Exception as e:
-            logger.warning(f"Error computing context recall: {e}")
+            logger.warning("Error computing context recall: %s", e)
             return None
 
 
@@ -756,12 +761,12 @@ def main():
     evaluator = EarthdataEvaluator()
 
     # Run experiment using run_experiment API
-    result = evaluator.run_experiment(
+    evaluator.run_experiment(
         dataset_name=dataset_name,
         experiment_name=experiment_name,
         max_concurrency=max_concurrency,
     )
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
