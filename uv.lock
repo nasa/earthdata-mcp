@@ -1,11 +1,6 @@
 version = 1
 revision = 3
 requires-python = "==3.13.0"
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 
 [[package]]
 name = "aiobotocore"
@@ -729,7 +724,7 @@ requires-dist = [
     { name = "instructor", specifier = ">=1.13.0" },
     { name = "jsonpath-ng", specifier = ">=1.7.0" },
     { name = "jsonschema", specifier = ">=4.17.3" },
-    { name = "langfuse", specifier = "==3.9.0" },
+    { name = "langfuse", specifier = "==3.10.6" },
     { name = "litellm", specifier = ">=1.81.12" },
     { name = "mlflow", specifier = ">=3.1.4" },
     { name = "moto", extras = ["sqs", "secretsmanager"], marker = "extra == 'dev'", specifier = "==5.0.27" },
@@ -1099,7 +1094,7 @@ name = "gunicorn"
 version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging", marker = "sys_platform != 'win32'" },
+    { name = "packaging" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/13/ef67f59f6a7896fdc2c1d62b5665c5219d6b0a9a1784938eb9a28e55e128/gunicorn-25.1.0.tar.gz", hash = "sha256:1426611d959fa77e7de89f8c0f32eed6aa03ee735f98c01efba3e281b1c47616", size = 594377, upload-time = "2026-02-13T11:09:58.989Z" }
 wheels = [
@@ -1563,7 +1558,7 @@ wheels = [
 
 [[package]]
 name = "langfuse"
-version = "3.9.0"
+version = "3.10.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backoff" },
@@ -1577,9 +1572,9 @@ dependencies = [
     { name = "requests" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/c6/1bdb6c68ebc2b7d3875861cf99715e227bcd909a758df8af329f81f6e7af/langfuse-3.9.0.tar.gz", hash = "sha256:ed02744ab184a320dba5662be09be21441a467cc84db7e9a67c8bb6baec9fb5c", size = 201850, upload-time = "2025-11-03T10:25:49.577Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/70/4ff19dd1085bb4d5007f008a696c8cf989a0ad76eabc512a5cd19ee4a0b7/langfuse-3.10.6.tar.gz", hash = "sha256:fced9ca0416ba7499afa45fbedf831afc0ec824cb283719b9cf429bf5713f205", size = 223656, upload-time = "2025-12-12T13:29:24.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/de/66ab298aecc0b50465824e7db5df77e43f872dcd8642d3c91d11be3ac6f7/langfuse-3.9.0-py3-none-any.whl", hash = "sha256:de46c47717822de46ad4a2563be5d775ca896dc4d0955a83b4d12e1ce5e249a9", size = 369620, upload-time = "2025-11-03T10:25:47.747Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/f0/fac7d56ce1136afbbebaddd1dc119fb1b94b5a7489944d0b4c2dcee99ed7/langfuse-3.10.6-py3-none-any.whl", hash = "sha256:36ca490cd64e372b1b94c28063b3fea39b1a8446cabd20172b524d01011a34e1", size = 399347, upload-time = "2025-12-12T13:29:22.462Z" },
 ]
 
 [[package]]
