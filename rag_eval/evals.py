@@ -176,7 +176,7 @@ class EarthdataEvaluator:
                 collections = output.get("collections", [])
 
                 if not collections:
-                    logger.info("No collections to evaluate")
+f                    logger.info("No collections to evaluate")
                     return []
 
                 # Get all collection relevance scores using shared logic
