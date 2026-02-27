@@ -14,7 +14,7 @@ from ragas.metrics.collections import (
 )
 
 from langfuse import Evaluation
-from rag_eval.models import DatasetRelevanceInput, DatasetRelevancePrompt
+from models.rag_eval import DatasetRelevanceInput, DatasetRelevancePrompt
 from rag_eval.ragas_utils import (
     create_bedrock_llm,
     create_bedrock_embeddings,
