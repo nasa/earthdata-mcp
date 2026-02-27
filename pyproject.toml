@@ -24,6 +24,8 @@ dependencies = [
     "ragas>=0.4.3",
     "litellm>=1.81.12",
     "nest-asyncio>=1.6.0",
+    "boto3>=1.28.0",
+    "mlflow>=3.1.4",
     "jsonpath-ng>=1.7.0",
 ]
 
@@ -133,3 +135,12 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.14.0",
+    "responses>=0.25.3",
+]
