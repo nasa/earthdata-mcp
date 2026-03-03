@@ -4,9 +4,14 @@ import logging
 import os
 from datetime import datetime
 
-import asyncio
 import nest_asyncio
-from dotenv import load_dotenv
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 from ragas.metrics.collections import (
     AnswerRelevancy,
     ContextPrecision,
@@ -16,93 +21,16 @@ from ragas.metrics.collections import (
 
 from langfuse import Evaluation
 from models.rag_eval import DatasetRelevanceInput, DatasetRelevancePrompt
-from rag_eval.ragas_utils import (
+from tools.discover_data.utils.embedding_search import search_all_entity_types
+from util.datastores import get_datastore
+from util.langfuse import get_langfuse, flush_langfuse
+from util.rag_eval.collection_formatting import generate_contexts_from_collections
+from util.rag_eval.ragas_utils import (
     create_bedrock_llm,
     create_bedrock_embeddings,
 )
-from tools.discover_data.utils.embedding_search import search_all_entity_types
-from util.langfuse import get_langfuse, flush_langfuse
 
 logger = logging.getLogger(__name__)
-
-# === Evaluation Utility Functions ===
-
-
-def format_collection_context(
-    collection: dict,
-    fields: list[str],
-) -> str:
-    """
-    Format a single collection into a context string.
-
-    Args:
-        collection: Collection dictionary
-        fields: Fields to extract from the collection
-
-    Returns:
-        Formatted context string with "Field Name: value" format
-    """
-    parts = []
-    for field in fields:
-        value = collection.get(field)
-        if value:
-            field_label = field.replace("_", " ").title()
-            parts.append(f"{field_label}: {value}")
-    return "\n".join(parts)
-
-
-def generate_contexts_from_collections(
-    collections: list[dict],
-    fields: list[str],
-) -> list[str]:
-    """
-    Generate context strings from a list of collections.
-
-    Args:
-        collections: List of collection dictionaries
-        fields: Fields to extract from each collection
-
-    Returns:
-        List of formatted context strings
-    """
-    return [format_collection_context(c, fields) for c in collections]
-
-
-def generate_answer_from_collections(
-    collections: list[dict],
-    fields: list[str],
-) -> str:
-    """
-    Generate a simple answer from collections.
-
-    WARNING: For evaluation purposes, you should use the actual system-generated
-    answer, not this auto-generated one. Using this creates circularity where
-    contexts and answer are derived from the same source, artificially inflating
-    metrics like Faithfulness.
-
-    This function is only useful for:
-    - Testing/debugging
-    - Cases where you only have collections but no generated answer
-
-    Args:
-        collections: List of collection dictionaries
-        fields: Fields used (first field assumed to be the primary identifier)
-
-    Returns:
-        Simple answer string
-    """
-    if not collections:
-        return "No relevant data collections were found for your query."
-
-    # Use first field as primary identifier (usually title)
-    primary_field = fields[0] if fields else next(iter(collections[0].keys()), "id")
-    top_identifiers = ", ".join(
-        str(c.get(primary_field, "Unknown")) for c in collections[:3]
-    )
-    return (
-        f"Found {len(collections)} relevant data collections. "
-        f"Top matches include: {top_identifiers}."
-    )
 
 
 # === Evaluation Classes ===
@@ -117,7 +45,7 @@ class EarthdataEvaluator:
     2. Item-level evaluators: Score each query/response pair individually
     3. Run-level evaluators: Aggregate metrics across all items
 
-    Evaluates Phase 2 retrieval (embedding search) directly.
+    Evaluates embedding-based retrieval (vector similarity search) directly.
     """
 
     def __init__(
@@ -141,20 +69,20 @@ class EarthdataEvaluator:
         and returns the output that evaluators will score.
 
         Returns:
-            Task function that performs Phase 2 search
+            Task function that performs embedding-based retrieval
         """
-        return self._create_phase2_task()
+        return self._create_embedding_eval_task()
 
-    def _create_phase2_task(self):
-        """Create task function for Phase 2 retrieval evaluation."""
+    def _create_embedding_eval_task(self):
+        """Create task function for embedding evaluation."""
 
         def task(*, item, **_kwargs):
             """
-            Phase 2 task - evaluate embedding search directly.
+            Embedding evaluation task - evaluate embedding search directly.
 
             Works with existing end-to-end datasets!
             - Uses "question" or "query" from input
-            - Calls search_all_entity_types directly (Phase 2)
+            - Calls search_all_entity_types directly (embedding similarity search)
             - Returns collections and answer for Ragas metrics
 
             Returns:
@@ -163,7 +91,7 @@ class EarthdataEvaluator:
             # Extract query from dataset item
             query = item.input["question"]
 
-            # Execute Phase 2 search directly
+            # Execute embedding similarity search directly
             results = search_all_entity_types(
                 query_text=query,
                 similarity_threshold=0.3,
@@ -176,7 +104,6 @@ class EarthdataEvaluator:
             ]
 
             # Hydrate collections from database to get proper title/abstract
-            from util.datastores import get_datastore
 
             datastore = get_datastore()
             collection_data = datastore.fetch_collections_by_ids(concept_ids)
@@ -203,9 +130,9 @@ class EarthdataEvaluator:
 
             # Generate a simple answer from collections
             if collections:
-                answer = f"Found {len(collections)} relevant data collections based on Phase 2 search."
+                answer = f"Found {len(collections)} relevant data collections based on embedding search."
             else:
-                answer = "No relevant data collections found in Phase 2 search."
+                answer = "No relevant data collections found in embedding search."
 
             # Return output with both answer and collections for evaluators
             result = {
@@ -229,10 +156,10 @@ class EarthdataEvaluator:
         Returns:
             List of evaluator functions
         """
-        return self._create_phase2_evaluators()
+        return self._create_embedding_evaluators()
 
-    def _create_phase2_evaluators(self):
-        """Create evaluators for Phase 2 retrieval evaluation.
+    def _create_embedding_evaluators(self):
+        """Create evaluators for embedding evaluation.
 
         Returns individual evaluator functions for:
         1. Individual collection relevance scores
@@ -280,7 +207,7 @@ class EarthdataEvaluator:
 
                         evaluations.append(
                             Evaluation(
-                                name=f"phase2_collection_{i+1}_relevance",
+                                name=f"embedding_collection_{i+1}_relevance",
                                 value=score,
                                 comment=comment,
                             )
@@ -298,7 +225,7 @@ class EarthdataEvaluator:
                 return []
 
         # Evaluator for context precision with reference
-        async def phase2_context_precision_evaluator(*, output, **_kwargs):
+        async def embedding_context_precision_evaluator(*, output, **_kwargs):
             """Evaluate context precision using reference (ground truth)."""
             try:
                 question = output.get("question", "")
@@ -322,7 +249,7 @@ class EarthdataEvaluator:
                     return None
 
                 return Evaluation(
-                    name="phase2_context_precision",
+                    name="embedding_context_precision",
                     value=score,
                     comment=(
                         "Context Precision measures how well a retriever ranks relevant "
@@ -338,7 +265,7 @@ class EarthdataEvaluator:
                 return None
 
         # Evaluator for context recall
-        async def phase2_context_recall_evaluator(*, output, **_kwargs):
+        async def embedding_context_recall_evaluator(*, output, **_kwargs):
             """Evaluate context recall using reference (approximation based on claims)."""
             try:
                 question = output.get("question", "")
@@ -362,7 +289,7 @@ class EarthdataEvaluator:
                     return None
 
                 return Evaluation(
-                    name="phase2_context_recall",
+                    name="embedding_context_recall",
                     value=score,
                     comment=(
                         "Context Recall measures how well a retrieval system avoids missing "
@@ -378,8 +305,8 @@ class EarthdataEvaluator:
         evaluators.extend(
             [
                 collection_relevance_evaluator,
-                phase2_context_precision_evaluator,
-                phase2_context_recall_evaluator,
+                embedding_context_precision_evaluator,
+                embedding_context_recall_evaluator,
             ]
         )
 
@@ -427,7 +354,7 @@ class EarthdataEvaluator:
 
         # Auto-generate experiment name if needed
         if not experiment_name:
-            experiment_name = f"{self.trace_name}_phase2_{dataset_name}"
+            experiment_name = f"{self.trace_name}_embedding_eval_{dataset_name}"
 
         # Generate unique run name with timestamp
         run_name = f"{experiment_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -440,7 +367,7 @@ class EarthdataEvaluator:
         # Log experiment configuration
         logger.info("Starting experiment: %s", experiment_name)
         logger.info("Run name: %s", run_name)
-        logger.info("Mode: phase2_retrieval")
+        logger.info("Mode: embedding_evaluation")
         logger.info("Dataset: %s (%d items)", dataset_name, len(dataset.items))
         logger.info("Item evaluators: %d", len(evaluators))
         logger.info("Run evaluators: %d", len(run_evaluators))
@@ -449,7 +376,7 @@ class EarthdataEvaluator:
         result = dataset.run_experiment(
             name=experiment_name,
             run_name=run_name,
-            description=experiment_description or "Phase 2 retrieval evaluation",
+            description=experiment_description or "Embedding retrieval evaluation",
             task=task,
             evaluators=evaluators,
             run_evaluators=run_evaluators,
@@ -526,43 +453,49 @@ class SingleEvaluation:
                 dataset=dataset_subset,
             )
 
-            # Retry up to 3 times with exponential backoff
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    # PydanticPrompt.generate() is async
-                    result = await cls._relevance_prompt.generate(
-                        data=prompt_input, llm=cls._llm
-                    )
-                    return result.relevance_score
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                        logger.warning(
-                            "Attempt %d/%d failed: %s. Retrying in %ds...",
-                            attempt + 1,
-                            max_retries,
-                            e,
-                            wait_time,
-                        )
-
-                        await asyncio.sleep(wait_time)
-                    else:
-                        # Final attempt failed - log and return None
-                        concept_id = collection.get("concept_id", "unknown")
-                        logger.warning(
-                            "Failed to score collection %s after %d attempts: %s",
-                            concept_id,
-                            max_retries,
-                            e,
-                        )
-                        return None
+            # Call with exponential backoff retry
+            score = await cls._call_relevance_prompt_with_retry(prompt_input)
+            return score
 
         except Exception as e:
             # Catch any unexpected errors outside retry logic
             concept_id = collection.get("concept_id", "unknown")
             logger.error("Unexpected error scoring collection %s: %s", concept_id, e)
             return None
+
+    @classmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        retry=retry_if_exception_type(Exception),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    async def _call_relevance_prompt_with_retry(cls, prompt_input) -> float:
+        """
+        Call relevance prompt with automatic retry.
+
+        Uses tenacity for exponential backoff:
+        - Attempt 1: immediate
+        - Attempt 2: ~1s delay (1 * 2^0)
+        - Attempt 3: ~2s delay (1 * 2^1)
+        - Max wait capped at 4s
+
+        Args:
+            prompt_input: DatasetRelevanceInput for the prompt
+
+        Returns:
+            Relevance score (0-1)
+
+        Raises:
+            Exception: If all retries exhausted
+        """
+        result = await cls._relevance_prompt.generate(
+            data=prompt_input,
+            llm=cls._llm,
+            retries_left=3,  # Inner retry for output parsing failures
+        )
+        return result.relevance_score
 
     @classmethod
     async def compute_dataset_relevance_scores(
@@ -746,16 +679,13 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Load environment variables from .env file (override existing ones)
-    load_dotenv(override=True)
-
     # Apply nest_asyncio to allow nested event loops (for PydanticPrompt.generate in evaluators)
     nest_asyncio.apply()
 
     # Get configuration from environment
     dataset_name = os.getenv("DATASET_NAME")
     experiment_name = os.getenv("EXPERIMENT_NAME")
-    max_concurrency = int(os.getenv("MAX_CONCURRENCY", "3"))
+    max_concurrency = int(os.getenv("EVAL_MAX_CONCURRENCY", "3"))
 
     if not dataset_name:
         raise ValueError(

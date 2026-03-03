@@ -8,6 +8,8 @@ import pytest
 from rag_eval.evals import (
     EarthdataEvaluator,
     SingleEvaluation,
+)
+from util.rag_eval.collection_formatting import (
     format_collection_context,
     generate_contexts_from_collections,
     generate_answer_from_collections,
@@ -407,9 +409,9 @@ class TestEarthdataEvaluator:
         assert callable(task)
 
     @patch("rag_eval.evals.search_all_entity_types")
-    @patch("util.datastores.get_datastore")
-    def test_phase2_task_execution(self, mock_get_datastore, mock_search):
-        """Test Phase 2 task execution."""
+    @patch("rag_eval.evals.get_datastore")
+    def test_embedding_task_execution(self, mock_get_datastore, mock_search):
+        """Test embedding search task execution."""
         # Mock search results
         mock_search.return_value = [
             {
@@ -475,7 +477,7 @@ class TestEarthdataEvaluator:
         results = await collection_relevance_eval(output=output)
 
         assert len(results) == 2
-        assert results[0].name == "phase2_collection_1_relevance"
+        assert results[0].name == "embedding_collection_1_relevance"
         assert results[0].value == 0.8
         assert results[1].value == 0.6
 
@@ -496,7 +498,7 @@ class TestEarthdataEvaluator:
         }
         result = await context_precision_eval(output=output)
 
-        assert result.name == "phase2_context_precision"
+        assert result.name == "embedding_context_precision"
         assert result.value == 0.75
 
     @pytest.mark.asyncio
@@ -532,7 +534,7 @@ class TestEarthdataEvaluator:
         }
         result = await context_recall_eval(output=output)
 
-        assert result.name == "phase2_context_recall"
+        assert result.name == "embedding_context_recall"
         assert result.value == 0.8
 
     def test_create_run_evaluators(self):
@@ -712,11 +714,11 @@ class TestEarthdataEvaluator:
         assert result is None
 
     @patch("rag_eval.evals.search_all_entity_types")
-    @patch("util.datastores.get_datastore")
-    def test_phase2_task_execution_no_search_results(
+    @patch("rag_eval.evals.get_datastore")
+    def test_embedding_task_execution_no_search_results(
         self, _mock_get_datastore, mock_search
     ):
-        """Test Phase 2 task execution with no search results."""
+        """Test embedding search task execution with no search results."""
         mock_search.return_value = []
 
         mock_item = MagicMock()
@@ -730,7 +732,8 @@ class TestEarthdataEvaluator:
         assert result["question"] == "Test question"
         assert result["collections"] == []
         assert (
-            result["answer"] == "No relevant data collections found in Phase 2 search."
+            result["answer"]
+            == "No relevant data collections found in embedding search."
         )
 
     @patch("rag_eval.evals.get_langfuse")
@@ -780,8 +783,8 @@ class TestEarthdataEvaluator:
 
         mock_dataset.run_experiment.assert_called_once()
         call_kwargs = mock_dataset.run_experiment.call_args.kwargs
-        # Should auto-generate: {trace_name}_phase2_{dataset_name}
-        assert "test-trace_phase2_test-dataset" in call_kwargs["name"]
+        # Should auto-generate: {trace_name}_embedding_eval_{dataset_name}
+        assert "test-trace_embedding_eval_test-dataset" in call_kwargs["name"]
 
 
 # === SingleEvaluation Error Handling Tests ===
@@ -997,10 +1000,10 @@ class TestMainFunction:
         with pytest.raises(ValueError, match="DATASET_NAME environment variable"):
             main()
 
-    @patch("rag_eval.ragas_utils.llm_factory")
+    @patch("util.rag_eval.ragas_utils.llm_factory")
     def test_create_bedrock_llm_default_params(self, mock_llm_factory):
         """Test creating LLM with default parameters."""
-        from rag_eval.ragas_utils import create_bedrock_llm
+        from util.rag_eval.ragas_utils import create_bedrock_llm
 
         mock_llm_factory.return_value = MagicMock()
 
@@ -1012,10 +1015,10 @@ class TestMainFunction:
         assert call_args[1]["temperature"] == 0.01
         assert call_args[1]["max_tokens"] == 10000
 
-    @patch("rag_eval.ragas_utils.llm_factory")
+    @patch("util.rag_eval.ragas_utils.llm_factory")
     def test_create_bedrock_llm_custom_params(self, mock_llm_factory):
         """Test creating LLM with custom parameters."""
-        from rag_eval.ragas_utils import create_bedrock_llm
+        from util.rag_eval.ragas_utils import create_bedrock_llm
 
         mock_llm_factory.return_value = MagicMock()
 
@@ -1029,10 +1032,10 @@ class TestMainFunction:
         assert call_args[1]["temperature"] == 0.5
         assert call_args[1]["max_tokens"] == 2000
 
-    @patch("rag_eval.ragas_utils.embedding_factory")
+    @patch("util.rag_eval.ragas_utils.embedding_factory")
     def test_create_bedrock_embeddings_default(self, mock_embedding_factory):
         """Test creating embeddings with default model."""
-        from rag_eval.ragas_utils import create_bedrock_embeddings
+        from util.rag_eval.ragas_utils import create_bedrock_embeddings
 
         mock_embedding_factory.return_value = MagicMock()
 
@@ -1042,10 +1045,10 @@ class TestMainFunction:
             "litellm", model="bedrock/amazon.titan-embed-text-v2:0"
         )
 
-    @patch("rag_eval.ragas_utils.embedding_factory")
+    @patch("util.rag_eval.ragas_utils.embedding_factory")
     def test_create_bedrock_embeddings_custom_model(self, mock_embedding_factory):
         """Test creating embeddings with custom model."""
-        from rag_eval.ragas_utils import create_bedrock_embeddings
+        from util.rag_eval.ragas_utils import create_bedrock_embeddings
 
         mock_embedding_factory.return_value = MagicMock()
 
