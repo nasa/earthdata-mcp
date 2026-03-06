@@ -46,18 +46,6 @@ Or using `pip`:
 python evals.py
 ```
 
-## Project Structure
-
-```text
-rag_eval/
-├── README.md           # This file
-├── pyproject.toml      # Project configuration
-├── evals.py            # Evaluation workflow
-├── models.py           # Pydantic models for evaluation
-├── ragas_utils.py      # Ragas LLM/embeddings factory functions
-└── __init__.py         # Makes this a Python package
-```
-
 ## Customization
 
 ### Modify the LLM Provider
