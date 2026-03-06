@@ -203,3 +203,9 @@ variable "granule_validation_max_workers" {
   type        = string
   default     = "10"
 }
+
+variable "tool_assoc_max_workers" {
+  description = "Max concurrent threads for fetching CMR tool associations and collection tags in the MCP server"
+  type        = string
+  default     = "10"
+}

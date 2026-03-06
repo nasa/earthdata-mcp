@@ -266,6 +266,9 @@ module "application" {
   # Granule validation
   granule_validation_max_workers = var.granule_validation_max_workers
 
+  # Tool associations
+  tool_assoc_max_workers = var.tool_assoc_max_workers
+
   tags = var.tags
 }
 

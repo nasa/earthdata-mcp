@@ -284,6 +284,10 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "GRANULE_VALIDATION_MAX_WORKERS"
           value = var.granule_validation_max_workers
+        },
+        {
+          name  = "TOOL_ASSOC_MAX_WORKERS"
+          value = var.tool_assoc_max_workers
         }
       ]
 
