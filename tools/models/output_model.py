@@ -10,7 +10,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from tools.models.input_model import SearchContext
+from models.tools.discover_data import SearchContext
 
 
 class DiscoveryStatus(str, Enum):

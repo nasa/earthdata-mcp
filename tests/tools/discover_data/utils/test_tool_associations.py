@@ -1,5 +1,6 @@
 """Tests for tool association enrichment."""
 
+# pylint: disable=too-many-lines
 import hashlib
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
@@ -19,8 +20,8 @@ from tools.discover_data.utils.tool_associations import (
     _expand_url_template,
     _fetch_tool_associations,
     _gibs_entry_matches_temporal,
-    _preferred_projection,
     _map_center_zoom,
+    _preferred_projection,
     _prioritize_tools,
     _resolve_tool_url,
     _resolve_value,
@@ -43,7 +44,7 @@ def _make_collection(concept_id: str) -> CollectionMatch:
 def _make_cache(*, hits: dict | None = None):
     """Return a mock cache client with controllable get/set behaviour."""
     cache = MagicMock()
-    cache.get.side_effect = lambda key: (hits or {}).get(key)
+    cache.get.side_effect = (hits or {}).get
     cache.set.return_value = None
     return cache
 
@@ -230,7 +231,7 @@ class TestEnrichWithToolAssociations:
 
         result = enrich_with_tool_associations([])
 
-        assert result == []
+        assert not result
         cache.get.assert_not_called()
         cache.set.assert_not_called()
 
@@ -566,26 +567,31 @@ class TestResolveValue:
     """Tests for _resolve_value — maps ValueType URI to a concrete string."""
 
     def test_resolves_start_date(self):
+        """Should return ISO-format start date string."""
         t = TemporalConstraint(start_date=datetime(2020, 1, 1, tzinfo=UTC))
         result = _resolve_value("https://schema.org/startDate", "C1-P", t, None)
         assert result == datetime(2020, 1, 1, tzinfo=UTC).isoformat()
 
     def test_resolves_start_time(self):
+        """Should return ISO-format start time string."""
         t = TemporalConstraint(start_date=datetime(2020, 6, 15, tzinfo=UTC))
         result = _resolve_value("https://schema.org/startTime", "C1-P", t, None)
         assert result == datetime(2020, 6, 15, tzinfo=UTC).isoformat()
 
     def test_resolves_end_date(self):
+        """Should return ISO-format end date string."""
         t = TemporalConstraint(end_date=datetime(2020, 12, 31, tzinfo=UTC))
         result = _resolve_value("https://schema.org/endDate", "C1-P", t, None)
         assert result == datetime(2020, 12, 31, tzinfo=UTC).isoformat()
 
     def test_resolves_end_time(self):
+        """Should return ISO-format end time string."""
         t = TemporalConstraint(end_date=datetime(2020, 12, 31, tzinfo=UTC))
         result = _resolve_value("https://schema.org/endTime", "C1-P", t, None)
         assert result == datetime(2020, 12, 31, tzinfo=UTC).isoformat()
 
     def test_resolves_dataset_time_interval_with_both_bounds(self):
+        """Should return start/end interval string when both bounds are set."""
         t = TemporalConstraint(
             start_date=datetime(2020, 1, 1, tzinfo=UTC),
             end_date=datetime(2020, 12, 31, tzinfo=UTC),
@@ -602,11 +608,13 @@ class TestResolveValue:
         assert result.endswith("/..") or result.endswith("/None")
 
     def test_resolves_schema_box_from_wkt(self):
+        """Should return bbox string derived from the WKT polygon."""
         s = SpatialConstraint(wkt_geometry="POLYGON((-10 20, 30 20, 30 60, -10 60, -10 20))")
         result = _resolve_value("https://schema.org/box", "C1-P", None, s)
         assert result == "-10.0,20.0,30.0,60.0"
 
     def test_resolves_cmr_concept_id(self):
+        """Should return the raw concept ID unchanged."""
         result = _resolve_value(
             "https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#c-concept-id",
             "C9999-PROV",
@@ -616,26 +624,32 @@ class TestResolveValue:
         assert result == "C9999-PROV"
 
     def test_resolves_short_name(self):
+        """Should return the collection short name when provided."""
         result = _resolve_value("shortName", "C1-P", None, None, short_name="TRMM_3B42")
         assert result == "TRMM_3B42"
 
     def test_returns_none_for_short_name_when_not_provided(self):
+        """Should return None when short_name is not supplied to the call."""
         result = _resolve_value("shortName", "C1-P", None, None)
         assert result is None
 
     def test_returns_none_for_unknown_value_type(self):
+        """Should return None for any unrecognised ValueType URI."""
         result = _resolve_value("longName", "C1-P", None, None)
         assert result is None
 
     def test_returns_none_when_value_type_is_none(self):
+        """Should return None immediately when value_type is None."""
         result = _resolve_value(None, "C1-P", None, None)
         assert result is None
 
     def test_returns_none_for_start_date_when_no_temporal_constraint(self):
+        """Should return None for startDate when temporal is not set."""
         result = _resolve_value("https://schema.org/startDate", "C1-P", None, None)
         assert result is None
 
     def test_returns_none_for_box_when_no_wkt(self):
+        """Should return None for box when the spatial constraint has no WKT."""
         result = _resolve_value("https://schema.org/box", "C1-P", None, SpatialConstraint())
         assert result is None
 
@@ -909,7 +923,7 @@ class TestAllGibsLayers:
 
     def test_returns_empty_list_when_no_tags(self):
         """Should return empty list when tags is empty."""
-        assert _all_gibs_layers({}, None) == []
+        assert not _all_gibs_layers({}, None)
 
     def test_returns_all_geographic_layers(self):
         """Should return all geographic layers when spatial is None."""
@@ -942,7 +956,7 @@ class TestAllGibsLayers:
         """Should return empty list when no layer matches the preferred projection."""
         tags = self._tags([self._ANTARCTIC_LAYER])
         result = _all_gibs_layers(tags, None)  # geographic preferred, no geo layers
-        assert result == []
+        assert not result
 
     def test_single_layer_consistent_with_best_gibs_layer(self):
         """First element should match what _best_gibs_layer returns."""
@@ -961,7 +975,7 @@ class TestAllGibsLayers:
             end_date=datetime(2015, 1, 1, tzinfo=UTC),
         )
         result = _all_gibs_layers(self._tags([layer]), None, temporal=temporal)
-        assert result == []
+        assert not result
 
     def test_excludes_layer_whose_match_window_is_entirely_after_query(self):
         """Layer valid only after the query range should be excluded."""
@@ -975,7 +989,7 @@ class TestAllGibsLayers:
             end_date=datetime(2015, 1, 1, tzinfo=UTC),
         )
         result = _all_gibs_layers(self._tags([layer]), None, temporal=temporal)
-        assert result == []
+        assert not result
 
     def test_includes_layer_whose_match_window_overlaps_query(self):
         """Layer whose valid window overlaps the query range should be included."""
@@ -1713,7 +1727,7 @@ class TestBuildExplorationLinks:
     def test_multiple_gibs_layers_all_appear_in_worldview_url(self):
         """All GIBS layers should appear in the Worldview l= parameter."""
         links = _build_exploration_links([], "C1-P", None, None, None, ["LayerA", "LayerB"])
-        wv = next(l for l in links if l["name"] == "NASA Worldview")
+        wv = next(link for link in links if link["name"] == "NASA Worldview")
         assert "LayerA" in wv["url"]
         assert "LayerB" in wv["url"]
 

@@ -1,5 +1,6 @@
 """Tests for discover_data orchestrator tool."""
 
+# pylint: disable=too-many-lines
 import importlib
 from datetime import datetime
 from unittest.mock import MagicMock
@@ -8,6 +9,7 @@ from models.tools.discover_data import (
     ClarifyingQuestion,
     CollectionMatch,
     DiscoverDataInput,
+    ExplorationLink,
     ResolutionInfo,
     SearchContext,
     SpatialConstraint,
@@ -1034,7 +1036,7 @@ def test_discover_data_enriched_tool_associations_appear_in_output(monkeypatch):
     monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
     monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
 
-    tools_payload = [{"name": "Earthdata Search", "url": "https://x"}]
+    tools_payload = [ExplorationLink(name="Earthdata Search", url="https://x")]
 
     def _mock_enrich(cols, **_kw):
         for col in cols:
@@ -1046,4 +1048,6 @@ def test_discover_data_enriched_tool_associations_appear_in_output(monkeypatch):
     output = tool.discover_data(DiscoverDataInput(query="vegetation index"))
 
     assert len(output["collections"]) == 1
-    assert output["collections"][0]["exploration_links"] == tools_payload
+    assert output["collections"][0]["exploration_links"] == [
+        {"name": "Earthdata Search", "url": "https://x", "topic": None}
+    ]

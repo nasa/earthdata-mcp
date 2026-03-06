@@ -16,7 +16,7 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
 from langfuse import observe
@@ -156,8 +156,8 @@ def _gibs_entry_matches_temporal(
 
     # Overlap check: [q_start, q_end] ∩ [layer_start, layer_end] ≠ ∅
     # Use datetime min/max as open-ended sentinels
-    _MIN = datetime(1, 1, 1, tzinfo=timezone.utc)
-    _MAX = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    _MIN = datetime(1, 1, 1, tzinfo=UTC)
+    _MAX = datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)
     eff_layer_start = layer_start if layer_start is not None else _MIN
     eff_layer_end = layer_end if layer_end is not None else _MAX
     eff_q_start = q_start if q_start is not None else _MIN
@@ -383,7 +383,7 @@ def _worldview_link(
     }
 
 
-def _build_exploration_links(
+def _build_exploration_links(  # pylint: disable=too-many-arguments
     tools: list[dict],
     concept_id: str,
     temporal: TemporalConstraint | None,
@@ -502,7 +502,7 @@ def _map_center_zoom(bbox: str) -> tuple[float, float, float]:
     return center_lat, center_lon, zoom
 
 
-def _resolve_value(
+def _resolve_value(  # pylint: disable=too-many-return-statements
     value_type: str | None,
     concept_id: str,
     temporal: TemporalConstraint | None,
