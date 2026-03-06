@@ -8,8 +8,11 @@ import requests
 from util.cmr.client import (
     CMRError,
     CMRSearchResponse,
+    _extract_tool_info,
     fetch_associations,
+    fetch_collection_tags,
     fetch_concept,
+    fetch_tool_metadata,
     search_cmr,
 )
 
@@ -111,6 +114,92 @@ class TestFetchAssociations:
         result = fetch_associations("C1234-PROVIDER")
 
         assert result == {}
+
+
+class TestFetchCollectionTags:
+    """Tests for fetch_collection_tags function."""
+
+    def test_returns_tags_for_collection(self, monkeypatch):
+        """Should return the tags dict from the first feed entry."""
+        tags = {
+            "edsc.extra.serverless.gibs": {"data": [{"product": "MODIS_Terra", "geographic": True}]}
+        }
+        json_data = {"feed": {"entry": [{"id": "C1234-PROVIDER", "tags": tags}]}}
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(return_value=_make_response(json_data=json_data)),
+        )
+
+        result = fetch_collection_tags("C1234-PROVIDER")
+
+        assert result == tags
+
+    def test_returns_empty_dict_when_no_entries(self, monkeypatch):
+        """Should return empty dict when feed has no entries."""
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(return_value=_make_response(json_data={"feed": {"entry": []}})),
+        )
+
+        result = fetch_collection_tags("C9999-MISSING")
+
+        assert result == {}
+
+    def test_returns_empty_dict_when_no_tags_key(self, monkeypatch):
+        """Should return empty dict when entry has no tags field."""
+        json_data = {"feed": {"entry": [{"id": "C1234-PROVIDER"}]}}
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(return_value=_make_response(json_data=json_data)),
+        )
+
+        result = fetch_collection_tags("C1234-PROVIDER")
+
+        assert result == {}
+
+    def test_returns_empty_dict_on_request_failure(self, monkeypatch):
+        """Should return empty dict (not raise) when request fails."""
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(side_effect=requests.ConnectionError("timeout")),
+        )
+
+        result = fetch_collection_tags("C1234-PROVIDER")
+
+        assert result == {}
+
+    def test_sends_include_tags_param(self, monkeypatch):
+        """Should include include_tags=edsc.* in the request params."""
+        json_data = {"feed": {"entry": []}}
+        mock_get = Mock(return_value=_make_response(json_data=json_data))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        fetch_collection_tags("C1234-PROVIDER")
+
+        params = mock_get.call_args[1]["params"]
+        assert params["include_tags"] == "edsc.*"
+        assert params["concept_id"] == "C1234-PROVIDER"
+
+    def test_uses_collections_json_endpoint(self, monkeypatch):
+        """Should call the /search/collections.json endpoint."""
+        json_data = {"feed": {"entry": []}}
+        mock_get = Mock(return_value=_make_response(json_data=json_data))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        fetch_collection_tags("C1234-PROVIDER")
+
+        assert "collections.json" in mock_get.call_args[0][0]
+
+    def test_sends_client_id_header(self, monkeypatch):
+        """Should include Client-Id in request headers."""
+        json_data = {"feed": {"entry": []}}
+        mock_get = Mock(return_value=_make_response(json_data=json_data))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        fetch_collection_tags("C1234-PROVIDER")
+
+        assert mock_get.call_args[1]["headers"]["Client-Id"] == "eed-test-mcp"
 
 
 class TestSearchCmrGet:
@@ -303,6 +392,342 @@ class TestSearchCmrPost:
 
         mock_post.assert_called_once()
         mock_get.assert_not_called()
+
+
+class TestExtractToolInfo:
+    """Test _extract_tool_info helper."""
+
+    def test_extracts_name_url_template_and_query_inputs(self):
+        """Should extract name, url_template, and typed query_inputs from PotentialAction."""
+        item = {
+            "meta": {"concept-id": "TL1234-PROV"},
+            "umm": {
+                "Name": "Giovanni",
+                "Type": "Web User Interface",
+                "PotentialAction": {
+                    "Type": "SearchAction",
+                    "Target": {
+                        "Type": "EntryPoint",
+                        "UrlTemplate": "https://giovanni.gsfc.nasa.gov/giovanni/#service=TmAvMp{?dataKeyword,starttime,endtime,bbox}",
+                        "HttpMethod": ["GET"],
+                    },
+                    "QueryInput": [
+                        {
+                            "ValueName": "dataKeyword",
+                            "ValueRequired": False,
+                            "ValueType": "shortName",
+                        },
+                        {
+                            "ValueName": "starttime",
+                            "ValueRequired": True,
+                            "ValueType": "https://schema.org/startDate",
+                        },
+                        {
+                            "ValueName": "endtime",
+                            "ValueRequired": False,
+                            "ValueType": "https://schema.org/endDate",
+                        },
+                        {
+                            "ValueName": "bbox",
+                            "ValueRequired": False,
+                            "ValueType": "https://schema.org/box",
+                        },
+                    ],
+                },
+            },
+        }
+
+        result = _extract_tool_info(item)
+
+        assert result == {
+            "name": "Giovanni",
+            "base_url": None,
+            "url_template": "https://giovanni.gsfc.nasa.gov/giovanni/#service=TmAvMp{?dataKeyword,starttime,endtime,bbox}",
+            "query_inputs": [
+                {"value_name": "dataKeyword", "value_type": "shortName", "required": False},
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                },
+                {
+                    "value_name": "endtime",
+                    "value_type": "https://schema.org/endDate",
+                    "required": False,
+                },
+                {"value_name": "bbox", "value_type": "https://schema.org/box", "required": False},
+            ],
+            "topic": None,
+        }
+
+    def test_returns_none_for_missing_umm_key(self):
+        """Should return None (filtered) when the umm key is absent — type unknown."""
+        item = {"meta": {"concept-id": "TL1234-PROV"}}
+
+        assert _extract_tool_info(item) is None
+
+    def test_returns_none_url_template_when_potential_action_absent(self):
+        """Should return None for url_template when PotentialAction is not in umm."""
+        item = {
+            "meta": {"concept-id": "TL1234-PROV"},
+            "umm": {"Name": "My Tool", "Type": "Web User Interface"},
+        }
+
+        result = _extract_tool_info(item)
+
+        assert result["name"] == "My Tool"
+        assert result["url_template"] is None
+        assert result["query_inputs"] == []
+
+    def test_returns_empty_query_inputs_when_query_input_key_absent(self):
+        """Should return empty query_inputs when QueryInput is missing from PotentialAction."""
+        item = {
+            "umm": {
+                "Name": "My Tool",
+                "Type": "Web User Interface",
+                "PotentialAction": {
+                    "Target": {"UrlTemplate": "https://example.com{?q}"},
+                },
+            }
+        }
+
+        result = _extract_tool_info(item)
+
+        assert result["url_template"] == "https://example.com{?q}"
+        assert result["query_inputs"] == []
+
+    def test_returns_none_for_completely_empty_item(self):
+        """Should return None (filtered) for a completely empty item — type unknown."""
+        assert _extract_tool_info({}) is None
+
+    def test_extracts_base_url_from_url_entry(self):
+        """Should extract URL.URLValue as base_url."""
+        item = {
+            "umm": {
+                "Name": "Giovanni",
+                "Type": "Web User Interface",
+                "URL": {
+                    "URLContentType": "DistributionURL",
+                    "Type": "GET SERVICE",
+                    "URLValue": "https://giovanni.gsfc.nasa.gov",
+                },
+            }
+        }
+        result = _extract_tool_info(item)
+        assert result["base_url"] == "https://giovanni.gsfc.nasa.gov"
+
+    def test_returns_none_base_url_when_url_entry_absent(self):
+        """Should return None base_url when URL is not present in umm."""
+        item = {"umm": {"Name": "Tool", "Type": "Web User Interface"}}
+        result = _extract_tool_info(item)
+        assert result["base_url"] is None
+
+    def test_extracts_topic_from_tool_keywords(self):
+        """Should extract ToolTopic from the first ToolKeywords entry."""
+        item = {
+            "umm": {
+                "Name": "Giovanni",
+                "Type": "Web User Interface",
+                "ToolKeywords": [
+                    {
+                        "ToolCategory": "EARTH SCIENCE SERVICES",
+                        "ToolTopic": "DATA ANALYSIS AND VISUALIZATION",
+                    }
+                ],
+            }
+        }
+        result = _extract_tool_info(item)
+        assert result["topic"] == "Data analysis and visualization"
+
+    def test_returns_none_topic_when_tool_keywords_absent(self):
+        """Should return None topic when ToolKeywords is not present."""
+        item = {"umm": {"Name": "Tool", "Type": "Web User Interface"}}
+        result = _extract_tool_info(item)
+        assert result["topic"] is None
+
+    def test_defaults_required_to_false_when_value_required_absent(self):
+        """Should default required=False when ValueRequired is missing from a QueryInput."""
+        item = {
+            "umm": {
+                "Name": "Tool",
+                "Type": "Web User Interface",
+                "PotentialAction": {
+                    "Target": {"UrlTemplate": "https://example.com{?q}"},
+                    "QueryInput": [{"ValueName": "q", "ValueType": "shortName"}],
+                },
+            }
+        }
+
+        result = _extract_tool_info(item)
+
+        assert result["query_inputs"][0]["required"] is False
+
+    def test_returns_none_for_non_eligible_tool_type(self):
+        """Should return None when Type is not 'Web User Interface' or 'Web Portal'."""
+        item = {"umm": {"Name": "My Algo", "Type": "Algorithm"}}
+        assert _extract_tool_info(item) is None
+
+    def test_accepts_web_portal_type(self):
+        """Should return a dict when Type is 'Web Portal'."""
+        item = {"umm": {"Name": "Earthdata Search", "Type": "Web Portal"}}
+        result = _extract_tool_info(item)
+        assert result is not None
+        assert result["name"] == "Earthdata Search"
+
+    def test_returns_none_when_potential_action_type_is_not_search_action(self):
+        """Should return None when PotentialAction.Type is something other than SearchAction."""
+        item = {
+            "umm": {
+                "Name": "Tool",
+                "Type": "Web User Interface",
+                "PotentialAction": {
+                    "Type": "ViewAction",
+                    "Target": {"UrlTemplate": "https://example.com{?q}"},
+                },
+            }
+        }
+        assert _extract_tool_info(item) is None
+
+    def test_accepts_potential_action_without_type_field(self):
+        """Should accept tools whose PotentialAction has no Type field."""
+        item = {
+            "umm": {
+                "Name": "Tool",
+                "Type": "Web User Interface",
+                "PotentialAction": {
+                    "Target": {"UrlTemplate": "https://example.com{?q}"},
+                },
+            }
+        }
+        result = _extract_tool_info(item)
+        assert result is not None
+        assert result["url_template"] == "https://example.com{?q}"
+
+
+class TestFetchToolMetadata:
+    """Test fetch_tool_metadata function."""
+
+    def test_returns_empty_list_when_no_ids_given(self):
+        """Should skip the HTTP call and return [] immediately for empty input."""
+        result = fetch_tool_metadata([])
+
+        assert result == []
+
+    def test_returns_extracted_metadata_for_valid_response(self, monkeypatch):
+        """Should return list of extracted tool dicts for a successful response."""
+        items = [
+            {
+                "meta": {"concept-id": "TL1-PROV"},
+                "umm": {
+                    "Name": "Tool A",
+                    "Type": "Web User Interface",
+                    "PotentialAction": {
+                        "Type": "SearchAction",
+                        "Target": {"UrlTemplate": "https://tool-a.example.com{?q}"},
+                        "QueryInput": [
+                            {"ValueName": "q", "ValueRequired": False, "ValueType": "shortName"}
+                        ],
+                    },
+                },
+            },
+            {
+                "meta": {"concept-id": "TL2-PROV"},
+                "umm": {
+                    "Name": "Tool B",
+                    "Type": "Web Portal",
+                    "PotentialAction": {
+                        "Target": {"UrlTemplate": "https://tool-b.example.com{?q}"},
+                        "QueryInput": [],
+                    },
+                },
+            },
+        ]
+        mock_get = Mock(
+            return_value=_make_response(
+                json_data={"items": items},
+                headers={"CMR-Hits": "2", "CMR-Took": "5"},
+            )
+        )
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        result = fetch_tool_metadata(["TL1-PROV", "TL2-PROV"])
+
+        assert len(result) == 2
+        assert result[0]["name"] == "Tool A"
+        assert result[0]["url_template"] == "https://tool-a.example.com{?q}"
+        assert result[1]["name"] == "Tool B"
+        assert result[1]["query_inputs"] == []
+
+    def test_batches_all_ids_in_single_request(self, monkeypatch):
+        """Should send all concept IDs in one request, not one per ID."""
+        mock_get = Mock(return_value=_make_response(json_data={"items": []}))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        fetch_tool_metadata(["TL1-PROV", "TL2-PROV", "TL3-PROV"])
+
+        mock_get.assert_called_once()
+
+    def test_passes_page_size_equal_to_number_of_ids(self, monkeypatch):
+        """page_size should equal the number of requested IDs to fetch all in one page."""
+        mock_get = Mock(return_value=_make_response(json_data={"items": []}))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        fetch_tool_metadata(["TL1-PROV", "TL2-PROV", "TL3-PROV"])
+
+        call_params = mock_get.call_args[1]["params"]
+        assert call_params["page_size"] == 3
+
+    def test_filters_out_ineligible_tool_types(self, monkeypatch):
+        """Items whose Type is not Web UI/Portal should be silently excluded."""
+        items = [
+            {
+                "meta": {"concept-id": "TL1-PROV"},
+                "umm": {"Name": "Web Tool", "Type": "Web User Interface"},
+            },
+            {"meta": {"concept-id": "TL2-PROV"}, "umm": {"Name": "Algorithm", "Type": "Algorithm"}},
+        ]
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(return_value=_make_response(json_data={"items": items})),
+        )
+
+        result = fetch_tool_metadata(["TL1-PROV", "TL2-PROV"])
+
+        assert len(result) == 1
+        assert result[0]["name"] == "Web Tool"
+
+    def test_returns_empty_list_on_request_failure(self, monkeypatch):
+        """Should return [] (not raise) when the HTTP request fails."""
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(side_effect=requests.ConnectionError("timeout")),
+        )
+
+        result = fetch_tool_metadata(["TL1-PROV"])
+
+        assert result == []
+
+    def test_returns_empty_list_when_response_has_no_items(self, monkeypatch):
+        """Should return [] when CMR returns an empty items list."""
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(return_value=_make_response(json_data={"items": []})),
+        )
+
+        result = fetch_tool_metadata(["TL1-PROV"])
+
+        assert result == []
+
+    def test_sends_client_id_header(self, monkeypatch):
+        """Should include Client-Id header in the tool metadata request."""
+        mock_get = Mock(return_value=_make_response(json_data={"items": []}))
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+        monkeypatch.setattr("util.cmr.client.CLIENT_ID", "eed-test-mcp")
+
+        fetch_tool_metadata(["TL1-PROV"])
+
+        sent_headers = mock_get.call_args[1]["headers"]
+        assert sent_headers["Client-Id"] == "eed-test-mcp"
 
 
 class TestClientIdHeader:

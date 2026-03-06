@@ -178,6 +178,7 @@ def test_discover_data_expansion_path(monkeypatch):
         return collections
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     ctx_obj = object()
     monkeypatch.setattr(tool, "analyze_embedding_results", lambda results: ctx_obj)
@@ -232,6 +233,7 @@ def test_discover_data_disambiguation_path(monkeypatch):
         return collections
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     # Ensure user refinements are applied
     applied = {}
@@ -310,6 +312,7 @@ def test_discover_data_with_disambiguation_questions(monkeypatch):
         return collections
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     monkeypatch.setattr(tool, "filter_by_user_refinements", lambda cols, refs: cols)
 
@@ -469,6 +472,7 @@ def test_discover_data_with_langfuse(monkeypatch):
         return collections
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     query = DiscoverDataInput(query="test collection")
     output = tool.discover_data(query)
@@ -691,6 +695,7 @@ def test_end_to_end_disambiguation_with_user_refinement(monkeypatch):
         return collections
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate_granules)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     # === INITIAL QUERY (NO REFINEMENT) ===
     initial_query = DiscoverDataInput(query="I need land cover data")
@@ -836,6 +841,7 @@ def test_discover_data_with_granule_validation(monkeypatch):
         return [c for c in cols if c.concept_id == "C1"]
 
     monkeypatch.setattr(tool, "validate_granule_availability", mock_validate)
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", lambda cols, **_kw: cols)
 
     query = DiscoverDataInput(query="ocean data")
     output = tool.discover_data(query)
@@ -886,3 +892,158 @@ def test_discover_data_all_filtered_by_granule_validation(monkeypatch):
 
     assert output["status"] == "no_granules_in_constraints"
     assert not output["collections"]
+
+
+def test_discover_data_tool_association_error(monkeypatch):
+    """ToolAssociationError should produce a specific user-facing error message."""
+    from tools.discover_data.utils.tool_associations import ToolAssociationError
+
+    tool = _load_tool()
+
+    temporal = TemporalConstraint()
+    spatial = SpatialConstraint()
+
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_, **__: (temporal, spatial))
+    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_, **__: [])
+    monkeypatch.setattr(tool, "score_and_rank_collections", lambda *_, **__: [])
+    monkeypatch.setattr(tool, "hydrate_collections", lambda *_, **__: [_make_collection("C1")])
+
+    def _mock_validate(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 100
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", _mock_validate)
+    monkeypatch.setattr(
+        tool,
+        "enrich_with_tool_associations",
+        MagicMock(side_effect=ToolAssociationError("CMR tool fetch failed for C1")),
+    )
+
+    output = tool.discover_data(DiscoverDataInput(query="test"))
+
+    assert output["status"] == "error"
+    assert output["error_message"] == (
+        "Tool association enrichment failed due to a service error. "
+        "Please try your request again."
+    )
+    # Internal error detail must not be exposed to the caller
+    assert "CMR" not in output["error_message"]
+
+
+def test_discover_data_calls_enrich_with_tool_associations(monkeypatch):
+    """enrich_with_tool_associations should be called with the validated collections."""
+    tool = _load_tool()
+
+    temporal = TemporalConstraint()
+    spatial = SpatialConstraint()
+    collection = _make_collection("C1")
+
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_, **__: (temporal, spatial))
+    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_, **__: [])
+    monkeypatch.setattr(
+        tool, "score_and_rank_collections", lambda *_, **__: [_make_collection_dict("C1")]
+    )
+    monkeypatch.setattr(tool, "hydrate_collections", lambda *_, **__: [collection])
+
+    def _mock_validate(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 50
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", _mock_validate)
+    monkeypatch.setattr(tool, "should_expand_query", lambda *_, **__: False)
+    monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
+    monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
+
+    enriched_with = []
+
+    def _capture_enrich(cols, **_kw):
+        enriched_with.extend(cols)
+        return cols
+
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", _capture_enrich)
+
+    tool.discover_data(DiscoverDataInput(query="snow cover"))
+
+    assert len(enriched_with) == 1
+    assert enriched_with[0].concept_id == "C1"
+
+
+def test_discover_data_skips_enrichment_when_all_granule_filtered(monkeypatch):
+    """enrich_with_tool_associations should NOT be called when all collections are
+    filtered out by granule validation (all_filtered_by_granule_validation=True)."""
+    tool = _load_tool()
+
+    temporal = TemporalConstraint()
+    spatial = SpatialConstraint()
+
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_, **__: (temporal, spatial))
+    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_, **__: [])
+    monkeypatch.setattr(
+        tool,
+        "score_and_rank_collections",
+        lambda *_, **__: [_make_collection_dict("C1"), _make_collection_dict("C2")],
+    )
+    monkeypatch.setattr(
+        tool,
+        "hydrate_collections",
+        lambda *_, **__: [_make_collection("C1"), _make_collection("C2")],
+    )
+    # All collections filtered → all_filtered_by_granule_validation = True
+    monkeypatch.setattr(tool, "validate_granule_availability", lambda *_: [])
+    monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
+    monkeypatch.setattr(tool, "should_expand_query", lambda *_, **__: False)
+    monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
+
+    enrich_called = []
+    monkeypatch.setattr(
+        tool,
+        "enrich_with_tool_associations",
+        lambda cols, **_kw: enrich_called.append(cols) or cols,
+    )
+
+    output = tool.discover_data(DiscoverDataInput(query="test"))
+
+    assert output["status"] == "no_granules_in_constraints"
+    assert not enrich_called
+
+
+def test_discover_data_enriched_tool_associations_appear_in_output(monkeypatch):
+    """Tool associations populated by enrichment should be present in the final output."""
+    tool = _load_tool()
+
+    temporal = TemporalConstraint()
+    spatial = SpatialConstraint()
+    collection = _make_collection("C1")
+
+    monkeypatch.setattr(tool, "extract_constraints", lambda *_, **__: (temporal, spatial))
+    monkeypatch.setattr(tool, "search_all_entity_types", lambda *_, **__: [])
+    monkeypatch.setattr(
+        tool, "score_and_rank_collections", lambda *_, **__: [_make_collection_dict("C1")]
+    )
+    monkeypatch.setattr(tool, "hydrate_collections", lambda *_, **__: [collection])
+
+    def _mock_validate(collections, *_args, **_kwargs):
+        for col in collections:
+            col.granule_count = 10
+        return collections
+
+    monkeypatch.setattr(tool, "validate_granule_availability", _mock_validate)
+    monkeypatch.setattr(tool, "should_expand_query", lambda *_, **__: False)
+    monkeypatch.setattr(tool, "check_disambiguation", lambda cols: (False, []))
+    monkeypatch.setattr(tool, "_describe_search_strategy", lambda *a, **k: "desc")
+
+    tools_payload = [{"name": "Earthdata Search", "url": "https://x"}]
+
+    def _mock_enrich(cols, **_kw):
+        for col in cols:
+            col.exploration_links = tools_payload
+        return cols
+
+    monkeypatch.setattr(tool, "enrich_with_tool_associations", _mock_enrich)
+
+    output = tool.discover_data(DiscoverDataInput(query="vegetation index"))
+
+    assert len(output["collections"]) == 1
+    assert output["collections"][0]["exploration_links"] == tools_payload

@@ -4,6 +4,7 @@ from util.cmr.client import (
     CMR_URL,
     CMRError,
     fetch_associations,
+    fetch_collection_tags,
     fetch_concept,
     search_cmr,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "extract_concept_info",
     "extract_data",
     "fetch_associations",
+    "fetch_collection_tags",
     "fetch_concept",
     "search_cmr",
 ]

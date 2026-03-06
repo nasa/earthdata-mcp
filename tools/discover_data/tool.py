@@ -23,24 +23,29 @@ from models.tools.discover_data import (
     SpatialConstraint,
     TemporalConstraint,
 )
-from tools.discover_data.utils.collection_hydration import hydrate_collections
-from tools.discover_data.utils.collection_scoring import score_and_rank_collections
-from tools.discover_data.utils.constraint_extraction import extract_constraints
-from tools.discover_data.utils.disambiguation import (
+from util.langfuse import trace_update
+
+from .utils.collection_hydration import hydrate_collections
+from .utils.collection_scoring import score_and_rank_collections
+from .utils.constraint_extraction import extract_constraints
+from .utils.disambiguation import (
     check_disambiguation,
     filter_by_user_refinements,
 )
-from tools.discover_data.utils.embedding_search import search_all_entity_types
-from tools.discover_data.utils.granule_availability import (
+from .utils.embedding_search import search_all_entity_types
+from .utils.granule_availability import (
     GranuleValidationError,
     validate_granule_availability,
 )
-from tools.discover_data.utils.query_expansion import (
+from .utils.query_expansion import (
     analyze_embedding_results,
     generate_expansion_questions,
     should_expand_query,
 )
-from util.langfuse import trace_update
+from .utils.tool_associations import (
+    ToolAssociationError,
+    enrich_with_tool_associations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +60,10 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
     2. PHASE 2: Searches ALL entity types (collections, variables, instruments, etc.)
     3. PHASE 3: Scores collections based on direct matches + indirect signals
     4. PHASE 4: Hydrates collections and applies temporal/spatial filtering
-    5. PHASE 4.5: Validates granule availability for filtered collections
-    6. PHASE 5: Applies user refinements and checks for query expansion or disambiguation
-    7. PHASE 6: Returns ranked results with clarifying questions if needed
+    5. PHASE 5: Validates granule availability for filtered collections
+    6. PHASE 6: Enriches collections with UMM-T tool associations
+    7. PHASE 7: Applies user refinements and checks for query expansion or disambiguation
+    8. PHASE 8: Returns ranked results with clarifying questions if needed
 
     Args:
         params: Natural language query with optional constraints and context
@@ -91,7 +97,6 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
             temporal_reasoning=temporal.reasoning,
             spatial_location=spatial.location,
             spatial_wkt=spatial.wkt_geometry,
-            spatial_reasoning=spatial.reasoning,
         )
 
         # === PHASE 2: Discovery Search (All Entity Types) ===
@@ -131,7 +136,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
         trace_update(metadata={"hydrated_collections_count": len(collections)})
 
-        # === PHASE 4.5: Granule Validation ===
+        # === PHASE 5: Granule Validation ===
         collections_before_granule_validation = len(collections)
 
         collections = validate_granule_availability(
@@ -156,6 +161,14 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
                 }
             )
 
+        # === PHASE 6: Tool Association Enrichment ===
+        if not all_filtered_by_granule_validation:
+            collections = enrich_with_tool_associations(
+                collections,
+                temporal=temporal,
+                spatial=spatial,
+            )
+
         # Apply user refinements from search context (disambiguation answers)
         if params.search_context and params.search_context.user_refinements:
             collections = filter_by_user_refinements(
@@ -165,7 +178,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
 
             trace_update(metadata={"after_refinements_count": len(collections)})
 
-        # === PHASE 5: Query Expansion or Disambiguation ===
+        # === PHASE 7: Query Expansion or Disambiguation ===
         questions = []
         needs_disambiguation = False
 
@@ -183,7 +196,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
                 all_filtered_by_granule_validation=all_filtered_by_granule_validation,
             )
 
-        # === PHASE 6: Output Assembly ===
+        # === PHASE 8: Output Assembly ===
         final_collections = collections[: params.max_results]
 
         search_context = _build_search_context(
@@ -224,6 +237,22 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
             status=DiscoveryStatus.ERROR,
             error_message=(
                 "Granule availability check failed due to a service error. "
+                "Please try your request again."
+            ),
+        ).model_dump()
+
+    except ToolAssociationError:
+        logger.warning("Tool association enrichment failed", exc_info=True)
+
+        trace_update(
+            tags=["error"],
+            metadata={"error_type": "ToolAssociationError"},
+        )
+
+        return DiscoverDataOutput(
+            status=DiscoveryStatus.ERROR,
+            error_message=(
+                "Tool association enrichment failed due to a service error. "
                 "Please try your request again."
             ),
         ).model_dump()

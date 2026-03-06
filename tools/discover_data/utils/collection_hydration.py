@@ -95,6 +95,7 @@ def hydrate_collections(
         # Get title from metadata if available, fall back to embedding result
         title = metadata.get("EntryTitle") or result.get("text_content", "")
         abstract = metadata.get("Abstract")
+        short_name = metadata.get("ShortName")
 
         # Extract is_ongoing from temporal_coverage if available
         is_ongoing = temporal_coverage.is_ongoing if temporal_coverage else False
@@ -103,6 +104,7 @@ def hydrate_collections(
             concept_id=concept_id,
             title=title,
             abstract=abstract,
+            short_name=short_name,
             similarity_score=result.get("similarity", 0.0),
             match_type=result.get("match_type", "direct"),
             matched_attribute=result.get("attribute"),

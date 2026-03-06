@@ -17,11 +17,16 @@ CMR_URL = os.environ.get("CMR_URL", "https://cmr.earthdata.nasa.gov")
 
 CLIENT_ID = get_client_id()
 
+# UMM-T tool types surfaced to clients — others (e.g. "Algorithm") are not
+# user-facing links and are excluded from exploration_links.
+_ALLOWED_TOOL_TYPES = frozenset({"Web User Interface", "Web Portal"})
+
 CONCEPT_ENDPOINTS = {
     "collection": "/search/collections.umm_json",
     "variable": "/search/variables.umm_json",
     "citation": "/search/citations.umm_json",
     "granule": "/search/granules.umm_json",
+    "tool": "/search/tools.umm_json",
 }
 
 
@@ -94,6 +99,122 @@ def fetch_associations(concept_id: str) -> dict[str, Any]:
     except requests.RequestException as e:
         logger.warning("Failed to fetch associations for %s: %s", concept_id, e)
         return {}
+
+
+def fetch_collection_tags(concept_id: str) -> dict[str, Any]:
+    """
+    Fetch CMR tags for a collection using the JSON endpoint.
+
+    Unlike the UMM-JSON endpoint, the JSON endpoint supports ``include_tags``
+    which exposes EDSC-managed tags such as ``edsc.extra.serverless.gibs``.
+
+    Args:
+        concept_id: The CMR collection concept ID.
+
+    Returns:
+        Tags dict keyed by tag name (e.g. ``{"edsc.extra.serverless.gibs": {"data": [...]}}``)
+        Returns empty dict if request fails or collection has no tags.
+    """
+    url = f"{CMR_URL}/search/collections.json"
+    params = {"concept_id": concept_id, "include_tags": "edsc.*"}
+
+    try:
+        response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        items = data.get("feed", {}).get("entry", [])
+        if items:
+            return items[0].get("tags", {})
+        return {}
+    except requests.RequestException as e:
+        logger.warning("Failed to fetch tags for %s: %s", concept_id, e)
+        return {}
+
+
+def _extract_tool_info(umm_t_item: dict[str, Any]) -> dict[str, Any]:
+    """
+    Extract client-actionable fields from a UMM-T item.
+
+    Pulls the PotentialAction URL template and its typed query inputs so the
+    client can construct a parameterised deep link (e.g. "Open in Giovanni").
+
+    Args:
+        umm_t_item: A single UMM-T item from CMR (with 'meta' and 'umm' keys).
+
+    Returns:
+        Dictionary with tool link fields: name, url_template, query_inputs.
+    """
+    umm = umm_t_item.get("umm", {})
+
+    # Only surface Web UI / Web Portal tools — skip algorithms, services, etc.
+    tool_type = umm.get("Type")
+    if tool_type not in _ALLOWED_TOOL_TYPES:
+        return None
+
+    potential_action = umm.get("PotentialAction", {})
+
+    # Only accept SearchAction — other PotentialAction types (e.g. ViewAction)
+    # are not suitable as pre-parameterised exploration links.
+    action_type = potential_action.get("Type") if potential_action else None
+    if action_type is not None and action_type != "SearchAction":
+        return None
+
+    target = potential_action.get("Target", {})
+
+    query_inputs = [
+        {
+            "value_name": qi.get("ValueName"),
+            "value_type": qi.get("ValueType"),
+            "required": qi.get("ValueRequired", False),
+        }
+        for qi in potential_action.get("QueryInput", [])
+    ]
+
+    # Base URL from UMM URL entry
+    base_url = (umm.get("URL") or {}).get("URLValue")
+
+    # Topic from ToolKeywords (e.g. "DATA ANALYSIS AND VISUALIZATION")
+    keywords = umm.get("ToolKeywords") or []
+    raw_topic = keywords[0].get("ToolTopic") if keywords else None
+    topic = raw_topic.capitalize() if raw_topic else None
+
+    return {
+        "name": umm.get("Name"),
+        "base_url": base_url,
+        "url_template": target.get("UrlTemplate"),
+        "query_inputs": query_inputs,
+        "topic": topic,
+    }
+
+
+def fetch_tool_metadata(tool_concept_ids: list[str]) -> list[dict[str, Any]]:
+    """
+    Fetch UMM-T metadata for a list of tool concept IDs.
+
+    Batches all IDs into a single CMR request and extracts the client-actionable
+    fields needed to construct 'Open in X' actions (name, url, type, etc.).
+
+    Args:
+        tool_concept_ids: List of tool concept IDs (e.g. ["TL1234-PROV"]).
+
+    Returns:
+        List of dicts with actionable tool fields extracted from UMM-T.
+        Returns empty list if no IDs provided, request fails, or no tools found.
+    """
+    if not tool_concept_ids:
+        return []
+
+    url = f"{CMR_URL}/search/tools.umm_json"
+    params = {"concept_id[]": tool_concept_ids, "page_size": len(tool_concept_ids)}
+
+    try:
+        response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=30)
+        response.raise_for_status()
+        items = response.json().get("items", [])
+        return [t for item in items if (t := _extract_tool_info(item)) is not None]
+    except requests.RequestException as e:
+        logger.warning("Failed to fetch tool metadata for %s: %s", tool_concept_ids, e)
+        return []
 
 
 def search_cmr(
