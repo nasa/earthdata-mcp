@@ -23,6 +23,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from langfuse import observe
 
@@ -30,13 +31,10 @@ from models.tools.discover_data import CollectionMatch, SpatialConstraint, Tempo
 from util.cache import get_cache_client
 from util.cmr.client import fetch_associations, fetch_collection_tags, fetch_tool_metadata
 
-from .earthdata_search_links import _earthdata_search_link
-from .umm_tool_links import (
-    _DEDUP_BASE_URLS,
-    _prioritize_tools,
-    _resolve_tool_url,
-)
+from .earthdata_search_links import _EARTHDATA_SEARCH_BASE, _earthdata_search_link
+from .umm_tool_links import _prioritize_tools, _resolve_tool_url
 from .worldview_links import (
+    _WORLDVIEW_BASE,
     _all_gibs_layers,
     _worldview_link,
 )
@@ -52,6 +50,17 @@ TOOL_ASSOC_MAX_WORKERS = int(os.environ.get("TOOL_ASSOC_MAX_WORKERS", "10"))
 
 # UMM-T associations are slow-moving — 24h TTL is safe
 TOOL_ASSOC_CACHE_TTL = 86400
+
+
+def _base_key(url: str) -> str:
+    """Return a scheme-agnostic URL key for base-url comparisons."""
+    parsed = urlsplit(url)
+    return f"{parsed.netloc}{parsed.path}".rstrip("/").lower()
+
+
+def _matches_base_ignoring_scheme(url: str, canonical_base: str) -> bool:
+    """Return True when url points at canonical_base regardless of http vs https."""
+    return _base_key(url).startswith(_base_key(canonical_base))
 
 
 def _build_exploration_links(  # pylint: disable=too-many-arguments
@@ -72,19 +81,30 @@ def _build_exploration_links(  # pylint: disable=too-many-arguments
     3. Prioritized CMR UMM tool links, deduplicated against guaranteed links
     """
     links: list[dict] = [_earthdata_search_link(concept_id, temporal, spatial, collection_end_date)]
+    guaranteed_worldview_link_added = False
 
     if gibs_layers:
         links.append(_worldview_link(gibs_layers, temporal, spatial, collection_end_date))
+        guaranteed_worldview_link_added = True
 
     for tool in _prioritize_tools(tools):
         base = (tool.get("base_url") or "").rstrip("/")
-        if any(base.startswith(d) for d in _DEDUP_BASE_URLS):
+
+        # Dedup against guaranteed links:
+        # - Earthdata Search is always guaranteed, so always dedup Earthdata-based tools.
+        # - Worldview is guaranteed only when GIBS layers were available.
+        is_earthdata_base = _matches_base_ignoring_scheme(base, _EARTHDATA_SEARCH_BASE)
+        is_worldview_base = _matches_base_ignoring_scheme(base, _WORLDVIEW_BASE)
+        if is_earthdata_base:
             continue
-        links.append(
-            _resolve_tool_url(
-                tool, concept_id, temporal, spatial, short_name, gibs_layers=gibs_layers
-            )
+        if is_worldview_base and guaranteed_worldview_link_added:
+            continue
+
+        resolved_tool = _resolve_tool_url(
+            tool, concept_id, temporal, spatial, short_name, gibs_layers=gibs_layers
         )
+        if resolved_tool is not None:
+            links.append(resolved_tool)
 
     return links
 
@@ -129,7 +149,11 @@ def _fetch_tool_associations(concept_id: str) -> list[dict]:
     if not tool_ids:
         return {"tools": [], "tags": tags}
 
-    return {"tools": fetch_tool_metadata(tool_ids), "tags": tags}
+    tools = fetch_tool_metadata(tool_ids)
+    if not tools:
+        raise ToolAssociationError(f"Failed to fetch tool metadata for {concept_id}")
+
+    return {"tools": tools, "tags": tags}
 
 
 @observe(name="enrich_with_tool_associations")
@@ -227,6 +251,8 @@ def enrich_with_tool_associations(
                     {"tools": tools, "tags": tags, "timestamp": time.time()},
                     ttl=TOOL_ASSOC_CACHE_TTL,
                 )
+            except ToolAssociationError:
+                raise
             except Exception as exc:
                 raise ToolAssociationError(
                     f"Failed to fetch tool associations for {collection.concept_id}"

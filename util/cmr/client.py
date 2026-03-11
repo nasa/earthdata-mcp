@@ -131,7 +131,7 @@ def fetch_collection_tags(concept_id: str) -> dict[str, Any]:
         return {}
 
 
-def _extract_tool_info(umm_t_item: dict[str, Any]) -> dict[str, Any]:
+def _extract_tool_info(umm_t_item: dict[str, Any]) -> dict[str, Any] | None:
     """
     Extract client-actionable fields from a UMM-T item.
 
@@ -143,6 +143,7 @@ def _extract_tool_info(umm_t_item: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         Dictionary with tool link fields: name, url_template, query_inputs.
+        Returns None when the UMM-T item is not an allowed tool type.
     """
     umm = umm_t_item.get("umm", {})
 

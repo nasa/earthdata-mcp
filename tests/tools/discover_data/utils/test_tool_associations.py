@@ -111,6 +111,7 @@ class TestFetchToolAssociations:
     def test_calls_fetch_tool_metadata_with_tool_ids(self, monkeypatch):
         """Should forward tool IDs to fetch_tool_metadata."""
         tool_ids = ["TL1-PROV", "TL2-PROV"]
+        tools = [{"name": "Tool A", "url_template": "https://tool.example.com", "query_inputs": []}]
         monkeypatch.setattr(
             "tools.discover_data.utils.tool_associations.fetch_associations",
             lambda concept_id: {"tools": tool_ids},
@@ -122,7 +123,7 @@ class TestFetchToolAssociations:
         fetch_metadata_calls = []
         monkeypatch.setattr(
             "tools.discover_data.utils.tool_associations.fetch_tool_metadata",
-            lambda ids: fetch_metadata_calls.append(ids) or [],
+            lambda ids: fetch_metadata_calls.append(ids) or tools,
         )
 
         _fetch_tool_associations("C1234-PROVIDER")
@@ -160,6 +161,24 @@ class TestFetchToolAssociations:
         result = _fetch_tool_associations("C1234-PROVIDER")
 
         assert result["tools"] == tools
+
+    def test_raises_when_tool_ids_exist_but_tool_metadata_is_empty(self, monkeypatch):
+        """Empty metadata for reported tool IDs should be treated as a fetch failure."""
+        monkeypatch.setattr(
+            "tools.discover_data.utils.tool_associations.fetch_associations",
+            lambda concept_id: {"tools": ["TL1-PROV"]},
+        )
+        monkeypatch.setattr(
+            "tools.discover_data.utils.tool_associations.fetch_collection_tags",
+            lambda concept_id: {},
+        )
+        monkeypatch.setattr(
+            "tools.discover_data.utils.tool_associations.fetch_tool_metadata",
+            lambda ids: [],
+        )
+
+        with pytest.raises(ToolAssociationError, match="C1234-PROVIDER"):
+            _fetch_tool_associations("C1234-PROVIDER")
 
     def test_returns_tags_from_fetch_collection_tags(self, monkeypatch):
         """Should include tags returned by fetch_collection_tags in result."""
@@ -496,6 +515,18 @@ class TestBuildExplorationLinks:
         assert names.count("Earthdata Search Tool") == 0
         assert "NASA Earthdata Search" in names  # our guaranteed link remains
 
+    def test_deduplicates_earthdata_tool_with_http_base_url(self):
+        """Earthdata-based tools should be deduped even when metadata uses http."""
+        eds_tool = {
+            "name": "Earthdata Search Tool",
+            "url_template": "http://search.earthdata.nasa.gov/search?p={cid}",
+            "query_inputs": [],
+            "base_url": "http://search.earthdata.nasa.gov",
+        }
+        links = _build_exploration_links([eds_tool], "C1-P", None, None, None, [])
+        names = [link["name"] for link in links]
+        assert names.count("Earthdata Search Tool") == 0
+
     def test_deduplicates_cmr_tool_with_worldview_base_url(self):
         """CMR tool whose base_url is Worldview should be skipped when Worldview is already present."""
         wv_tool = {
@@ -509,10 +540,66 @@ class TestBuildExplorationLinks:
         assert names.count("Worldview Tool") == 0
         assert "NASA Worldview" in names  # our guaranteed link remains
 
+    def test_deduplicates_worldview_tool_with_http_base_url(self):
+        """Worldview-based tools should be deduped even when metadata uses http."""
+        wv_tool = {
+            "name": "Worldview Tool",
+            "url_template": "http://worldview.earthdata.nasa.gov/?l=Layer",
+            "query_inputs": [],
+            "base_url": "http://worldview.earthdata.nasa.gov",
+        }
+        links = _build_exploration_links([wv_tool], "C1-P", None, None, None, ["SomeLayer"])
+        names = [link["name"] for link in links]
+        assert names.count("Worldview Tool") == 0
+
+    def test_keeps_worldview_cmr_tool_when_no_worldview_link_added(self):
+        """Worldview-base CMR tool should not be deduped when gibs_layers is empty."""
+        wv_tool = {
+            "name": "Worldview Tool",
+            "url_template": "https://worldview.earthdata.nasa.gov/?l=Layer",
+            "query_inputs": [],
+            "base_url": "https://worldview.earthdata.nasa.gov",
+        }
+        links = _build_exploration_links([wv_tool], "C1-P", None, None, None, [])
+        names = [link["name"] for link in links]
+        assert "NASA Worldview" not in names
+        assert "Worldview Tool" in names
+
+    def test_keeps_http_worldview_cmr_tool_when_no_worldview_link_added(self):
+        """Worldview http metadata should still be kept when no guaranteed Worldview link exists."""
+        wv_tool = {
+            "name": "Worldview Tool",
+            "url_template": "http://worldview.earthdata.nasa.gov/?l=Layer",
+            "query_inputs": [],
+            "base_url": "http://worldview.earthdata.nasa.gov",
+        }
+        links = _build_exploration_links([wv_tool], "C1-P", None, None, None, [])
+        names = [link["name"] for link in links]
+        assert "Worldview Tool" in names
+
     def test_non_dedup_cmr_tools_are_included(self):
         """Tools whose base_url is not Earthdata Search or Worldview should pass through."""
         links = _build_exploration_links([self._STATIC_TOOL], "C1-P", None, None, None, [])
         assert any(link["name"] == "Static Tool" for link in links)
+
+    def test_skips_tool_when_required_input_missing(self):
+        """Tools missing required template inputs should be omitted from exploration links."""
+        required_tool = {
+            "name": "Required Tool",
+            "base_url": "https://tool.example.com/home",
+            "url_template": "https://tool.example.com{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                }
+            ],
+        }
+
+        links = _build_exploration_links([required_tool], "C1-P", None, None, None, [])
+        names = [link["name"] for link in links]
+        assert "Required Tool" not in names
 
     def test_multiple_gibs_layers_all_appear_in_worldview_url(self):
         """All GIBS layers should appear in the Worldview l= parameter."""

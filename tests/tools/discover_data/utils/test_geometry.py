@@ -74,6 +74,18 @@ class TestMapCenterZoom:
         assert lon == 10.0
         assert zoom > 0
 
+    def test_antimeridian_bbox_uses_wrapped_lon_center(self):
+        """For east < west, center longitude should wrap into -180..180."""
+        lat, lon, _zoom = _map_center_zoom("170.0,-10.0,-170.0,10.0")
+        assert lat == 0.0
+        assert lon == -180.0
+
+    def test_antimeridian_bbox_uses_wrapped_span_for_zoom(self):
+        """Wrapped longitudinal span should drive a tighter zoom than naive 340° span."""
+        _lat, _lon, zoom_crossing = _map_center_zoom("170.0,-5.0,-170.0,5.0")
+        _lat, _lon, zoom_non_crossing = _map_center_zoom("-170.0,-5.0,170.0,5.0")
+        assert zoom_crossing > zoom_non_crossing
+
 
 # ---------------------------------------------------------------------------
 # _bbox_from_wkt

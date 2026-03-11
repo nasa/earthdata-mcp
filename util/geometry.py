@@ -46,8 +46,17 @@ def _map_center_zoom(bbox: str) -> tuple[float, float, float]:
     """
     west, south, east, north = (float(v) for v in bbox.split(","))
     center_lat = (south + north) / 2.0
-    center_lon = (west + east) / 2.0
-    lon_span = east - west
+
+    # Handle antimeridian-crossing bboxes (east < west) using wrapped span.
+    # Example: west=170, east=-170 should span 20 degrees centered on 180/-180.
+    if east < west:
+        lon_span = east + 360.0 - west
+        center_lon = west + lon_span / 2.0
+        center_lon = ((center_lon + 180.0) % 360.0) - 180.0
+    else:
+        lon_span = east - west
+        center_lon = (west + east) / 2.0
+
     lat_span = north - south
     max_span = max(lon_span, lat_span, 0.001)  # guard against zero-area
     zoom = math.log2(360.0 / max_span) + 1.0

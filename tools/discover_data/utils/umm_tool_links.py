@@ -6,6 +6,7 @@ Temporal policy:
 - No temporal fallback is injected from collection metadata.
 """
 
+import logging
 import re
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
@@ -14,15 +15,10 @@ from util.geometry import _bbox_from_wkt
 
 from .worldview_links import _cmr_tool_layers_param
 
-# Substring matched against topic (lower-cased) to identify visualisation tools
-_VISUALIZATION_TOPIC_KEYWORD = "visualization"
+logger = logging.getLogger(__name__)
 
-# Base URLs for Earthdata Search and Worldview — used to generate guaranteed
-# exploration links and to deduplicate against any CMR-defined tools that
-# already reference the same applications.
-_EARTHDATA_SEARCH_BASE = "https://search.earthdata.nasa.gov"
-_WORLDVIEW_BASE = "https://worldview.earthdata.nasa.gov"
-_DEDUP_BASE_URLS = frozenset({_EARTHDATA_SEARCH_BASE, _WORLDVIEW_BASE})
+# Substring matched against topic (lower-cased) to identify visualization tools
+_VISUALIZATION_TOPIC_KEYWORD = "visualization"
 
 # schema.org value type constants used in UMM-T QueryInput
 _SCHEMA_START_DATE = "https://schema.org/startDate"
@@ -55,6 +51,8 @@ def _resolve_value(  # pylint: disable=too-many-return-statements
     if value_type == _SCHEMA_INTERVAL:
         if not temporal:
             return None
+        # schema.org datasetTimeInterval expects open bounds as '..' in start/end form.
+        # Do not serialize Python None values into the interval string.
         start = temporal.start_date.isoformat() if temporal.start_date else ".."
         end = temporal.end_date.isoformat() if temporal.end_date else ".."
         return f"{start}/{end}"
@@ -84,8 +82,8 @@ def _expand_url_template(template: str, values: dict[str, str]) -> str:
     """Expand the RFC 6570 subset used by UMM-T PotentialAction targets."""
 
     def _expand_query(match: re.Match) -> str:  # type: ignore[type-arg]
-        names = [n.strip() for n in match.group(1).split(",")]
-        params = [(n, values[n]) for n in names if values.get(n) is not None]
+        names = [name.strip() for name in match.group(1).split(",")]
+        params = [(name, values[name]) for name in names if values.get(name) is not None]
         return ("?" + urlencode(params)) if params else ""
 
     def _expand_simple(match: re.Match) -> str:  # type: ignore[type-arg]
@@ -104,7 +102,7 @@ def _resolve_tool_url(
     spatial: SpatialConstraint | None,
     short_name: str | None = None,
     gibs_layers: list[str] | None = None,
-) -> dict:
+) -> dict | None:
     """Resolve a raw UMM-T tool dict into a ready-to-render link."""
     url_template = tool.get("url_template")
     base_url = tool.get("base_url")
@@ -114,13 +112,30 @@ def _resolve_tool_url(
     if not url_template:
         return {"name": tool.get("name"), "url": base_url, "topic": topic}
 
-    values = {
-        qi["value_name"]: _resolve_value(
-            qi.get("value_type"), concept_id, temporal, spatial, short_name
+    values: dict[str, str | None] = {}
+    missing_required_names: list[str] = []
+    for query_input in query_inputs:
+        value_name = query_input.get("value_name")
+        if not value_name:
+            continue
+        resolved = _resolve_value(
+            query_input.get("value_type"), concept_id, temporal, spatial, short_name
         )
-        for qi in query_inputs
-        if qi.get("value_name")
-    }
+        values[value_name] = resolved
+        if query_input.get("required") and resolved is None:
+            missing_required_names.append(value_name)
+
+    if missing_required_names:
+        logger.warning(
+            "Skipping tool link due to missing required inputs",
+            extra={
+                "tool_name": tool.get("name"),
+                "concept_id": concept_id,
+                "missing_required_inputs": missing_required_names,
+            },
+        )
+        return None
+
     values["layers"] = _cmr_tool_layers_param(gibs_layers or [])
 
     return {

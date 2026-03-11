@@ -1,5 +1,6 @@
 """Tests for UMM tool-link utilities."""
 
+import logging
 from datetime import UTC, datetime
 
 from models.tools.discover_data import SpatialConstraint, TemporalConstraint
@@ -53,7 +54,13 @@ class TestResolveValue:
         """Open-ended interval should use '..' for the missing end bound."""
         t = TemporalConstraint(start_date=datetime(2020, 1, 1, tzinfo=UTC), end_date=None)
         result = _resolve_value("https://schema.org/datasetTimeInterval", "C1-P", t, None)
-        assert result.endswith("/..") or result.endswith("/None")
+        assert result.endswith("/..")
+
+    def test_resolves_interval_with_open_end_never_uses_python_none_string(self):
+        """Open-ended interval serialization must not emit '/None'."""
+        t = TemporalConstraint(start_date=datetime(2020, 1, 1, tzinfo=UTC), end_date=None)
+        result = _resolve_value("https://schema.org/datasetTimeInterval", "C1-P", t, None)
+        assert "/None" not in result
 
     def test_resolves_schema_box_from_wkt(self):
         """Should return bbox string derived from the WKT polygon."""
@@ -314,6 +321,61 @@ class TestResolveToolUrl:
         result = _resolve_tool_url(tool, "C1-P", temporal, None)
         assert "starttime=" in result["url"]
         assert "longName" not in result["url"]
+
+    def test_falls_back_to_base_url_when_required_input_is_missing(self):
+        """If any required query input cannot be resolved, skip emitting the tool link."""
+        tool = {
+            "name": "Required Tool",
+            "base_url": "https://tool.example.com/home",
+            "url_template": "https://tool.example.com{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                }
+            ],
+        }
+        result = _resolve_tool_url(tool, "C1-P", temporal=None, spatial=None)
+        assert result is None
+
+    def test_returns_none_url_when_required_input_missing_and_no_base_url(self):
+        """If required input is missing and base_url is absent, the tool should still be skipped."""
+        tool = {
+            "name": "Required Tool",
+            "base_url": None,
+            "url_template": "https://tool.example.com{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                }
+            ],
+        }
+        result = _resolve_tool_url(tool, "C1-P", temporal=None, spatial=None)
+        assert result is None
+
+    def test_logs_when_required_input_is_missing(self, caplog):
+        """Missing required inputs should emit a warning to support monitoring frequency."""
+        tool = {
+            "name": "Required Tool",
+            "base_url": "https://tool.example.com/home",
+            "url_template": "https://tool.example.com{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                }
+            ],
+        }
+
+        with caplog.at_level(logging.WARNING):
+            result = _resolve_tool_url(tool, "C1-P", temporal=None, spatial=None)
+
+        assert result is None
+        assert "Skipping tool link due to missing required inputs" in caplog.text
 
     def test_handles_empty_query_inputs(self):
         """A tool with no query_inputs should resolve to the template URL unchanged."""

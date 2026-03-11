@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 _ARCTIC_LAT_THRESHOLD = 60.0
 _ANTARCTIC_LAT_THRESHOLD = -60.0
 
-# Base URLs for Earthdata Search and Worldview — used to generate guaranteed
-# exploration links and to deduplicate against any CMR-defined tools that
-# already reference the same applications.
+# Base URL for NASA Worldview link generation.
 _WORLDVIEW_BASE = "https://worldview.earthdata.nasa.gov"
 
 # Base layer appended after all GIBS product layers in both Worldview and CMR
@@ -179,6 +177,6 @@ def _worldview_link(
 
     return {
         "name": "NASA Worldview",
-        "url": f"{_WORLDVIEW_BASE}/?" + urlencode(params, quote_via=quote, safe="()"),
+        "url": f"{_WORLDVIEW_BASE}/?" + urlencode(params, quote_via=quote, safe="(),"),
         "topic": "Data analysis and visualization",
     }
