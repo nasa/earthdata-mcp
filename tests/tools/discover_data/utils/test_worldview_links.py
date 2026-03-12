@@ -500,8 +500,3 @@ class TestWorldviewLink:
         """p= should be absent when no spatial constraint is provided."""
         link = _worldview_link(["SomeLayer"], None, None)
         assert "p=" not in link["url"]
-
-
-# ---------------------------------------------------------------------------
-# _build_exploration_links
-# ---------------------------------------------------------------------------
