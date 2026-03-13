@@ -1,11 +1,19 @@
 {
   "name": "discover_data",
   "module": "tool",
-  "description": "Discover NASA Earth science data collections using natural language queries. All parameters are flat (strings, numbers) except search_context (opaque passthrough from prior response). Params MUST be a native object (not a JSON string).",
+  "description": "Discover NASA Earth science collections from natural-language queries and return ranked collection matches with optional clarifying questions.\n\nKey parameters:\n- query: required natural-language request\n- temporal_constraint / spatial_constraint: optional explicit constraints\n- search_context: optional follow-up context from prior response (opaque passthrough)\n- max_results / similarity_threshold: optional ranking controls\n\nFollow-up behavior:\n- Pass search_context back unchanged between iterations\n- To answer clarifying questions, set search_context.user_refinements with question_id -> selected option\n- Params must be sent as a native object, not a JSON string",
   "version": "1.0.0",
-  "tags": ["discovery", "earth-science", "nasa", "collections", "search", "nlp"],
+  "tags": [
+    "nasa",
+    "earthdata",
+    "cmr",
+    "search",
+    "discovery",
+    "collections",
+    "nlp"
+  ],
   "entry_function": "discover_data",
-  "enabled": true,
+  "enabled": false,
   "examples": {
     "minimal": {
       "description": "Simplest query - required query only",
@@ -49,7 +57,9 @@
         "search_context": {
           "temporal": null,
           "spatial": null,
-          "previous_collection_ids": ["C12345-PROVIDER"],
+          "previous_collection_ids": [
+            "C12345-PROVIDER"
+          ],
           "user_refinements": {
             "temporal_res_1": "Daily"
           },

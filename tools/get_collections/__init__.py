@@ -1,0 +1,1 @@
+"""Collection search MCP tool."""

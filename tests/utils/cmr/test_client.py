@@ -254,6 +254,22 @@ class TestSearchCmrGet:
         second_call_headers = mock_get.call_args_list[1][1]["headers"]
         assert second_call_headers["CMR-Search-After"] == "token-abc"
 
+    def test_uses_provided_search_after_for_first_request(self, monkeypatch):
+        """Should include an incoming search-after token on the first request."""
+        items = [{"meta": {"concept-id": "C1-P"}, "umm": {}}]
+        response = _make_response(
+            json_data={"items": items},
+            headers={"CMR-Hits": "1", "CMR-Took": "5"},
+        )
+        mock_get = Mock(return_value=response)
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        pages = list(search_cmr("collection", {}, page_size=10, search_after='["token"]'))
+
+        assert len(pages) == 1
+        sent_headers = mock_get.call_args[1]["headers"]
+        assert sent_headers["CMR-Search-After"] == '["token"]'
+
     def test_stops_when_no_items_returned(self, monkeypatch):
         """Should stop pagination when an empty items list is returned."""
         response = _make_response(

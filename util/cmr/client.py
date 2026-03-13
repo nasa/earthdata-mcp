@@ -222,6 +222,7 @@ def search_cmr(
     concept_type: str,
     search_params: dict[str, Any],
     page_size: int = 500,
+    search_after: str | None = None,
     method: Literal["GET", "POST"] = "GET",
     files: dict[str, Any] | None = None,
 ) -> Generator[CMRSearchResponse]:
@@ -232,6 +233,7 @@ def search_cmr(
         concept_type: Type of concept (collection, variable, citation, granule)
         search_params: Dictionary of CMR search parameters
         page_size: Number of results per page
+        search_after: Optional search-after token for continuing an existing query
         method: HTTP method to use ("GET" or "POST")
         files: Optional files dict for multipart/form-data (e.g., shapefile)
 
@@ -249,6 +251,8 @@ def search_cmr(
     endpoint = f"{CMR_URL}{CONCEPT_ENDPOINTS[concept_type]}"
     params = {**search_params, "page_size": page_size}
     headers = {"Client-Id": CLIENT_ID}
+    if search_after:
+        headers["CMR-Search-After"] = search_after
     total_fetched = 0
 
     while True:

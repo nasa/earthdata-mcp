@@ -1,0 +1,1 @@
+"""Granule search MCP tool."""

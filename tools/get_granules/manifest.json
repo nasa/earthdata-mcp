@@ -1,0 +1,34 @@
+{
+    "name": "get_granules",
+    "module": "tool",
+    "description": "Search NASA CMR granules for a specific parent collection and return one page of lightweight normalized results plus pagination metadata.\n\nIMPORTANT — data availability checks: Without temporal and/or spatial filters, results represent ALL granules ever archived in the collection, which may span decades and the entire globe. total_hits without filters tells you the full archive size, NOT whether data exists for a specific area or time period. To answer 'is data available for region X during period Y?', you MUST provide the relevant filters — otherwise the answer will always appear affirmative even when no data covers that area or time.\n\nKey parameters:\n- collection_concept_id: required parent collection concept ID\n- temporal_start_date / temporal_end_date: filter to granules overlapping this time window — always set when the user specifies a time period\n- spatial_wkt_geometry: filter to granules intersecting this area — always set when the user specifies a geographic region\n\nPagination:\n- page_size controls results per page (max 2000)\n- search_after requests the next page from a previous response\n\nTips:\n- For any area- or time-specific availability question, provide both temporal and spatial filters\n- total_hits in the response reflects the filtered count — zero means no data for that combination\n- Use search_after for deep paging through long result sets",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "granules"
+    ],
+    "entry_function": "get_granules",
+    "enabled": true,
+    "examples": {
+        "minimal": {
+            "description": "List granules for a collection",
+            "params": {
+                "collection_concept_id": "C1234567890-POCLOUD",
+                "page_size": 5
+            }
+        },
+        "spatiotemporal": {
+            "description": "Filter granules within time and space",
+            "params": {
+                "collection_concept_id": "C1234567890-POCLOUD",
+                "temporal_start_date": "2024-01-01T00:00:00Z",
+                "temporal_end_date": "2024-01-31T23:59:59Z",
+                "spatial_wkt_geometry": "POLYGON((-87 29, -86 29, -86 30, -87 30, -87 29))"
+            }
+        }
+    }
+}
