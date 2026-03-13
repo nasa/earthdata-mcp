@@ -84,7 +84,7 @@ SpatialWktGeometryParam = Annotated[
     Field(
         description=(
             "Spatial filter as WKT geometry. Supported types: POLYGON((lon lat, ...)), "
-            "POINT(lon lat), LINESTRING((lon lat, ...)), "
+            "POINT(lon lat), LINESTRING(lon lat, ...), "
             "or ENVELOPE(minLon, maxLon, maxLat, minLat). "
             "Restricts results to collections whose declared extent intersects this area. "
             "Set this whenever the user specifies a geographic region — omitting it returns "

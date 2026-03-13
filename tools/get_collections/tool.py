@@ -4,6 +4,7 @@ import logging
 
 from langfuse import observe
 
+from models.tools.cmr_search import SearchStatus
 from models.tools.get_collections import (
     ConceptIdParam,
     GetCollectionsInput,
@@ -12,7 +13,6 @@ from models.tools.get_collections import (
     ProviderParam,
     QueryParam,
     SearchAfterParam,
-    SearchStatus,
     ShortNameParam,
     SpatialWktGeometryParam,
     TemporalEndDateParam,

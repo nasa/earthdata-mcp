@@ -4,13 +4,13 @@ import logging
 
 from langfuse import observe
 
+from models.tools.cmr_search import SearchStatus
 from models.tools.get_granules import (
     CollectionConceptIdParam,
     GetGranulesInput,
     GetGranulesOutput,
     PageSizeParam,
     SearchAfterParam,
-    SearchStatus,
     SpatialWktGeometryParam,
     TemporalEndDateParam,
     TemporalStartDateParam,
