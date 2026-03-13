@@ -50,6 +50,29 @@ class CMRError(Exception):
     """Raised when a CMR API request fails."""
 
 
+def _extract_cmr_error_detail(response: requests.Response | Any) -> str | None:
+    """Extract a concise error message from a failed CMR HTTP response."""
+    try:
+        payload = response.json()
+    except Exception:  # pylint: disable=broad-exception-caught
+        payload = None
+
+    if isinstance(payload, dict):
+        errors = payload.get("errors")
+        if isinstance(errors, list) and errors:
+            return "; ".join(str(err) for err in errors if err)
+
+        message = payload.get("message") or payload.get("error")
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+
+    text = getattr(response, "text", None)
+    if isinstance(text, str) and text.strip():
+        return text.strip()[:500]
+
+    return None
+
+
 def fetch_concept(concept_id: str, revision_id: str) -> dict[str, Any]:
     """
     Fetch concept metadata from CMR.
@@ -272,6 +295,11 @@ def search_cmr(
             response.raise_for_status()
             data = response.json()
         except requests.RequestException as e:
+            response = getattr(e, "response", None)
+            if response is not None:
+                detail = _extract_cmr_error_detail(response)
+                if detail:
+                    raise CMRError(f"CMR request failed: {detail}") from e
             raise CMRError(f"CMR request failed: {e}") from e
 
         items = data.get("items", [])

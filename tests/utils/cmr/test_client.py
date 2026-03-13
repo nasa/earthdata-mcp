@@ -292,6 +292,17 @@ class TestSearchCmrGet:
         with pytest.raises(CMRError, match="CMR request failed"):
             list(search_cmr("collection", {}))
 
+    def test_includes_cmr_error_details_from_http_response(self, monkeypatch):
+        """Should surface CMR error payload details when a request returns HTTP 400."""
+        bad_response = _make_response(json_data={"errors": ["Invalid shapefile geometry"]})
+        bad_response.raise_for_status.side_effect = requests.HTTPError(
+            "400 Client Error", response=bad_response
+        )
+        monkeypatch.setattr("util.cmr.client.requests.get", Mock(return_value=bad_response))
+
+        with pytest.raises(CMRError, match="Invalid shapefile geometry"):
+            list(search_cmr("collection", {}))
+
     def test_count_only_query_returns_single_page(self, monkeypatch):
         """Should yield one page with empty items for page_size=0 count queries."""
         response = _make_response(
