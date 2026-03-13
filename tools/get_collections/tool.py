@@ -24,6 +24,7 @@ from util.cmr.search_tools import (
     format_temporal_range,
     normalize_collection_item,
 )
+from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,16 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
     or multi-decadal — presence in results does not confirm data exists for a specific region or
     period. Use filters here, then confirm actual granule availability with get_granules.
     """
+    trace_update(
+        tags=["cmr", "collections"],
+        metadata={
+            "has_query": bool(query),
+            "has_temporal": temporal_start_date is not None or temporal_end_date is not None,
+            "has_spatial": spatial_wkt_geometry is not None,
+            "page_size": page_size,
+        },
+    )
+
     try:
         params = GetCollectionsInput(**locals())
 

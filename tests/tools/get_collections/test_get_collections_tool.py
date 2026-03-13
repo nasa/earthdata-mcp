@@ -1,6 +1,7 @@
 """Tests for the get_collections MCP tool."""
 
 import importlib
+from unittest.mock import patch
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -263,3 +264,20 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
 
     assert output["status"] == "error"
     assert "Invalid WKT geometry" in output["error_message"]
+
+
+def test_get_collections_calls_trace_update(monkeypatch):
+    """Tool should emit Langfuse trace updates using the shared helper."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+
+    def fake_search_cmr(**_kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    with patch.object(tool, "trace_update") as mock_trace_update:
+        output = tool.get_collections(query="modis")
+
+    assert output["status"] == "no_results"
+    assert mock_trace_update.called

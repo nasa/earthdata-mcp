@@ -17,6 +17,7 @@ from models.tools.get_granules import (
 )
 from util.cmr.client import CMRError, search_cmr
 from util.cmr.search_tools import build_spatial_files, format_temporal_range, normalize_granule_item
+from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,16 @@ def get_granules(  # pylint: disable=too-many-arguments,unused-argument
     filters the results reflect the entire collection archive and total_hits will be non-zero
     even when no granules exist for the area or period the user cares about.
     """
+    trace_update(
+        tags=["cmr", "granules"],
+        metadata={
+            "collection_concept_id": collection_concept_id,
+            "has_temporal": temporal_start_date is not None or temporal_end_date is not None,
+            "has_spatial": spatial_wkt_geometry is not None,
+            "page_size": page_size,
+        },
+    )
+
     try:
         params = GetGranulesInput(**locals())
 

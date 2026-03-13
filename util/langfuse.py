@@ -69,6 +69,23 @@ def initialize_langfuse_client() -> Langfuse | None:
     return get_langfuse()
 
 
+def _resolve_session_id_from_mcp_context() -> str | None:
+    """Resolve session id from FastMCP request context when available."""
+    try:
+        # Import lazily so this utility also works in non-FastMCP runtimes.
+        from fastmcp.server.dependencies import get_context  # type: ignore
+
+        ctx = get_context()
+        if ctx is None:
+            return None
+
+        session_id = getattr(ctx, "session_id", None)
+        return session_id if isinstance(session_id, str) and session_id else None
+    except Exception:
+        # Outside request context (or FastMCP not available), no session can be inferred.
+        return None
+
+
 def trace_update(
     metadata: dict | None = None,
     tags: list[str] | None = None,
@@ -93,8 +110,9 @@ def trace_update(
         kwargs["metadata"] = metadata
     if tags is not None:
         kwargs["tags"] = tags
-    if session_id is not None:
-        kwargs["session_id"] = session_id
+    resolved_session_id = session_id or _resolve_session_id_from_mcp_context()
+    if resolved_session_id is not None:
+        kwargs["session_id"] = resolved_session_id
 
     if kwargs:
         client.update_current_trace(**kwargs)
