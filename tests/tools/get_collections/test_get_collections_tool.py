@@ -154,6 +154,31 @@ def test_get_collections_uses_post_for_spatial_search(monkeypatch):
     assert output["status"] == "no_results"
 
 
+def test_get_collections_includes_optional_filter_params(monkeypatch):
+    """Optional concept_id, short_name, and provider should map into CMR params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=8, search_after=None, page_size=0)
+
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections(
+        concept_id="C123-PROV",
+        short_name="MOD11A1",
+        provider="LPDAAC_ECS",
+    )
+
+    assert captured["search_params"]["concept_id"] == "C123-PROV"
+    assert captured["search_params"]["short_name"] == "MOD11A1"
+    assert captured["search_params"]["provider"] == "LPDAAC_ECS"
+    assert output["status"] == "no_results"
+
+
 def test_get_collections_returns_error_on_cmr_failure(monkeypatch):
     """CMR failures should be converted into stable tool errors."""
     tool = _load_tool()
@@ -168,6 +193,37 @@ def test_get_collections_returns_error_on_cmr_failure(monkeypatch):
 
     assert output["status"] == "error"
     assert output["error_message"] == "CMR request failed"
+
+
+def test_get_collections_returns_no_results_when_cmr_yields_nothing(monkeypatch):
+    """An empty CMR iterator should map to no_results."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**_kwargs):
+        return
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections(query="modis")
+
+    assert output["status"] == "no_results"
+
+
+def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
+    """Unexpected failures should still return a stable tool error payload."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**_kwargs):
+        raise RuntimeError("unexpected failure")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections(query="modis")
+
+    assert output["status"] == "error"
+    assert output["error_message"] == "unexpected failure"
 
 
 def test_get_collections_accepts_string_page_size(monkeypatch):

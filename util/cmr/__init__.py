@@ -6,7 +6,6 @@ from util.cmr.client import (
     fetch_associations,
     fetch_collection_tags,
     fetch_concept,
-    fetch_tool_metadata,
     search_cmr,
 )
 from util.cmr.extraction import extract_concept_info, extract_data
@@ -19,6 +18,5 @@ __all__ = [
     "fetch_associations",
     "fetch_collection_tags",
     "fetch_concept",
-    "fetch_tool_metadata",
     "search_cmr",
 ]

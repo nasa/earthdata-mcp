@@ -98,6 +98,29 @@ def test_get_granules_uses_post_for_spatial_search(monkeypatch):
     assert output["status"] == "no_results"
 
 
+def test_get_granules_includes_temporal_filter(monkeypatch):
+    """Temporal bounds should map into CMR temporal parameter."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=7, search_after=None, page_size=0)
+
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_granules(
+        collection_concept_id="C123-PROV",
+        temporal_start_date="2024-01-01T00:00:00Z",
+        temporal_end_date="2024-01-31T23:59:59Z",
+    )
+
+    assert captured["search_params"]["temporal"] == "2024-01-01T00:00:00Z,2024-01-31T23:59:59Z"
+    assert output["status"] == "no_results"
+
+
 def test_get_granules_returns_error_on_cmr_failure(monkeypatch):
     """CMR failures should be converted into stable tool errors."""
     tool = _load_tool()
@@ -112,6 +135,37 @@ def test_get_granules_returns_error_on_cmr_failure(monkeypatch):
 
     assert output["status"] == "error"
     assert output["error_message"] == "CMR granule request failed"
+
+
+def test_get_granules_returns_no_results_when_cmr_yields_nothing(monkeypatch):
+    """An empty CMR iterator should map to no_results."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**_kwargs):
+        return
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_granules(collection_concept_id="C123-PROV")
+
+    assert output["status"] == "no_results"
+
+
+def test_get_granules_returns_error_on_unexpected_failure(monkeypatch):
+    """Unexpected failures should still return a stable tool error payload."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**_kwargs):
+        raise RuntimeError("unexpected granule failure")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_granules(collection_concept_id="C123-PROV")
+
+    assert output["status"] == "error"
+    assert output["error_message"] == "unexpected granule failure"
 
 
 def test_get_granules_accepts_string_page_size(monkeypatch):
