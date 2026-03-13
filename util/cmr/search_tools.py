@@ -7,22 +7,40 @@ from typing import Any
 
 from shapely import make_valid, orient_polygons
 from shapely import wkt as shapely_wkt
+from shapely.errors import GEOSException
 from shapely.geometry import mapping
 
 from util.temporal import extract_temporal_extent, parse_iso_datetime
 
 
 def format_temporal_range(
-    start_date: datetime | None,
-    end_date: datetime | None,
+    start_date: datetime | str | None,
+    end_date: datetime | str | None,
 ) -> str | None:
     """Format a CMR temporal range using ISO 8601 timestamps with Z suffix."""
     if start_date is None and end_date is None:
         return None
 
-    start_str = start_date.isoformat().replace("+00:00", "Z") if start_date is not None else ""
-    end_str = end_date.isoformat().replace("+00:00", "Z") if end_date is not None else ""
+    start_dt = _coerce_temporal_input(start_date, "temporal_start_date")
+    end_dt = _coerce_temporal_input(end_date, "temporal_end_date")
+
+    start_str = start_dt.isoformat().replace("+00:00", "Z") if start_dt is not None else ""
+    end_str = end_dt.isoformat().replace("+00:00", "Z") if end_dt is not None else ""
     return f"{start_str},{end_str}"
+
+
+def _coerce_temporal_input(value: datetime | str | None, field_name: str) -> datetime | None:
+    """Normalize supported temporal input types for CMR temporal formatting."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        parsed = parse_iso_datetime(value)
+        if parsed is None:
+            raise ValueError(f"Invalid {field_name}: must be an ISO 8601 datetime")
+        return parsed
+    raise ValueError(f"Invalid {field_name}: must be an ISO 8601 datetime")
 
 
 # CMR shapefile upload limits (https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html)
@@ -39,7 +57,10 @@ def build_spatial_files(wkt_geometry: str | None) -> dict[str, Any] | None:
     if not wkt_geometry:
         return None
 
-    geometry = shapely_wkt.loads(wkt_geometry)
+    try:
+        geometry = shapely_wkt.loads(wkt_geometry)
+    except GEOSException as exc:
+        raise ValueError(f"Invalid WKT geometry: {exc}") from exc
     if not geometry.is_valid:
         geometry = make_valid(geometry)
     geometry = _normalize_geometry_for_cmr(geometry)

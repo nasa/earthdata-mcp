@@ -42,29 +42,30 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
 ) -> dict:
     """Search CMR collections and return a single normalized results page.
 
+    Unfiltered searches are supported and return a broad page of collections.
     When the user's question involves a specific time period or geographic area, always include
     temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. A keyword-only search
     returns collections whose metadata mentions the terms but whose declared extent may be global
     or multi-decadal — presence in results does not confirm data exists for a specific region or
     period. Use filters here, then confirm actual granule availability with get_granules.
     """
-    params = GetCollectionsInput(**locals())
-
-    search_params: dict[str, object] = {}
-    if params.query:
-        search_params["keyword"] = params.query
-    if params.concept_id:
-        search_params["concept_id"] = params.concept_id
-    if params.short_name:
-        search_params["short_name"] = params.short_name
-    if params.provider:
-        search_params["provider"] = params.provider
-
-    temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
-    if temporal:
-        search_params["temporal"] = temporal
-
     try:
+        params = GetCollectionsInput(**locals())
+
+        search_params: dict[str, object] = {}
+        if params.query:
+            search_params["keyword"] = params.query
+        if params.concept_id:
+            search_params["concept_id"] = params.concept_id
+        if params.short_name:
+            search_params["short_name"] = params.short_name
+        if params.provider:
+            search_params["provider"] = params.provider
+
+        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+        if temporal:
+            search_params["temporal"] = temporal
+
         files = build_spatial_files(params.spatial_wkt_geometry)
         method = "POST" if files else "GET"
         page = next(
@@ -78,8 +79,14 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
             ),
             None,
         )
-    except (CMRError, ValueError) as exc:
+    except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Collection search failed: %s", exc)
+        return GetCollectionsOutput(
+            status=SearchStatus.ERROR,
+            error_message=str(exc),
+        ).model_dump()
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected collection search failure")
         return GetCollectionsOutput(
             status=SearchStatus.ERROR,
             error_message=str(exc),

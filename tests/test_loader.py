@@ -255,6 +255,34 @@ class TestLoadToolsFromDirectory:
         assert "[SKIP] disabled_tool: Disabled in manifest" in captured.out
 
     @patch("loader.importlib.import_module")
+    def test_load_tools_fails_on_non_boolean_enabled(self, mock_import, tmp_path, capsys):
+        """Tools with non-boolean enabled should fail fast with a clear error."""
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir()
+
+        tool_dir = tools_dir / "bad_enabled_tool"
+        tool_dir.mkdir()
+        (tool_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "name": "bad_enabled_tool",
+                    "entry_function": "register",
+                    "enabled": "false",
+                }
+            )
+        )
+
+        mock_mcp = Mock()
+        result = load_tools_from_directory(mock_mcp, str(tools_dir))
+
+        assert not result["loaded"]
+        assert result["failed"] == ["bad_enabled_tool"]
+        mock_import.assert_not_called()
+        captured = capsys.readouterr()
+        assert "'enabled' field must be a boolean" in captured.out
+        assert "bad_enabled_tool" in captured.out
+
+    @patch("loader.importlib.import_module")
     def test_load_tools_missing_entry_function(self, mock_import, tmp_path, capsys):
         """Test behavior when tool module is missing entry function."""
         tools_dir = tmp_path / "tools"

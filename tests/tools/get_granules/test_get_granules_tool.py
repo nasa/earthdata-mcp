@@ -131,3 +131,26 @@ def test_get_granules_accepts_string_page_size(monkeypatch):
 
     assert captured["page_size"] == 10
     assert output["status"] == "no_results"
+
+
+def test_get_granules_returns_error_on_invalid_page_size():
+    """Invalid page_size should return a structured tool error."""
+    tool = _load_tool()
+
+    output = tool.get_granules(collection_concept_id="C123-PROV", page_size="not-a-number")
+
+    assert output["status"] == "error"
+    assert "page_size" in output["error_message"]
+
+
+def test_get_granules_returns_error_on_invalid_spatial_wkt():
+    """Invalid WKT should be returned as a stable tool error payload."""
+    tool = _load_tool()
+
+    output = tool.get_granules(
+        collection_concept_id="C123-PROV",
+        spatial_wkt_geometry="POINT((1 2))",
+    )
+
+    assert output["status"] == "error"
+    assert "Invalid WKT geometry" in output["error_message"]

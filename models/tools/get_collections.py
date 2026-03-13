@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from models.tools.cmr_search import SearchStatus
 
@@ -138,15 +138,6 @@ class GetCollectionsInput(BaseModel):
         default=10, ge=1, le=2000, description="Results per page (default: 10, max: 2000)."
     )
     search_after: SearchAfterParam = None
-
-    @model_validator(mode="after")
-    def validate_search_criteria(self) -> "GetCollectionsInput":
-        """Require at least one collection search criterion."""
-        if not any([self.query, self.concept_id, self.short_name, self.provider]):
-            raise ValueError(
-                "At least one of query, concept_id, short_name, or provider must be provided"
-            )
-        return self
 
 
 class GetCollectionsOutput(BaseModel):

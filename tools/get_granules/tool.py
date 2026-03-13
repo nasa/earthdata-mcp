@@ -37,15 +37,15 @@ def get_granules(  # pylint: disable=too-many-arguments,unused-argument
     filters the results reflect the entire collection archive and total_hits will be non-zero
     even when no granules exist for the area or period the user cares about.
     """
-    params = GetGranulesInput(**locals())
-
-    search_params: dict[str, object] = {"collection_concept_id": params.collection_concept_id}
-
-    temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
-    if temporal:
-        search_params["temporal"] = temporal
-
     try:
+        params = GetGranulesInput(**locals())
+
+        search_params: dict[str, object] = {"collection_concept_id": params.collection_concept_id}
+
+        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+        if temporal:
+            search_params["temporal"] = temporal
+
         files = build_spatial_files(params.spatial_wkt_geometry)
         method = "POST" if files else "GET"
         page = next(
@@ -59,8 +59,14 @@ def get_granules(  # pylint: disable=too-many-arguments,unused-argument
             ),
             None,
         )
-    except (CMRError, ValueError) as exc:
+    except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Granule search failed: %s", exc)
+        return GetGranulesOutput(
+            status=SearchStatus.ERROR,
+            error_message=str(exc),
+        ).model_dump()
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected granule search failure")
         return GetGranulesOutput(
             status=SearchStatus.ERROR,
             error_message=str(exc),

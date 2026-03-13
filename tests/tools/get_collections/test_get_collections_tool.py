@@ -2,8 +2,6 @@
 
 import importlib
 
-import pytest
-
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
@@ -11,12 +9,64 @@ def _load_tool():
     return importlib.import_module("tools.get_collections.tool")
 
 
-def test_get_collections_requires_search_criteria():
-    """The tool should reject empty collection searches."""
+def test_get_collections_allows_unfiltered_search(monkeypatch):
+    """The tool should allow empty search criteria for broad exploration."""
     tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
 
-    with pytest.raises(ValueError, match="At least one of query"):
-        tool.get_collections()
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections()
+
+    assert captured["search_params"] == {}
+    assert output["status"] == "no_results"
+
+
+def test_get_collections_allows_temporal_only_search(monkeypatch):
+    """Temporal-only searches should pass validation and run against CMR."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=6, search_after=None, page_size=0)
+
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections(
+        temporal_start_date="2024-01-01T00:00:00Z",
+        temporal_end_date="2024-01-31T23:59:59Z",
+    )
+
+    assert captured["search_params"]["temporal"] == "2024-01-01T00:00:00Z,2024-01-31T23:59:59Z"
+    assert output["status"] == "no_results"
+
+
+def test_get_collections_allows_spatial_only_search(monkeypatch):
+    """Spatial-only searches should pass validation and run against CMR."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=6, search_after=None, page_size=0)
+
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    output = tool.get_collections(spatial_wkt_geometry="POINT(-75 40)")
+
+    assert captured["method"] == "POST"
+    assert output["status"] == "no_results"
 
 
 def test_get_collections_returns_normalized_results(monkeypatch):
@@ -137,3 +187,23 @@ def test_get_collections_accepts_string_page_size(monkeypatch):
 
     assert captured["page_size"] == 10
     assert output["status"] == "no_results"
+
+
+def test_get_collections_returns_error_on_invalid_page_size():
+    """Invalid page_size should return a structured tool error."""
+    tool = _load_tool()
+
+    output = tool.get_collections(query="modis", page_size="not-a-number")
+
+    assert output["status"] == "error"
+    assert "page_size" in output["error_message"]
+
+
+def test_get_collections_returns_error_on_invalid_spatial_wkt():
+    """Invalid WKT should be returned as a stable tool error payload."""
+    tool = _load_tool()
+
+    output = tool.get_collections(query="modis", spatial_wkt_geometry="POINT((1 2))")
+
+    assert output["status"] == "error"
+    assert "Invalid WKT geometry" in output["error_message"]
