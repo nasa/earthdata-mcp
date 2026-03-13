@@ -1,6 +1,7 @@
 """Tests for Worldview and GIBS link utilities."""
 
 from datetime import UTC, datetime
+from typing import ClassVar
 
 from models.tools.discover_data import SpatialConstraint, TemporalConstraint
 from tools.discover_data.utils.worldview_links import (
@@ -66,19 +67,19 @@ class TestPreferredProjection:
 class TestBestGibsLayer:
     """Tests for _best_gibs_layer helper."""
 
-    _GEO_LAYER = {
+    _GEO_LAYER: ClassVar[dict] = {
         "product": "MODIS_Terra_Geo",
         "geographic": True,
         "arctic": False,
         "antarctic": False,
     }
-    _ARCTIC_LAYER = {
+    _ARCTIC_LAYER: ClassVar[dict] = {
         "product": "MODIS_Terra_Arctic",
         "geographic": False,
         "arctic": True,
         "antarctic": False,
     }
-    _ANTARCTIC_LAYER = {
+    _ANTARCTIC_LAYER: ClassVar[dict] = {
         "product": "MODIS_Terra_Antarctic",
         "geographic": False,
         "arctic": False,
@@ -161,15 +162,25 @@ class TestBestGibsLayer:
 class TestAllGibsLayers:
     """Tests for _all_gibs_layers helper."""
 
-    _GEO_LAYER_A = {"product": "LayerGeoA", "geographic": True, "arctic": False, "antarctic": False}
-    _GEO_LAYER_B = {"product": "LayerGeoB", "geographic": True, "arctic": False, "antarctic": False}
-    _ARCTIC_LAYER = {
+    _GEO_LAYER_A: ClassVar[dict] = {
+        "product": "LayerGeoA",
+        "geographic": True,
+        "arctic": False,
+        "antarctic": False,
+    }
+    _GEO_LAYER_B: ClassVar[dict] = {
+        "product": "LayerGeoB",
+        "geographic": True,
+        "arctic": False,
+        "antarctic": False,
+    }
+    _ARCTIC_LAYER: ClassVar[dict] = {
         "product": "LayerArctic",
         "geographic": False,
         "arctic": True,
         "antarctic": False,
     }
-    _ANTARCTIC_LAYER = {
+    _ANTARCTIC_LAYER: ClassVar[dict] = {
         "product": "LayerAntarctic",
         "geographic": False,
         "arctic": False,

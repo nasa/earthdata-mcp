@@ -3,6 +3,7 @@
 # pylint: disable=too-many-lines
 import hashlib
 from datetime import UTC, datetime
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -465,7 +466,7 @@ class TestEnrichWithToolAssociations:
 class TestBuildExplorationLinks:
     """Tests for _build_exploration_links helper."""
 
-    _STATIC_TOOL = {
+    _STATIC_TOOL: ClassVar[dict] = {
         "name": "Static Tool",
         "url_template": "https://other.example.com/viewer",
         "query_inputs": [],
