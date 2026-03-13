@@ -163,8 +163,8 @@ class TestFetchToolAssociations:
 
         assert result["tools"] == tools
 
-    def test_raises_when_tool_ids_exist_but_tool_metadata_is_empty(self, monkeypatch):
-        """Empty metadata for reported tool IDs should be treated as a fetch failure."""
+    def test_returns_empty_tools_when_tool_ids_exist_but_tool_metadata_is_empty(self, monkeypatch):
+        """Empty actionable metadata for reported tool IDs should be non-fatal."""
         monkeypatch.setattr(
             "tools.discover_data.utils.tool_associations.fetch_associations",
             lambda concept_id: {"tools": ["TL1-PROV"]},
@@ -178,8 +178,10 @@ class TestFetchToolAssociations:
             lambda ids: [],
         )
 
-        with pytest.raises(ToolAssociationError, match="C1234-PROVIDER"):
-            _fetch_tool_associations("C1234-PROVIDER")
+        result = _fetch_tool_associations("C1234-PROVIDER")
+
+        assert result["tools"] == []
+        assert result["tags"] == {}
 
     def test_returns_tags_from_fetch_collection_tags(self, monkeypatch):
         """Should include tags returned by fetch_collection_tags in result."""
@@ -608,3 +610,100 @@ class TestBuildExplorationLinks:
         wv = next(link for link in links if link["name"] == "NASA Worldview")
         assert "LayerA" in wv["url"]
         assert "LayerB" in wv["url"]
+
+    def test_uses_collection_temporal_as_fallback_for_required_inputs(self):
+        """Collection start/end should satisfy required temporal inputs when user provides none."""
+        giovanni_tool = {
+            "name": "Giovanni",
+            "base_url": "https://giovanni.gsfc.nasa.gov/giovanni",
+            "url_template": "https://giovanni.gsfc.nasa.gov/giovanni/#service=TmAvMp{?starttime,endtime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                },
+                {
+                    "value_name": "endtime",
+                    "value_type": "https://schema.org/endDate",
+                    "required": False,
+                },
+            ],
+        }
+        collection_start = datetime(2000, 1, 1, tzinfo=UTC)
+        collection_end = datetime(2024, 12, 31, tzinfo=UTC)
+
+        links = _build_exploration_links(
+            [giovanni_tool],
+            "C1-P",
+            temporal=None,
+            spatial=None,
+            short_name=None,
+            gibs_layers=[],
+            collection_start_date=collection_start,
+            collection_end_date=collection_end,
+        )
+        names = [link["name"] for link in links]
+        assert "Giovanni" in names
+        giovanni_link = next(link for link in links if link["name"] == "Giovanni")
+        assert "starttime=2000-01-01" in giovanni_link["url"]
+        assert "endtime=2024-12-31" in giovanni_link["url"]
+
+    def test_user_temporal_takes_precedence_over_collection_fallback(self):
+        """Explicit user temporal should override collection start/end in tool URL resolution."""
+        tool = {
+            "name": "Giovanni",
+            "base_url": "https://giovanni.gsfc.nasa.gov/giovanni",
+            "url_template": "https://giovanni.gsfc.nasa.gov/giovanni/#service=TmAvMp{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                },
+            ],
+        }
+        user_temporal = TemporalConstraint(start_date=datetime(2020, 6, 1, tzinfo=UTC))
+
+        links = _build_exploration_links(
+            [tool],
+            "C1-P",
+            temporal=user_temporal,
+            spatial=None,
+            short_name=None,
+            gibs_layers=[],
+            collection_start_date=datetime(2000, 1, 1, tzinfo=UTC),
+            collection_end_date=datetime(2024, 12, 31, tzinfo=UTC),
+        )
+        giovanni_link = next(link for link in links if link["name"] == "Giovanni")
+        assert "starttime=2020-06-01" in giovanni_link["url"]
+        assert "2000-01-01" not in giovanni_link["url"]
+
+    def test_empty_user_temporal_still_uses_collection_fallback(self):
+        """TemporalConstraint with no bounds should be treated as absent for fallback behavior."""
+        tool = {
+            "name": "Giovanni",
+            "base_url": "https://giovanni.gsfc.nasa.gov/giovanni",
+            "url_template": "https://giovanni.gsfc.nasa.gov/giovanni/#service=TmAvMp{?starttime}",
+            "query_inputs": [
+                {
+                    "value_name": "starttime",
+                    "value_type": "https://schema.org/startDate",
+                    "required": True,
+                },
+            ],
+        }
+
+        links = _build_exploration_links(
+            [tool],
+            "C1-P",
+            temporal=TemporalConstraint(),
+            spatial=None,
+            short_name=None,
+            gibs_layers=[],
+            collection_start_date=datetime(2000, 1, 1, tzinfo=UTC),
+            collection_end_date=datetime(2024, 12, 31, tzinfo=UTC),
+        )
+
+        giovanni_link = next(link for link in links if link["name"] == "Giovanni")
+        assert "starttime=2000-01-01" in giovanni_link["url"]

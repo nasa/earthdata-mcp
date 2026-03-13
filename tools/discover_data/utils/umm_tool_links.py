@@ -1,9 +1,10 @@
 """CMR UMM-derived tool-link helpers for discover_data.
 
 Temporal policy:
-- Temporal template values are resolved from user-extracted temporal
-    constraints only.
-- No temporal fallback is injected from collection metadata.
+- Temporal template values are resolved from whatever TemporalConstraint is
+    passed in.
+- Callers (tool_associations.py) are responsible for supplying a collection-
+    derived fallback constraint when no user temporal constraint is available.
 """
 
 import logging
@@ -122,6 +123,13 @@ def _resolve_tool_url(
             query_input.get("value_type"), concept_id, temporal, spatial, short_name
         )
         values[value_name] = resolved
+        logger.debug(
+            "Resolved tool input %s for %s: required=%s value=%s",
+            value_name,
+            tool.get("name"),
+            query_input.get("required"),
+            resolved,
+        )
         if query_input.get("required") and resolved is None:
             missing_required_names.append(value_name)
 

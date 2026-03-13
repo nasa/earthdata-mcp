@@ -10,7 +10,10 @@ Temporal behavior by link type is intentionally not uniform:
     temporal constraints are present.
 - Worldview/GIBS: may fall back to collection end date for initial time/layer
     usability when user temporal constraints are absent.
-- UMM-T templates: resolve temporal values from user constraints only.
+- UMM-T templates: prefer user-extracted temporal constraints; fall back to
+    collection temporal coverage when user constraints are absent, so that
+    tools with required temporal inputs (e.g. Giovanni starttime) can still
+    produce a valid link representing the full span of the dataset.
 
 These decisions are documented in each link-generation helper module so policy
 and implementation remain colocated.
@@ -71,6 +74,7 @@ def _build_exploration_links(  # pylint: disable=too-many-arguments
     short_name: str | None,
     gibs_layers: list[str],
     collection_end_date: datetime | None = None,
+    collection_start_date: datetime | None = None,
 ) -> list[dict]:
     """
     Build the full ordered exploration links list for a collection.
@@ -82,6 +86,29 @@ def _build_exploration_links(  # pylint: disable=too-many-arguments
     """
     links: list[dict] = [_earthdata_search_link(concept_id, temporal, spatial, collection_end_date)]
     guaranteed_worldview_link_added = False
+
+    # When the user provided no temporal bounds, fall back to the full
+    # collection coverage span so tools with required temporal inputs (e.g.
+    # Giovanni starttime) can still produce a valid link.
+    user_has_temporal_bounds = temporal is not None and (
+        temporal.start_date is not None or temporal.end_date is not None
+    )
+    effective_temporal = temporal if user_has_temporal_bounds else None
+    if effective_temporal is None and (
+        collection_start_date is not None or collection_end_date is not None
+    ):
+        effective_temporal = TemporalConstraint(
+            start_date=collection_start_date, end_date=collection_end_date
+        )
+
+    logger.debug(
+        "Tool link temporal context for %s: user_temporal=(%s,%s) fallback_temporal=(%s,%s)",
+        concept_id,
+        temporal.start_date if temporal is not None else None,
+        temporal.end_date if temporal is not None else None,
+        effective_temporal.start_date if effective_temporal is not None else None,
+        effective_temporal.end_date if effective_temporal is not None else None,
+    )
 
     if gibs_layers:
         links.append(_worldview_link(gibs_layers, temporal, spatial, collection_end_date))
@@ -101,7 +128,7 @@ def _build_exploration_links(  # pylint: disable=too-many-arguments
             continue
 
         resolved_tool = _resolve_tool_url(
-            tool, concept_id, temporal, spatial, short_name, gibs_layers=gibs_layers
+            tool, concept_id, effective_temporal, spatial, short_name, gibs_layers=gibs_layers
         )
         if resolved_tool is not None:
             links.append(resolved_tool)
@@ -151,7 +178,12 @@ def _fetch_tool_associations(concept_id: str) -> list[dict]:
 
     tools = fetch_tool_metadata(tool_ids)
     if not tools:
-        raise ToolAssociationError(f"Failed to fetch tool metadata for {concept_id}")
+        logger.info(
+            "No actionable tool metadata for %s (tool_ids=%s); continuing without tool links",
+            concept_id,
+            tool_ids,
+        )
+        return {"tools": [], "tags": tags}
 
     return {"tools": tools, "tags": tags}
 
@@ -212,6 +244,7 @@ def enrich_with_tool_associations(
                     collection.short_name,
                     gibs_layers,
                     collection_end_date=cov.end_date if cov else None,
+                    collection_start_date=cov.start_date if cov else None,
                 )
             else:
                 ctx = contextvars.copy_context()
@@ -243,6 +276,7 @@ def enrich_with_tool_associations(
                     collection.short_name,
                     gibs_layers,
                     collection_end_date=cov.end_date if cov else None,
+                    collection_start_date=cov.start_date if cov else None,
                 )
 
                 key = _cache_key(collection.concept_id)
