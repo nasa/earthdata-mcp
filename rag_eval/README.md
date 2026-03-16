@@ -50,7 +50,7 @@ python evals.py
 
 ### Modify the LLM Provider
 
-In [ragas_utils.py](ragas_utils.py), the default configuration uses AWS Bedrock with `amazon.nova-pro-v1:0`. To change providers, update the `create_bedrock_llm()` and `create_bedrock_embeddings()` functions.
+The evaluation stack currently initializes its shared LLM and embedding clients in `SingleEvaluation._initialize_components()` inside [evals.py](evals.py).
 
 ### Customize Test Cases
 

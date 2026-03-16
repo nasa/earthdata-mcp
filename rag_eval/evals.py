@@ -189,32 +189,37 @@ class EarthdataEvaluator:
 
                 individual_scores = relevance_data.get("individual_scores", [])
 
-                # Create individual Evaluation objects for each scored collection
+                # Create individual Evaluation objects only for successfully scored collections.
+                # `individual_scores` is kept positionally aligned with `collections`, so a
+                # score may be None when a collection could not be evaluated.
                 evaluations = []
-                score_idx = 0
                 for i, collection in enumerate(collections):
-                    if score_idx < len(individual_scores):
-                        score = individual_scores[score_idx]
-                        score_idx += 1
+                    if i >= len(individual_scores):
+                        break
 
-                        # Create rich metadata comment
-                        comment = (
-                            f"Query: '{question}' | "
-                            f"Concept: {collection.get('concept_id', 'unknown')} | "
-                            f"Title: {collection.get('title', '')} | "
-                            f"Abstract: {collection.get('abstract', '')[:200]}..."
-                        )
+                    score = individual_scores[i]
+                    if score is None:
+                        continue
 
-                        evaluations.append(
-                            Evaluation(
-                                name=f"embedding_collection_{i+1}_relevance",
-                                value=score,
-                                comment=comment,
-                            )
+                    comment = (
+                        f"Query: '{question}' | "
+                        f"Concept: {collection.get('concept_id', 'unknown')} | "
+                        f"Title: {collection.get('title', '')} | "
+                        f"Abstract: {collection.get('abstract', '')[:200]}..."
+                    )
+
+                    evaluations.append(
+                        Evaluation(
+                            name=f"embedding_collection_{i+1}_relevance",
+                            value=score,
+                            comment=comment,
                         )
+                    )
 
                 logger.info(
-                    "Scored %d/%d collections", len(individual_scores), len(collections)
+                    "Scored %d/%d collections",
+                    len([score for score in individual_scores if score is not None]),
+                    len(collections),
                 )
                 return evaluations
 
@@ -521,7 +526,9 @@ class SingleEvaluation:
         if collection_fields is None:
             collection_fields = ["title", "abstract"]
 
-        # Score individual collections using the single collection helper
+        # Score individual collections using the single collection helper.
+        # Keep positional alignment with `collections` so downstream evaluators can
+        # safely associate each score with its original item.
         collection_scores = []
         for collection in collections:
             score = await cls.compute_single_collection_relevance(
@@ -529,8 +536,7 @@ class SingleEvaluation:
                 collection=collection,
                 collection_fields=collection_fields,
             )
-            if score is not None:
-                collection_scores.append(score)
+            collection_scores.append(score)
 
         # Compute aggregates
         result = {
@@ -539,9 +545,11 @@ class SingleEvaluation:
             "max_relevance": None,
         }
 
-        if collection_scores:
-            result["avg_relevance"] = sum(collection_scores) / len(collection_scores)
-            result["max_relevance"] = max(collection_scores)
+        valid_scores = [score for score in collection_scores if score is not None]
+
+        if valid_scores:
+            result["avg_relevance"] = sum(valid_scores) / len(valid_scores)
+            result["max_relevance"] = max(valid_scores)
 
         return result
 
