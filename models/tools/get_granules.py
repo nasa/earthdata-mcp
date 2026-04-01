@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from models.tools.cmr_search import SearchStatus
+from models.tools.cmr_search import BaseCmrSearchOutput
 
 CollectionConceptIdParam = Annotated[
     str,
@@ -55,21 +55,6 @@ SpatialWktGeometryParam = Annotated[
     ),
 ]
 
-PageSizeParam = Annotated[
-    int | str,
-    Field(description="Number of results per page (default: 10, max: 2000)."),
-]
-
-SearchAfterParam = Annotated[
-    str | None,
-    Field(
-        description=(
-            "Opaque pagination token from the CMR-Search-After header of a previous response. "
-            "Pass it back unchanged to retrieve the next page of results."
-        )
-    ),
-]
-
 
 class GranuleResult(BaseModel):
     """Minimal granule result for direct CMR-backed retrieval."""
@@ -80,7 +65,10 @@ class GranuleResult(BaseModel):
     producer_granule_id: str | None = Field(None, description="Producer granule ID")
     time_start: datetime | None = Field(None, description="Granule temporal start")
     time_end: datetime | None = Field(None, description="Granule temporal end")
-    access_urls: list[str] = Field(default_factory=list, description="Actionable data access URLs")
+    access_urls: list[str] = Field(
+        default_factory=list,
+        description="Actionable data access URLs (Note: Access requires Earthdata Login authentication)",
+    )
 
 
 class GetGranulesInput(BaseModel):
@@ -90,17 +78,11 @@ class GetGranulesInput(BaseModel):
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
-    page_size: int = Field(default=10, ge=1, le=2000, description="Results per page")
-    search_after: SearchAfterParam = None
 
 
-class GetGranulesOutput(BaseModel):
+class GetGranulesOutput(BaseCmrSearchOutput):
     """Output model for get_granules."""
 
-    status: SearchStatus = Field(..., description="Status of the granule search")
-    granules: list[GranuleResult] = Field(default_factory=list, description="Granule page")
-    total_hits: int = Field(default=0, description="Total number of matching granules")
-    page_size: int = Field(default=0, description="Number of granules returned in this page")
-    search_after: str | None = Field(None, description="Search-after token for the next page")
-    took_ms: int = Field(default=0, description="CMR processing time in milliseconds")
-    error_message: str | None = Field(None, description="Error details when status is error")
+    granules: list[GranuleResult] = Field(
+        default_factory=list, description="Normalized granule results mapped from UMM-G (max 20)"
+    )

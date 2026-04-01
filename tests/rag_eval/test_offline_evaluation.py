@@ -1,7 +1,7 @@
 """Tests for offline RAG evaluation (rag_eval/evals.py)."""
 
 import os
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -11,10 +11,9 @@ from rag_eval.evals import (
 )
 from util.rag_eval.collection_formatting import (
     format_collection_context,
-    generate_contexts_from_collections,
     generate_answer_from_collections,
+    generate_contexts_from_collections,
 )
-
 
 # === Utility Function Tests ===
 

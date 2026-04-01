@@ -63,6 +63,41 @@ class TestToolManifest:
         assert manifest.get("custom_field") == "custom_value"
         assert manifest.get("nonexistent", "default") == "default"
 
+    def test_manifest_annotations_from_nested_object(self, tmp_path):
+        """Test loading annotations from the nested annotations object."""
+        manifest_data = {
+            "name": "test_tool",
+            "annotations": {
+                "readOnlyHint": True,
+                "destructiveHint": False,
+            },
+        }
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest_data))
+
+        manifest = ToolManifest(tmp_path)
+
+        assert manifest.annotations == {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+        }
+
+    def test_manifest_annotations_ignores_legacy_root_keys(self, tmp_path):
+        """Test root-level annotation hint keys are ignored."""
+        manifest_data = {
+            "name": "test_tool",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        }
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest_data))
+
+        manifest = ToolManifest(tmp_path)
+
+        assert manifest.annotations == {}
+
 
 class TestCreateSimpleTool:
     """Test cases for create_simple_tool function."""
@@ -112,6 +147,36 @@ class TestCreateSimpleTool:
 
         call_kwargs = mock_mcp.tool.call_args[1]
         assert call_kwargs["output_schema"] == output_schema
+
+    def test_create_simple_tool_passes_annotations(self, tmp_path):
+        """Test creating a tool forwards manifest annotations into mcp.tool."""
+        manifest_data = {
+            "name": "test_tool",
+            "description": "Test",
+            "annotations": {
+                "readOnlyHint": True,
+                "destructiveHint": False,
+            },
+        }
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest_data))
+
+        def tool_func(keyword: str) -> dict:
+            return {"result": keyword}
+
+        register_func = create_simple_tool(tmp_path, tool_func)
+
+        mock_mcp = Mock()
+        mock_tool_decorator = Mock(return_value=lambda f: f)
+        mock_mcp.tool = mock_tool_decorator
+
+        register_func(mock_mcp)
+
+        call_kwargs = mock_mcp.tool.call_args[1]
+        assert call_kwargs["annotations"] == {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+        }
 
     @pytest.mark.asyncio
     @patch("loader.flush_langfuse")

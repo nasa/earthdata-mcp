@@ -11,6 +11,7 @@ from starlette.routing import Route
 
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
+from prompts.instructions import MCP_SERVER_INSTRUCTIONS
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # Initialize FastMCP server
-mcp = FastMCP("earthdata-mcp")
+mcp = FastMCP("earthdata-mcp", instructions=MCP_SERVER_INSTRUCTIONS)
 
 # Get CORS middleware configuration
 cors = get_cors_middleware()

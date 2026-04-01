@@ -1,0 +1,31 @@
+{
+    "name": "get_services",
+    "module": "tool",
+    "description": "Search NASA CMR services for a specific parent collection and return up to 20 UMM-S records.\n\nKey UMM-S fields in each returned item:\n- meta.concept-id: CMR service concept ID\n- umm.Name: service name\n- umm.Type: service type (e.g., OPeNDAP, WCS, Harmony, WMS, WMTS, ESI, EGI - No Processing)\n- umm.Version: service version string\n- umm.Description: human-readable service description\n- umm.OnlineResource: URL, link name, and description for the service endpoint\n- umm.ServiceOptions: supported output formats, projections, subset types, and interpolation methods\n- umm.OperationMetadata: operation names (e.g., GetCapabilities, GetMap) and distributed computing platform\n- umm.MetadataSpecification: schema metadata (URL, Name, Version)\n\nSpecification reference:\n- Use umm.MetadataSpecification.URL from each returned item for the exact schema URL.\n- Earthdata hosts UMM-S schemas under https://cdn.earthdata.nasa.gov/umm/service/.\n\nKey parameters:\n- collection_concept_id: required parent collection concept ID\n\nIteration & Refinement:\n- Results are strictly capped at 20 items to optimize context window usage.\n- If total_hits exceeds 20, you have received the first 20 services. Paging is not supported.\n\nNote: A collection may be associated with multiple services of different types. Check umm.Type to distinguish between data access services (e.g., OPeNDAP, WCS) and discovery/visualization services (e.g., WMS, WMTS).",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "services",
+        "umm-s"
+    ],
+    "entry_function": "get_services",
+    "enabled": true,
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    },
+    "examples": {
+        "minimal": {
+            "description": "Get services for a collection",
+            "params": {
+                "collection_concept_id": "C2723758340-GES_DISC"
+            }
+        }
+    }
+}

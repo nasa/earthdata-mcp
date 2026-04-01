@@ -57,16 +57,13 @@ def test_get_granules_returns_normalized_results(monkeypatch):
 
     output = tool.get_granules(
         collection_concept_id="C123-PROV",
-        page_size=5,
-        search_after="seed-token",
     )
 
     assert captured["concept_type"] == "granule"
     assert captured["search_params"]["collection_concept_id"] == "C123-PROV"
-    assert captured["search_after"] == "seed-token"
+    assert captured["page_size"] == 20
     assert output["status"] == "success"
     assert output["total_hits"] == 1
-    assert output["search_after"] == "next-granule-token"
     assert output["granules"][0]["concept_id"] == "G123-PROV"
     assert output["granules"][0]["collection_concept_id"] == "C123-PROV"
     assert output["granules"][0]["granule_ur"] == "MOD11A1.A2024001.h00v08.061"
@@ -167,35 +164,6 @@ def test_get_granules_returns_error_on_unexpected_failure(monkeypatch):
 
     assert output["status"] == "error"
     assert output["error_message"] == "unexpected granule failure"
-
-
-def test_get_granules_accepts_string_page_size(monkeypatch):
-    """Numeric string page_size should be accepted and coerced before CMR call."""
-    tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=3, search_after=None, page_size=0)
-
-    captured = {}
-
-    def fake_search_cmr(**kwargs):
-        captured.update(kwargs)
-        yield page
-
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
-
-    output = tool.get_granules(collection_concept_id="C123-PROV", page_size="10")
-
-    assert captured["page_size"] == 10
-    assert output["status"] == "no_results"
-
-
-def test_get_granules_returns_error_on_invalid_page_size():
-    """Invalid page_size should return a structured tool error."""
-    tool = _load_tool()
-
-    output = tool.get_granules(collection_concept_id="C123-PROV", page_size="not-a-number")
-
-    assert output["status"] == "error"
-    assert "page_size" in output["error_message"]
 
 
 def test_get_granules_returns_error_on_invalid_spatial_wkt():

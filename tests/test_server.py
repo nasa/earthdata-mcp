@@ -24,6 +24,12 @@ class TestServerInitialization:
         # The logger should exist
         assert server.logger is not None
 
+    def test_server_loads_instructions(self):
+        """Test that the server loads the system prompt instructions correctly."""
+        assert server.mcp.instructions is not None
+        assert "earthaccess" in server.mcp.instructions
+        assert "DISCOVER COLLECTIONS" in server.mcp.instructions
+
     def test_server_load_tools_error_handling(self):
         """Test that server properly logs errors during tool loading."""
         # This test verifies the error handling exists

@@ -806,3 +806,63 @@ class TestClientIdHeader:
 
         sent_headers = mock_post.call_args[1]["headers"]
         assert sent_headers["Client-Id"] == "eed-test-mcp"
+
+
+class TestSearchCmrService:
+    """Test search_cmr for the 'service' concept type."""
+
+    def test_service_concept_type_is_supported(self, monkeypatch):
+        """search_cmr('service', ...) should not raise CMRError for an unsupported type."""
+        items = [{"meta": {"concept-id": "S1-P"}, "umm": {}}]
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(
+                return_value=_make_response(
+                    json_data={"items": items},
+                    headers={"CMR-Hits": "1", "CMR-Took": "5"},
+                )
+            ),
+        )
+
+        pages = list(search_cmr("service", {"concept_id[]": ["S1-PROVIDER"]}))
+
+        assert len(pages) == 1
+        assert pages[0].items == items
+
+    def test_uses_services_umm_json_url(self, monkeypatch):
+        """Should call the /search/services.umm_json endpoint."""
+        mock_get = Mock(
+            return_value=_make_response(
+                json_data={"items": []},
+                headers={"CMR-Hits": "0", "CMR-Took": "3"},
+            )
+        )
+        monkeypatch.setattr("util.cmr.client.requests.get", mock_get)
+
+        list(search_cmr("service", {"concept_id[]": ["S1-PROVIDER"]}))
+
+        called_url = mock_get.call_args[0][0]
+        assert "services.umm_json" in called_url
+
+    def test_returns_cmrsearchresponse_with_service_items(self, monkeypatch):
+        """Should return a CMRSearchResponse with the service items and metadata."""
+        service_item = {
+            "meta": {"concept-id": "S1-PROVIDER"},
+            "umm": {"Name": "My OPeNDAP Service", "Type": "OPeNDAP"},
+        }
+        monkeypatch.setattr(
+            "util.cmr.client.requests.get",
+            Mock(
+                return_value=_make_response(
+                    json_data={"items": [service_item]},
+                    headers={"CMR-Hits": "1", "CMR-Took": "7"},
+                )
+            ),
+        )
+
+        pages = list(search_cmr("service", {"concept_id[]": ["S1-PROVIDER"]}))
+
+        assert isinstance(pages[0], CMRSearchResponse)
+        assert pages[0].total_hits == 1
+        assert pages[0].took_ms == 7
+        assert pages[0].items[0]["umm"]["Type"] == "OPeNDAP"

@@ -170,7 +170,7 @@ def test_normalize_collection_item_handles_missing_optional_fields():
     )
 
     assert normalized["concept_id"] == "C1"
-    assert normalized["title"] == "SN"
+    assert normalized["entry_title"] == "SN"
     assert normalized["version"] is None
     assert not normalized["platforms"]
     assert not normalized["instruments"]

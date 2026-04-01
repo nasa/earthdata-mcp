@@ -1,7 +1,7 @@
 {
     "name": "get_collections",
     "module": "tool",
-    "description": "Search NASA CMR collections and return one page of lightweight normalized results plus pagination metadata.\n\nUnfiltered searches are supported when you need broad exploration.\n\nIMPORTANT — relevance and coverage: A keyword-only search returns all collections whose metadata mentions those terms, regardless of whether they actually hold data for the user's region or time period. Collection declared extents are often global or multi-decadal, so a collection appearing in results does not mean it has granules for a specific area or date. When the user's question involves a time period or geographic region, include temporal_start_date/temporal_end_date and/or spatial_wkt_geometry to restrict results to collections that overlap that window. Follow up with get_granules (with the same filters) to confirm actual data availability.\n\nKey parameters:\n- query: free-text keyword search over collection metadata\n- concept_id: exact collection concept ID\n- short_name: collection short name\n- provider: data provider short name\n- temporal_start_date / temporal_end_date: restrict to collections whose declared range overlaps this window; set when the user specifies a time period\n- spatial_wkt_geometry: restrict to collections whose declared extent intersects this area; set when the user specifies a geographic region\n\nPagination:\n- page_size controls results per page (max 2000)\n- search_after requests the next page from a previous response\n\nTips:\n- Use scientific terms (variables, instruments, platforms) for better keyword relevance\n- Combine keyword + temporal + spatial filters for highest precision\n- Use short_name when you already know the target product",
+    "description": "Search NASA CMR collections and return up to 20 lightweight normalized results.\n\nUnfiltered searches are supported when you need broad exploration.\n\nIMPORTANT — relevance and coverage: A keyword-only search returns all collections whose metadata mentions those terms, regardless of whether they actually hold data for the user's region or time period. Collection declared extents are often global or multi-decadal, so a collection appearing in results does not mean it has granules for a specific area or date. When the user's question involves a time period or geographic region, include temporal_start_date/temporal_end_date and/or spatial_wkt_geometry to restrict results to collections that overlap that window. Follow up with get_granules (with the same filters) to confirm actual data availability.\n\nKey parameters:\n- query: free-text keyword search over collection metadata\n- concept_id: exact collection concept ID\n- short_name: collection short name\n- provider: data provider short name\n- temporal_start_date / temporal_end_date: restrict to collections whose declared range overlaps this window; set when the user specifies a time period\n- spatial_wkt_geometry: restrict to collections whose declared extent intersects this area; set when the user specifies a geographic region\n\nIteration & Refinement:\n- Results are strictly capped at 20 items to optimize context window usage.\n- If total_hits exceeds 20 and you lack the necessary results, do not attempt to page. Refine your query by adding tighter spatial, temporal, or keyword constraints.\n\nTips:\n- Use scientific terms (variables, instruments, platforms) for better keyword relevance\n- Combine keyword + temporal + spatial filters for highest precision\n- Use short_name when you already know the target product",
     "version": "1.0.0",
     "tags": [
         "nasa",
@@ -13,12 +13,17 @@
     ],
     "entry_function": "get_collections",
     "enabled": true,
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    },
     "examples": {
         "keyword_search": {
             "description": "Search collections by keyword",
             "params": {
-                "query": "sea surface temperature",
-                "page_size": 5
+                "query": "sea surface temperature"
             }
         },
         "filtered_search": {

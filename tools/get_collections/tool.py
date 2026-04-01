@@ -9,10 +9,8 @@ from models.tools.get_collections import (
     ConceptIdParam,
     GetCollectionsInput,
     GetCollectionsOutput,
-    PageSizeParam,
     ProviderParam,
     QueryParam,
-    SearchAfterParam,
     ShortNameParam,
     SpatialWktGeometryParam,
     TemporalEndDateParam,
@@ -38,30 +36,51 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
     spatial_wkt_geometry: SpatialWktGeometryParam = None,
-    page_size: PageSizeParam = 10,
-    search_after: SearchAfterParam = None,
 ) -> dict:
-    """Search CMR collections and return a single normalized results page.
+    """Search CMR collections and return up to 20 normalized results.
 
-    Unfiltered searches are supported and return a broad page of collections.
+    Unfiltered searches are supported and return a broad set of collections sorted by usage.
     When the user's question involves a specific time period or geographic area, always include
     temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. A keyword-only search
     returns collections whose metadata mentions the terms but whose declared extent may be global
     or multi-decadal — presence in results does not confirm data exists for a specific region or
     period. Use filters here, then confirm actual granule availability with get_granules.
     """
+    metadata = {}
+    if query:
+        metadata["query"] = query
+    if concept_id:
+        metadata["concept_id"] = concept_id
+    if short_name:
+        metadata["short_name"] = short_name
+    if provider:
+        metadata["provider"] = provider
+    if temporal_start_date:
+        metadata["temporal_start_date"] = temporal_start_date
+    if temporal_end_date:
+        metadata["temporal_end_date"] = temporal_end_date
+    if spatial_wkt_geometry:
+        metadata["spatial_wkt_geometry"] = (
+            spatial_wkt_geometry[:200] + "..."
+            if len(spatial_wkt_geometry) > 200
+            else spatial_wkt_geometry
+        )
+
     trace_update(
         tags=["cmr", "collections"],
-        metadata={
-            "has_query": bool(query),
-            "has_temporal": temporal_start_date is not None or temporal_end_date is not None,
-            "has_spatial": spatial_wkt_geometry is not None,
-            "page_size": page_size,
-        },
+        metadata=metadata,
     )
 
     try:
-        params = GetCollectionsInput(**locals())
+        params = GetCollectionsInput(
+            query=query,
+            concept_id=concept_id,
+            short_name=short_name,
+            provider=provider,
+            temporal_start_date=temporal_start_date,
+            temporal_end_date=temporal_end_date,
+            spatial_wkt_geometry=spatial_wkt_geometry,
+        )
 
         search_params: dict[str, object] = {}
         if params.query:
@@ -83,8 +102,7 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
             search_cmr(
                 concept_type="collection",
                 search_params=search_params,
-                page_size=params.page_size,
-                search_after=params.search_after,
+                page_size=20,
                 method=method,
                 files=files,
             ),
@@ -112,7 +130,5 @@ def get_collections(  # pylint: disable=too-many-arguments,unused-argument
         status=status,
         collections=collections,
         total_hits=page.total_hits,
-        page_size=page.page_size,
-        search_after=page.search_after,
         took_ms=page.took_ms,
     ).model_dump()

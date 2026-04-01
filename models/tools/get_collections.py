@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from models.tools.cmr_search import SearchStatus
+from models.tools.cmr_search import BaseCmrSearchOutput
 
 QueryParam = Annotated[
     str | None,
@@ -93,21 +93,6 @@ SpatialWktGeometryParam = Annotated[
     ),
 ]
 
-PageSizeParam = Annotated[
-    int | str,
-    Field(description="Number of results per page (default: 10, max: 2000)."),
-]
-
-SearchAfterParam = Annotated[
-    str | None,
-    Field(
-        description=(
-            "Opaque pagination token from the CMR-Search-After header of a previous response. "
-            "Pass it back unchanged to retrieve the next page of results."
-        )
-    ),
-]
-
 
 class CollectionResult(BaseModel):
     """Minimal collection result for direct CMR-backed discovery."""
@@ -115,8 +100,8 @@ class CollectionResult(BaseModel):
     concept_id: str = Field(..., description="CMR collection concept ID")
     short_name: str | None = Field(None, description="Collection short name")
     version: str | None = Field(None, description="Collection version")
-    title: str = Field(..., description="Collection title")
-    summary: str | None = Field(None, description="Collection summary or abstract")
+    entry_title: str = Field(..., description="Collection title")
+    abstract: str | None = Field(None, description="Collection summary or abstract")
     time_start: datetime | None = Field(None, description="Start of temporal coverage")
     time_end: datetime | None = Field(None, description="End of temporal coverage")
     is_ongoing: bool = Field(default=False, description="Whether the collection is ongoing")
@@ -134,19 +119,11 @@ class GetCollectionsInput(BaseModel):
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
-    page_size: int = Field(
-        default=10, ge=1, le=2000, description="Results per page (default: 10, max: 2000)."
-    )
-    search_after: SearchAfterParam = None
 
 
-class GetCollectionsOutput(BaseModel):
+class GetCollectionsOutput(BaseCmrSearchOutput):
     """Output model for get_collections."""
 
-    status: SearchStatus = Field(..., description="Status of the collection search")
-    collections: list[CollectionResult] = Field(default_factory=list, description="Collection page")
-    total_hits: int = Field(default=0, description="Total number of matching collections")
-    page_size: int = Field(default=0, description="Number of collections returned in this page")
-    search_after: str | None = Field(None, description="Search-after token for the next page")
-    took_ms: int = Field(default=0, description="CMR processing time in milliseconds")
-    error_message: str | None = Field(None, description="Error details when status is error")
+    collections: list[CollectionResult] = Field(
+        default_factory=list, description="Normalized collection results mapped from UMM-C"
+    )

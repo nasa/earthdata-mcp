@@ -22,15 +22,13 @@ class DatasetRelevanceInput(BaseModel):
     dataset: dict = Field(description="Dataset fields as key-value pairs")
 
 
-class DatasetRelevancePrompt(
-    PydanticPrompt[DatasetRelevanceInput, DatasetRelevanceScore]
-):
+class DatasetRelevancePrompt(PydanticPrompt[DatasetRelevanceInput, DatasetRelevanceScore]):
     """Prompt for evaluating dataset relevance to a user question."""
 
     instruction = """You are evaluating the relevance of an Earth science dataset to a user's question.
 
 The dataset is provided as a collection of fields. Review all available fields to understand what the dataset contains.
-    
+
 Score the dataset from 0.0 to 1.0 based on how well it matches the user's information need:
 - 1.0: Perfect match, directly answers the question
 - 0.7-0.9: Highly relevant, contains key information

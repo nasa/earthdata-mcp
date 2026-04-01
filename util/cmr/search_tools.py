@@ -1,6 +1,7 @@
 """Shared helpers for the lightweight CMR search MCP tools."""
 
 import json
+import logging
 from datetime import datetime
 from io import BytesIO
 from typing import Any
@@ -11,6 +12,8 @@ from shapely.errors import GEOSException
 from shapely.geometry import mapping
 
 from util.temporal import extract_temporal_extent, parse_iso_datetime
+
+logger = logging.getLogger(__name__)
 
 
 def format_temporal_range(
@@ -112,6 +115,10 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
     """Normalize a CMR UMM collection item into the MCP-facing response shape."""
     meta = item.get("meta", {})
     umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing collection record: %s", concept_id)
+
     start_date, end_date, is_ongoing = extract_temporal_extent(umm)
 
     platforms: list[str] = []
@@ -129,11 +136,11 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
     version = umm.get("Version")
 
     return {
-        "concept_id": meta.get("concept-id", ""),
+        "concept_id": concept_id,
         "short_name": umm.get("ShortName"),
         "version": str(version) if version is not None else None,
-        "title": umm.get("EntryTitle") or umm.get("ShortName") or meta.get("concept-id", ""),
-        "summary": umm.get("Abstract"),
+        "entry_title": umm.get("EntryTitle") or umm.get("ShortName") or meta.get("concept-id", ""),
+        "abstract": umm.get("Abstract"),
         "time_start": start_date,
         "time_end": end_date,
         "is_ongoing": is_ongoing,
@@ -146,10 +153,14 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
     """Normalize a CMR UMM granule item into the MCP-facing response shape."""
     meta = item.get("meta", {})
     umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing granule record: %s", concept_id)
+
     time_start, time_end = extract_granule_temporal_extent(umm)
 
     return {
-        "concept_id": meta.get("concept-id", ""),
+        "concept_id": concept_id,
         "collection_concept_id": (
             meta.get("parent-collection-id")
             or umm.get("CollectionConceptId")
@@ -212,6 +223,30 @@ def extract_access_urls(umm: dict[str, Any]) -> list[str]:
             urls.append(url)
 
     return _dedupe_strings(urls)
+
+
+def normalize_service_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a CMR UMM service item into the MCP-facing response shape."""
+    meta = item.get("meta", {})
+    umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing service record: %s", concept_id)
+
+    return {
+        "concept_id": concept_id,
+        "name": umm.get("Name"),
+        "long_name": umm.get("LongName"),
+        "type": umm.get("Type"),
+        "version": umm.get("Version"),
+        "description": umm.get("Description"),
+        "url": umm.get("URL"),
+        "related_urls": umm.get("RelatedURLs"),
+        "access_constraints": umm.get("AccessConstraints"),
+        "use_constraints": umm.get("UseConstraints"),
+        "service_options": umm.get("ServiceOptions"),
+        "operation_metadata": umm.get("OperationMetadata"),
+    }
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:

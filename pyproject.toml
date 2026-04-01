@@ -60,7 +60,6 @@ disable = [
     "consider-iterating-dictionary",  # Sometimes explicit .keys() is clearer
     "duplicate-code",  # Test helpers share intentionally similar scaffolding
     "import-error",  # CI environment handles dependencies differently
-    "too-many-positional-arguments",  # Python 3.13+ warning, acceptable for test mocks
     "too-many-public-methods",  # Test classes naturally have many test methods
     "too-many-lines",  # Test files can be long; modularity isn't always beneficial
     "use-implicit-booleaness-not-comparison",  # Explicit [] checks clearer in tests
@@ -110,11 +109,11 @@ target-version = "py313"
 line-length = 100
 exclude = [
     ".git",
+    ".terraform",
     ".venv",
     "__pycache__",
     "build",
-    "dist",
-    ".terraform",
+    "dist"
 ]
 
 [tool.ruff.lint]

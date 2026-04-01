@@ -59,6 +59,11 @@ class ToolManifest:
         """Get the tool tags from the manifest, returning empty list if not specified."""
         return self.manifest.get("tags", [])
 
+    @property
+    def annotations(self) -> dict[str, Any]:
+        """Get the tool annotations from the manifest, returning empty dict if not specified."""
+        return self.manifest.get("annotations", {})
+
 
 def create_simple_tool(
     manifest_path: Path,
@@ -85,11 +90,15 @@ def create_simple_tool(
     manifest = ToolManifest(manifest_path)
 
     def register(mcp):
-        @mcp.tool(
-            name=manifest.name,
-            description=manifest.description,
-            output_schema=output_schema,
-        )
+        tool_kwargs = {
+            "name": manifest.name,
+            "description": manifest.description,
+            "output_schema": output_schema,
+        }
+        if manifest.annotations:
+            tool_kwargs["annotations"] = manifest.annotations
+
+        @mcp.tool(**tool_kwargs)
         @wraps(func)
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):

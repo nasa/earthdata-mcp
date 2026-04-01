@@ -25,3 +25,19 @@ class SpatialFilter(BaseModel):
     """Optional spatial filter for direct CMR searches."""
 
     wkt_geometry: str | None = Field(None, description="WKT geometry used for spatial search")
+
+
+class BaseToolOutput(BaseModel):
+    """Base output model shared by all tools."""
+
+    status: SearchStatus = Field(..., description="Status of the tool execution")
+    error_message: str | None = Field(
+        default=None, description="Error details when status is error"
+    )
+
+
+class BaseCmrSearchOutput(BaseToolOutput):
+    """Base output model for tools backed by CMR search."""
+
+    total_hits: int = Field(default=0, description="Total number of matching items")
+    took_ms: int = Field(default=0, description="Processing time in milliseconds")

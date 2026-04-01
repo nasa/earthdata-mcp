@@ -1,36 +1,60 @@
 # earthdata-mcp
 
-MCP (Model Context Protocol) server for NASA Earthdata with semantic search capabilities powered by embeddings.
+MCP (Model Context Protocol) server for NASA Earthdata.
+
+## Core Capabilities
+
+This MCP server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR).
+
+### Available Tools
+
+- **`get_collections`**: Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
+- **`get_granules`**: Searches for specific data files (granules) within a collection. Used to verify actual data availability for a given time and location.
+- **`get_services`**: Discovers data access endpoints (OPeNDAP, Harmony) and visualization layers (WMS/WMTS) associated with a collection.
+
+### Agent Workflow Instructions
+
+The server provides system instructions (`prompts/instructions.py`) that enforce a **Discover → Verify → Access** workflow for LLM clients:
+
+1. **Discover**: Find relevant collections using `get_collections`.
+2. **Verify**: Use `get_granules` to confirm data actually exists for the user's requested region/time, as collections often declare global coverage regardless of gaps.
+3. **Access**: Instruct users to use the `earthaccess` Python library for authentication and downloading, providing relevant code snippets.
 
 ## Project Structure
 
-```
-earthdata-mcp/
-├── tools/                    # MCP tools (self-contained)
-│   └── <toolname>/
-│       ├── tool.py           # Tool implementation
-│       ├── manifest.json     # MCP tool metadata
-│       └── utils/            # Tool-specific helpers
-├── models/                   # Centralized data models
-│   ├── cmr.py                # CMR pipeline models
-│   └── tools/                # Tool-specific I/O models
-│       └── discover_data.py
-├── lambdas/                  # AWS Lambda handlers
-│   ├── ingest/               # SNS to SQS message processing
-│   ├── embedding/            # Queue consumer, starts enrichment
-│   ├── enrichment/           # Step Function pipeline (validate, fix, embed, store)
-│   └── bootstrap/            # Initial data load
-├── util/                     # Shared utilities
-├── middleware/               # Server middleware (CORS)
-├── terraform/                # Infrastructure as code
-│   ├── database/             # RDS PostgreSQL stack
-│   └── application/          # Lambdas, ECS, SQS, Step Functions stack
-├── server.py                 # MCP server entry point
-├── loader.py                 # Tool discovery and registration
-└── pyproject.toml            # Dependencies
+The repository is structured around a few core domains:
+
+- **`server.py` & `loader.py`**: The FastMCP server entry point and dynamic tool registration logic.
+- **`prompts/`**: System prompts and instructions that define the LLM's workflow and persona.
+- **`tools/`**: Self-contained MCP tools wrapping NASA CMR APIs (`get_collections`, `get_granules`, `get_services`).
+- **`models/`**: Pydantic models for tool input validation and standardized CMR API responses.
+- **`tests/`**: Comprehensive test suite (using `pytest`) covering server initialization, tool logic, and mocked CMR API responses.
+
+> **Note on Legacy Code**: The ingestion and embedding pipelines (including the `discover_data` tool, `lambdas/` directory, and associated infrastructure) are currently being deprecated. The architecture is transitioning to rely purely on direct, real-time CMR API integrations.
+
+## For Consumers: Connecting to the Server
+
+The Earthdata MCP server is deployed remotely and communicates via Streamable HTTP. To use the server, you simply need to configure your MCP-compatible client to point to our endpoint.
+
+### Connection URL
+
+Configure your client to connect to the following HTTP endpoint:
+
+```text
+https://cmr.earthdata.nasa.gov/mcp
 ```
 
-## Quick Start
+Works with:
+
+- Claude Code CLI
+- VS Code MCP extensions
+- Any MCP-compatible client that supports Streamable HTTP transport
+
+---
+
+## For Developers: Local Environment
+
+If you want to contribute to the server or run it locally, follow these steps.
 
 ### Prerequisites
 
@@ -51,61 +75,30 @@ uv sync
 uv sync --extra dev
 ```
 
-### Running Locally
+### Starting the Local Server
 
-#### Local Database & Cache Configuration
-
-For local development, you can run PostgreSQL and Redis locally instead of using AWS services.
-
-**Database (PostgreSQL):**
-
-1. Start local PostgreSQL (with pgvector extension)
-2. Set environment variables in `.env`:
-
-   ```bash
-   DB_HOST=localhost
-   DATABASE_SECRET_ID=<your-aws-secret-id>  # Still needed for credentials
-   ```
-
-   The `DB_HOST` override allows you to connect to localhost while still using AWS Secrets Manager credentials.
-
-**Cache (Redis):**
-
-1. Start local Redis server
-2. Set environment variables in `.env`:
-
-   ```bash
-   REDIS_HOST=localhost
-   REDIS_PORT=6379              # Optional, defaults to 6379
-   REDIS_PASSWORD=<password>    # Optional for local dev
-   ```
-
-   When `REDIS_HOST` is set, the cache client uses local Redis instead of AWS Secrets Manager.
-
-**Production Mode:**
-
-- Database: Uses `DATABASE_SECRET_ID` to fetch connection URL from AWS Secrets Manager
-- Redis: Uses `REDIS_SECRET_ID` to fetch connection details from AWS Secrets Manager
-
-#### Starting the Server
-
-**HTTP Mode (recommended for development):**
+We recommend running the server in HTTP mode for local development and testing:
 
 ```bash
 uv run server.py http
 ```
 
-Server runs at `http://127.0.0.1:5001/mcp`
+The server will start and be available at `http://127.0.0.1:5001/mcp`.
 
-**STDIO Mode (for AI integrations):**
+### Development & Testing
 
-```bash
-uv run server.py stdio
-```
+### Adding a New Tool
 
-See [FastMCP integrations](https://gofastmcp.com/integrations) for connecting to Claude, VS Code, etc.
+1. Create folder under `tools/<toolname>/`
+2. Add required files:
+   - `manifest.json` - Tool metadata with `"entry"` function name
+   - `tool.py` - Implementation with async function
+   - `input_model.py` - Pydantic input validation
+   - `output_model.py` - Pydantic output model
+3. The tool is automatically discovered by `loader.py`
+4. Test with MCP Inspector, then add pytest under `tests/`
 
-## Testing
+### Running Tests
 
 ```bash
 # Run all tests
@@ -136,19 +129,30 @@ uv run pytest tests/test_server.py
    - Transport Type: **Streamable HTTP**
    - URL: `http://localhost:5001/mcp`
 
-## Adding a New Tool
+### Local Database & Cache Configuration (Legacy)
 
-1. Create folder under `tools/<toolname>/`
+For local development of the legacy ingestion pipelines, you can run PostgreSQL and Redis locally.
 
-2. Add required files:
-   - `manifest.json` - Tool metadata with `"entry"` function name
-   - `tool.py` - Implementation with async function
-   - `input_model.py` - Pydantic input validation
-   - `output_model.py` - Pydantic output model
+**Database (PostgreSQL):**
 
-3. The tool is automatically discovered by `loader.py`
+1. Start local PostgreSQL (with pgvector extension)
+2. Set environment variables in `.env`:
 
-4. Test with MCP Inspector, then add pytest under `tests/`
+   ```bash
+   DB_HOST=localhost
+   DATABASE_SECRET_ID=<your-aws-secret-id>  # Still needed for credentials
+   ```
+
+**Cache (Redis):**
+
+1. Start local Redis server
+2. Set environment variables in `.env`:
+
+   ```bash
+   REDIS_HOST=localhost
+   REDIS_PORT=6379              # Optional, defaults to 6379
+   REDIS_PASSWORD=<password>    # Optional for local dev
+   ```
 
 ## Deployment
 
@@ -156,30 +160,14 @@ The application deploys to AWS via Bamboo CI/CD:
 
 - **MCP Server**: ECS Fargate behind ALB at `/mcp`
 - **Lambdas**: Ingest (SNS to SQS), Embedding (queue consumer), Bootstrap
-- **Enrichment Pipeline**: Step Function that validates, fixes, embeds, and stores metadata
+- **Enrichment Pipeline (Legacy)**: Step Function that validates, fixes, embeds, and stores metadata
 - **Database**: RDS PostgreSQL with pgvector
 - **Redis**: ElastiCache for caching and payload offloading
 
 See [`terraform/`](terraform/) for infrastructure details and environment variable configuration.
 
-## Connecting Clients
-
-Once deployed, connect MCP clients to:
-
-```
-https://cmr.earthdata.nasa.gov/mcp/sse
-```
-
-Works with:
-
-- Claude Code CLI
-- VS Code MCP extensions
-- Any MCP-compatible client
-
 ## Troubleshooting
 
-**Import errors**: Ensure virtual environment is activated
-
-**Tool not found**: Check `manifest.json` has valid `"entry"` field
-
-**Connection refused**: Verify server is running on correct port
+- **Import errors**: Ensure virtual environment is activated
+- **Tool not found**: Check `manifest.json` has valid `"entry"` field
+- **Connection refused**: Verify server is running on correct port

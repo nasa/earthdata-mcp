@@ -26,6 +26,7 @@ CONCEPT_ENDPOINTS = {
     "variable": "/search/variables.umm_json",
     "citation": "/search/citations.umm_json",
     "granule": "/search/granules.umm_json",
+    "service": "/search/services.umm_json",
     "tool": "/search/tools.umm_json",
 }
 

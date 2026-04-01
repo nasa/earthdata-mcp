@@ -118,19 +118,21 @@ def test_get_collections_returns_normalized_results(monkeypatch):
 
     output = tool.get_collections(
         query="land surface temperature",
-        page_size=5,
-        search_after="seed-token",
     )
 
     assert captured["concept_type"] == "collection"
     assert captured["search_params"]["keyword"] == "land surface temperature"
-    assert captured["search_after"] == "seed-token"
+    assert captured["page_size"] == 20
     assert captured["method"] == "GET"
     assert output["status"] == "success"
     assert output["total_hits"] == 1
-    assert output["search_after"] == "next-token"
     assert output["collections"][0]["concept_id"] == "C123-PROV"
     assert output["collections"][0]["short_name"] == "MOD11A1"
+    assert (
+        output["collections"][0]["entry_title"]
+        == "MODIS/Terra Land Surface Temperature Daily L3 Global 1km"
+    )
+    assert output["collections"][0]["abstract"] == "Daily land surface temperature product."
     assert output["collections"][0]["platforms"] == ["Terra"]
     assert output["collections"][0]["instruments"] == ["MODIS"]
 
@@ -225,35 +227,6 @@ def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
 
     assert output["status"] == "error"
     assert output["error_message"] == "unexpected failure"
-
-
-def test_get_collections_accepts_string_page_size(monkeypatch):
-    """Numeric string page_size should be accepted and coerced before CMR call."""
-    tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=4, search_after=None, page_size=0)
-
-    captured = {}
-
-    def fake_search_cmr(**kwargs):
-        captured.update(kwargs)
-        yield page
-
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
-
-    output = tool.get_collections(query="ascat soil moisture", page_size="10")
-
-    assert captured["page_size"] == 10
-    assert output["status"] == "no_results"
-
-
-def test_get_collections_returns_error_on_invalid_page_size():
-    """Invalid page_size should return a structured tool error."""
-    tool = _load_tool()
-
-    output = tool.get_collections(query="modis", page_size="not-a-number")
-
-    assert output["status"] == "error"
-    assert "page_size" in output["error_message"]
 
 
 def test_get_collections_returns_error_on_invalid_spatial_wkt():

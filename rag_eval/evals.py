@@ -5,29 +5,29 @@ import os
 from datetime import datetime
 
 import nest_asyncio
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
+from langfuse import Evaluation
 from ragas.metrics.collections import (
     AnswerRelevancy,
     ContextPrecision,
     ContextRecall,
     Faithfulness,
 )
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from langfuse import Evaluation
 from models.rag_eval import DatasetRelevanceInput, DatasetRelevancePrompt
 from tools.discover_data.utils.embedding_search import search_all_entity_types
 from util.datastores import get_datastore
-from util.langfuse import get_langfuse, flush_langfuse
+from util.langfuse import flush_langfuse, get_langfuse
 from util.rag_eval.collection_formatting import generate_contexts_from_collections
 from util.rag_eval.ragas_utils import (
-    create_bedrock_llm,
     create_bedrock_embeddings,
+    create_bedrock_llm,
 )
 
 logger = logging.getLogger(__name__)
