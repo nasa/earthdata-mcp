@@ -81,6 +81,29 @@ class TestGetServicesSuccess:
         assert output["services"][0]["name"] == "OPeNDAP"
         assert output["services"][0]["access_constraints"] == {"Description": "Requires Login"}
 
+    def test_services_handles_string_constraints(self, monkeypatch):
+        """services should allow string formats for legacy access/use constraints."""
+        tool = _load_tool()
+        raw_item = {
+            "meta": {"concept-id": "S2-PROV"},
+            "umm": {
+                "Name": "LegacyService",
+                "AccessConstraints": "None",
+                "UseConstraints": "Public Domain",
+            },
+        }
+        monkeypatch.setattr(
+            tool,
+            "search_cmr",
+            _make_two_phase_mock(_collection_page(["S2-PROV"]), _service_page(items=[raw_item])),
+        )
+
+        output = tool.get_services(collection_concept_id="C1-PROV")
+
+        assert len(output["services"]) == 1
+        assert output["services"][0]["access_constraints"] == "None"
+        assert output["services"][0]["use_constraints"] == "Public Domain"
+
     def test_total_hits_reflects_service_page(self, monkeypatch):
         """total_hits should come from the service search page."""
         tool = _load_tool()

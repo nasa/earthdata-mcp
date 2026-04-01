@@ -30,10 +30,10 @@ class ServiceResult(BaseModel):
     related_urls: list[dict[str, Any]] | None = Field(
         None, description="Documentation, guides, or other related links"
     )
-    access_constraints: dict[str, Any] | None = Field(
+    access_constraints: dict[str, Any] | str | None = Field(
         None, description="Authentication or authorization requirements"
     )
-    use_constraints: dict[str, Any] | None = Field(
+    use_constraints: dict[str, Any] | str | None = Field(
         None, description="Legal restrictions or usage limits"
     )
     service_options: dict[str, Any] | None = Field(
