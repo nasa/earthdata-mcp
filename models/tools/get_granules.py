@@ -55,6 +55,35 @@ SpatialWktGeometryParam = Annotated[
     ),
 ]
 
+CloudCoverMinParam = Annotated[
+    float | None,
+    Field(
+        description=(
+            "Minimum cloud cover percentage (0–100, inclusive). "
+            "Use with cloud_cover_max to filter optical/visible imagery granules by cloud cover. "
+            "Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, "
+            "etc). Omit for non-optical data (SAR, altimetry, etc.)."
+        ),
+        ge=0,
+        le=100,
+    ),
+]
+
+CloudCoverMaxParam = Annotated[
+    float | None,
+    Field(
+        description=(
+            "Maximum cloud cover percentage (0–100, inclusive). "
+            "Use with cloud_cover_min to filter optical/visible imagery granules by cloud cover. "
+            "For example, set cloud_cover_max=20 to find mostly clear scenes. "
+            "Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, "
+            "etc). Omit for non-optical data (SAR, altimetry, etc.)."
+        ),
+        ge=0,
+        le=100,
+    ),
+]
+
 
 class GranuleResult(BaseModel):
     """Minimal granule result for direct CMR-backed retrieval."""
@@ -78,6 +107,8 @@ class GetGranulesInput(BaseModel):
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
+    cloud_cover_min: CloudCoverMinParam = None
+    cloud_cover_max: CloudCoverMaxParam = None
 
 
 class GetGranulesOutput(BaseCmrSearchOutput):

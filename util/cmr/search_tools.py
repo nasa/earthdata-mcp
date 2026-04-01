@@ -16,6 +16,36 @@ from util.temporal import extract_temporal_extent, parse_iso_datetime
 logger = logging.getLogger(__name__)
 
 
+def format_cloud_cover_range(
+    cloud_cover_min: float | None,
+    cloud_cover_max: float | None,
+) -> str | None:
+    """Format a CMR cloud_cover range parameter.
+
+    CMR expects ``cloud_cover=min,max`` where both bounds are in [0, 100].
+    Either bound may be omitted (e.g. ``,20`` means 0–20, ``80,`` means 80–100).
+    Returns *None* when neither bound is supplied.
+    """
+    if cloud_cover_min is None and cloud_cover_max is None:
+        return None
+
+    min_str = (
+        ""
+        if cloud_cover_min is None
+        else str(
+            int(cloud_cover_min) if cloud_cover_min == int(cloud_cover_min) else cloud_cover_min
+        )
+    )
+    max_str = (
+        ""
+        if cloud_cover_max is None
+        else str(
+            int(cloud_cover_max) if cloud_cover_max == int(cloud_cover_max) else cloud_cover_max
+        )
+    )
+    return f"{min_str},{max_str}"
+
+
 def format_temporal_range(
     start_date: datetime | str | None,
     end_date: datetime | str | None,

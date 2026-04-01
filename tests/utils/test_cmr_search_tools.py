@@ -10,6 +10,7 @@ from util.cmr.search_tools import (
     build_spatial_files,
     extract_access_urls,
     extract_granule_temporal_extent,
+    format_cloud_cover_range,
     format_temporal_range,
     normalize_collection_item,
     normalize_granule_item,
@@ -193,3 +194,36 @@ def test_normalize_granule_item_falls_back_to_umm_collection_concept_id():
 def test_dedupe_strings_removes_empty_and_preserves_order():
     """String dedupe helper should drop empties and keep first-seen order."""
     assert _dedupe_strings(["a", "", "b", "a", "b", "c"]) == ["a", "b", "c"]
+
+
+# --- format_cloud_cover_range tests ---
+
+
+def test_format_cloud_cover_range_returns_none_when_both_none():
+    """Cloud cover formatter should return None when neither bound is set."""
+    assert format_cloud_cover_range(None, None) is None
+
+
+def test_format_cloud_cover_range_both_bounds():
+    """Cloud cover formatter should produce 'min,max' when both are set."""
+    assert format_cloud_cover_range(10, 50) == "10,50"
+
+
+def test_format_cloud_cover_range_max_only():
+    """Cloud cover formatter should produce ',max' when only max is set."""
+    assert format_cloud_cover_range(None, 20) == ",20"
+
+
+def test_format_cloud_cover_range_min_only():
+    """Cloud cover formatter should produce 'min,' when only min is set."""
+    assert format_cloud_cover_range(80, None) == "80,"
+
+
+def test_format_cloud_cover_range_handles_floats():
+    """Cloud cover formatter should preserve fractional values."""
+    assert format_cloud_cover_range(10.5, 75.3) == "10.5,75.3"
+
+
+def test_format_cloud_cover_range_renders_whole_floats_as_ints():
+    """Cloud cover formatter should render 20.0 as '20', not '20.0'."""
+    assert format_cloud_cover_range(0.0, 100.0) == "0,100"
