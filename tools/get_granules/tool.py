@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_granules")
-def get_granules(  # pylint: disable=too-many-arguments,unused-argument
+def get_granules(
     collection_concept_id: CollectionConceptIdParam,
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,

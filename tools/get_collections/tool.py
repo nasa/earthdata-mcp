@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_collections")
-def get_collections(  # pylint: disable=too-many-arguments,unused-argument
+def get_collections(  # pylint: disable=too-many-arguments
     query: QueryParam = None,
     concept_id: ConceptIdParam = None,
     short_name: ShortNameParam = None,

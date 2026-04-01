@@ -91,11 +91,10 @@ The server will start and be available at `http://127.0.0.1:5001/mcp`.
 
 1. Create folder under `tools/<toolname>/`
 2. Add required files:
-   - `manifest.json` - Tool metadata with `"entry"` function name
-   - `tool.py` - Implementation with async function
-   - `input_model.py` - Pydantic input validation
-   - `output_model.py` - Pydantic output model
-3. The tool is automatically discovered by `loader.py`
+   - `manifest.json` - Tool metadata including `"entry_function"` (the name of the callable in `tool.py`), `"name"`, `"description"`, and optional `"enabled"` flag. See `get_services/manifest.json` or `get_granules/manifest.json` for examples.
+   - `tool.py` - Implementation as a **synchronous** `def` function whose name matches the `"entry_function"` value in `manifest.json`. `loader.py` wraps it in an async handler automatically; do not use `async def`. See `get_services/tool.py` or `get_granules/tool.py` for examples.
+   - `output_model.py` - Pydantic output model (the loader auto-discovers the first `BaseModel` subclass for JSON schema generation).
+3. The tool is automatically discovered and registered by `loader.py`.
 4. Test with MCP Inspector, then add pytest under `tests/`
 
 ### Running Tests
@@ -169,5 +168,5 @@ See [`terraform/`](terraform/) for infrastructure details and environment variab
 ## Troubleshooting
 
 - **Import errors**: Ensure virtual environment is activated
-- **Tool not found**: Check `manifest.json` has valid `"entry"` field
+- **Tool not found**: Check `manifest.json` has valid `"entry_function"` field
 - **Connection refused**: Verify server is running on correct port
