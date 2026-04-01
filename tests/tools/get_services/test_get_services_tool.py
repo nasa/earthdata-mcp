@@ -218,3 +218,50 @@ class TestGetServicesErrors:
 
         assert output["status"] == "error"
         assert "Service fetch failed" in output["error_message"]
+
+    def test_returns_error_on_input_validation(self, monkeypatch):
+        """Should return status='error' when input validation fails."""
+        tool = _load_tool()
+
+        def fake_init(*args, **kwargs):
+            raise ValueError("Bad input")
+
+        monkeypatch.setattr(tool, "GetServicesInput", fake_init)
+
+        output = tool.get_services(collection_concept_id="C1-PROV")
+
+        assert output["status"] == "error"
+        assert "error_message" in output
+
+    def test_returns_error_on_unexpected_collection_error(self, monkeypatch):
+        """Should return status='error' when an unexpected Exception occurs during collection lookup."""
+        tool = _load_tool()
+
+        def fake_search_cmr(**kwargs):
+            raise RuntimeError("Unexpected collection boom")
+            yield
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+        output = tool.get_services(collection_concept_id="C1-PROV")
+
+        assert output["status"] == "error"
+        assert "Unexpected collection boom" in output["error_message"]
+
+    def test_returns_error_on_unexpected_service_error(self, monkeypatch):
+        """Should return status='error' when an unexpected Exception occurs during service lookup."""
+        tool = _load_tool()
+
+        def fake_search_cmr(**kwargs):
+            if kwargs["concept_type"] == "collection":
+                yield _collection_page(["S1-PROV"])
+            else:
+                raise RuntimeError("Unexpected service boom")
+                yield
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+        output = tool.get_services(collection_concept_id="C1-PROV")
+
+        assert output["status"] == "error"
+        assert "Unexpected service boom" in output["error_message"]
