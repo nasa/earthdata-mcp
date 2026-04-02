@@ -9,8 +9,8 @@ from models.tools.get_collections import (
     ConceptIdParam,
     GetCollectionsInput,
     GetCollectionsOutput,
+    KeywordParam,
     ProviderParam,
-    QueryParam,
     ShortNameParam,
     SpatialWktGeometryParam,
     TemporalEndDateParam,
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 @observe(name="get_collections")
 def get_collections(  # pylint: disable=too-many-arguments
-    query: QueryParam = None,
+    keyword: KeywordParam = None,
     concept_id: ConceptIdParam = None,
     short_name: ShortNameParam = None,
     provider: ProviderParam = None,
@@ -45,10 +45,17 @@ def get_collections(  # pylint: disable=too-many-arguments
     returns collections whose metadata mentions the terms but whose declared extent may be global
     or multi-decadal — presence in results does not confirm data exists for a specific region or
     period. Use filters here, then confirm actual granule availability with get_granules.
+
+    Keyword AND logic: CMR requires ALL space-separated words to appear somewhere in a
+    collection's indexed metadata (title, summary, science keywords, instruments, etc.).
+    Words do not need to be in the same field or adjacent. More words = stricter filter.
+    Prefer 2–4 precise terms. If 0 results, drop the least essential word and retry.
+    Phrase search: wrap value in escaped double quotes for exact sequence matching;
+    cannot be mixed with standalone keywords.
     """
     metadata = {}
-    if query:
-        metadata["query"] = query
+    if keyword:
+        metadata["keyword"] = keyword
     if concept_id:
         metadata["concept_id"] = concept_id
     if short_name:
@@ -73,7 +80,7 @@ def get_collections(  # pylint: disable=too-many-arguments
 
     try:
         params = GetCollectionsInput(
-            query=query,
+            keyword=keyword,
             concept_id=concept_id,
             short_name=short_name,
             provider=provider,
@@ -83,8 +90,8 @@ def get_collections(  # pylint: disable=too-many-arguments
         )
 
         search_params: dict[str, object] = {}
-        if params.query:
-            search_params["keyword"] = params.query
+        if params.keyword:
+            search_params["keyword"] = params.keyword
         if params.concept_id:
             search_params["concept_id"] = params.concept_id
         if params.short_name:

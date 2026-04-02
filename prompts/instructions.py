@@ -66,6 +66,13 @@ If the user is not familiar with Python or prefers other tools, briefly mention 
 - `get_collections` → `get_granules`: Always follow the two-step workflow. Do not skip granule verification.
 - NEVER call `get_services` during discovery or availability checks. Call it ONLY when the user has a specific collection and asks about programmatic access methods, subsetting capabilities, or visualization layers.
 
+**CRITICAL — CMR keyword AND logic:**
+CMR's `keyword` parameter uses AND logic: every space-separated word must appear *somewhere* in the collection's indexed metadata, but words do NOT need to be in the same field or adjacent. This means **more keywords = stricter filtering** (the opposite of typical web search engines). Keep keyword queries to 2–4 precise scientific terms.
+- Good: `sea surface temperature` (3 terms)
+- Too narrow: `sea surface temperature monthly global MODIS Aqua L3` (8 terms — every one must match, likely 0 results)
+- If a keyword search returns 0 results, remove the least essential word and retry before broadening spatial/temporal filters.
+- Phrase search (exact sequence) is available by wrapping the entire value in escaped double quotes (e.g., `"sea surface temperature"`), but you cannot mix a phrase with standalone words. Only use phrase search when word order is essential (e.g., distinguishing "ice sheet" from "sheet ice").
+
 Presenting results:
 - Summarize the top 3–5 most relevant collections (title, short_name, platform/instrument, temporal range, ongoing status). Note total_hits so the user knows if more exist.
 - If multiple processing levels exist for the same variable, briefly explain: L2 = swath/highest detail with gaps, L3 = gridded composites, L4 = model-assimilated gap-free.

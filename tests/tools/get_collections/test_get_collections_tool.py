@@ -117,7 +117,7 @@ def test_get_collections_returns_normalized_results(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
     output = tool.get_collections(
-        query="land surface temperature",
+        keyword="land surface temperature",
     )
 
     assert captured["concept_type"] == "collection"
@@ -150,7 +150,7 @@ def test_get_collections_uses_post_for_spatial_search(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(query="modis", spatial_wkt_geometry="POINT(-75 40)")
+    output = tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT(-75 40)")
 
     assert captured["method"] == "POST"
     assert captured["files"] is not None
@@ -192,7 +192,7 @@ def test_get_collections_returns_error_on_cmr_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(query="modis")
+    output = tool.get_collections(keyword="modis")
 
     assert output["status"] == "error"
     assert output["error_message"] == "CMR request failed"
@@ -208,7 +208,7 @@ def test_get_collections_returns_no_results_when_cmr_yields_nothing(monkeypatch)
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(query="modis")
+    output = tool.get_collections(keyword="modis")
 
     assert output["status"] == "no_results"
 
@@ -223,7 +223,7 @@ def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(query="modis")
+    output = tool.get_collections(keyword="modis")
 
     assert output["status"] == "error"
     assert output["error_message"] == "unexpected failure"
@@ -233,7 +233,7 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
     """Invalid WKT should be returned as a stable tool error payload."""
     tool = _load_tool()
 
-    output = tool.get_collections(query="modis", spatial_wkt_geometry="POINT((1 2))")
+    output = tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT((1 2))")
 
     assert output["status"] == "error"
     assert "Invalid WKT geometry" in output["error_message"]
@@ -250,7 +250,7 @@ def test_get_collections_calls_trace_update(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
     with patch.object(tool, "trace_update") as mock_trace_update:
-        output = tool.get_collections(query="modis")
+        output = tool.get_collections(keyword="modis")
 
     assert output["status"] == "no_results"
     assert mock_trace_update.called
