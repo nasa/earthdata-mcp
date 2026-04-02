@@ -155,7 +155,7 @@ class TestGetServicesNoResults:
 
         monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-        output = tool.get_services(collection_concept_id="C-MISSING")
+        output = tool.get_services(collection_concept_id="C99999-MISSING")
 
         assert output["status"] == "no_results"
         assert output["services"] == []
@@ -246,15 +246,11 @@ class TestGetServicesErrors:
         """Should return status='error' when input validation fails."""
         tool = _load_tool()
 
-        def fake_init(*args, **kwargs):
-            raise ValueError("Bad input")
-
-        monkeypatch.setattr(tool, "GetServicesInput", fake_init)
-
-        output = tool.get_services(collection_concept_id="C1-PROV")
+        output = tool.get_services(collection_concept_id="invalid_format")
 
         assert output["status"] == "error"
         assert "error_message" in output
+        assert "Invalid collection concept ID format" in output["error_message"]
 
     def test_returns_error_on_unexpected_collection_error(self, monkeypatch):
         """Should return status='error' when an unexpected Exception occurs during collection lookup."""

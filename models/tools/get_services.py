@@ -1,8 +1,9 @@
 """Input and output models for the get_services MCP tool."""
 
+import re
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from models.tools.cmr_search import BaseCmrSearchOutput
 
@@ -12,7 +13,7 @@ CollectionConceptIdParam = Annotated[
         description=(
             "Parent collection concept ID (format: C<number>-<PROVIDER>, "
             "e.g., C2723758340-GES_DISC). Required to scope service search."
-        )
+        ),
     ),
 ]
 
@@ -48,6 +49,16 @@ class GetServicesInput(BaseModel):
     """Input model for get_services."""
 
     collection_concept_id: CollectionConceptIdParam
+
+    @field_validator("collection_concept_id")
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        if not re.match(r"^C\d+-[A-Za-z0-9_]+$", v):
+            raise ValueError(
+                "Invalid collection concept ID format. "
+                "Must match C<number>-<PROVIDER> (e.g., C2723758340-GES_DISC)."
+            )
+        return v
 
 
 class GetServicesOutput(BaseCmrSearchOutput):
