@@ -115,10 +115,10 @@ def get_granules(
             error_message=str(exc),
         ).model_dump()
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected granule search failure")
+        logger.exception("Unexpected error during granule search: %s", exc)
         return GetGranulesOutput(
             status=SearchStatus.ERROR,
-            error_message=str(exc),
+            error_message="An unexpected internal error occurred during granule search.",
         ).model_dump()
 
     if page is None:

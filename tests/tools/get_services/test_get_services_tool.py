@@ -265,7 +265,10 @@ class TestGetServicesErrors:
         output = tool.get_services(collection_concept_id="C1-PROV")
 
         assert output["status"] == "error"
-        assert "Unexpected collection boom" in output["error_message"]
+        assert (
+            output["error_message"]
+            == "An unexpected internal error occurred during collection lookup."
+        )
 
     def test_returns_error_on_unexpected_service_error(self, monkeypatch):
         """Should return status='error' when an unexpected Exception occurs during service lookup."""
@@ -283,4 +286,6 @@ class TestGetServicesErrors:
         output = tool.get_services(collection_concept_id="C1-PROV")
 
         assert output["status"] == "error"
-        assert "Unexpected service boom" in output["error_message"]
+        assert (
+            output["error_message"] == "An unexpected internal error occurred during service fetch."
+        )

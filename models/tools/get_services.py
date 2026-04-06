@@ -3,7 +3,7 @@
 import re
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from models.tools.cmr_search import BaseCmrSearchOutput
 
@@ -47,6 +47,8 @@ class ServiceResult(BaseModel):
 
 class GetServicesInput(BaseModel):
     """Input model for get_services."""
+
+    model_config = ConfigDict(extra="forbid")
 
     collection_concept_id: CollectionConceptIdParam
 

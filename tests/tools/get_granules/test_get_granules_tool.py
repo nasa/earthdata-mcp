@@ -163,7 +163,7 @@ def test_get_granules_returns_error_on_unexpected_failure(monkeypatch):
     output = tool.get_granules(collection_concept_id="C123-PROV")
 
     assert output["status"] == "error"
-    assert output["error_message"] == "unexpected granule failure"
+    assert output["error_message"] == "An unexpected internal error occurred during granule search."
 
 
 def test_get_granules_returns_error_on_invalid_spatial_wkt():

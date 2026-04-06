@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.tools.cmr_search import BaseCmrSearchOutput
 
@@ -102,6 +102,8 @@ class GranuleResult(BaseModel):
 
 class GetGranulesInput(BaseModel):
     """Input model for get_granules."""
+
+    model_config = ConfigDict(extra="forbid")
 
     collection_concept_id: CollectionConceptIdParam
     temporal_start_date: TemporalStartDateParam = None

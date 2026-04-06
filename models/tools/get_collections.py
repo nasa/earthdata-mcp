@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.tools.cmr_search import BaseCmrSearchOutput
 
@@ -119,6 +119,8 @@ class CollectionResult(BaseModel):
 
 class GetCollectionsInput(BaseModel):
     """Input model for get_collections."""
+
+    model_config = ConfigDict(extra="forbid")
 
     keyword: KeywordParam = None
     concept_id: ConceptIdParam = None

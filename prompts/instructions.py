@@ -99,7 +99,7 @@ User: "I need sea surface temperature data near Hawaii for January 2024"
 
 Step 1 — Discover collections:
   get_collections(
-    query="sea surface temperature",
+    keyword="sea surface temperature",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
     spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"

@@ -71,11 +71,13 @@ def get_services(
         ).model_dump()
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception(
-            "Unexpected error during collection lookup for %s", params.collection_concept_id
+            "Unexpected error during collection lookup for %s: %s",
+            params.collection_concept_id,
+            exc,
         )
         return GetServicesOutput(
             status=SearchStatus.ERROR,
-            error_message=str(exc),
+            error_message="An unexpected internal error occurred during collection lookup.",
         ).model_dump()
 
     if not collection_page or not collection_page.items:
@@ -107,11 +109,11 @@ def get_services(
         ).model_dump()
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception(
-            "Unexpected error during service fetch for %s", params.collection_concept_id
+            "Unexpected error during service fetch for %s: %s", params.collection_concept_id, exc
         )
         return GetServicesOutput(
             status=SearchStatus.ERROR,
-            error_message=str(exc),
+            error_message="An unexpected internal error occurred during service fetch.",
         ).model_dump()
 
     if service_page is None:
