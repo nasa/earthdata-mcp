@@ -137,5 +137,4 @@ def get_collections(  # pylint: disable=too-many-arguments
         status=status,
         collections=collections,
         total_hits=page.total_hits,
-        took_ms=page.took_ms,
     ).model_dump()

@@ -40,4 +40,3 @@ class BaseCmrSearchOutput(BaseToolOutput):
     """Base output model for tools backed by CMR search."""
 
     total_hits: int = Field(default=0, description="Total number of matching items")
-    took_ms: int = Field(default=0, description="Processing time in milliseconds")

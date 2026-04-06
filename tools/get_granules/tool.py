@@ -130,5 +130,4 @@ def get_granules(
         status=status,
         granules=granules,
         total_hits=page.total_hits,
-        took_ms=page.took_ms,
     ).model_dump()

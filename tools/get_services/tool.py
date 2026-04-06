@@ -125,5 +125,4 @@ def get_services(
         status=status,
         services=services,
         total_hits=service_page.total_hits,
-        took_ms=service_page.took_ms,
     ).model_dump()

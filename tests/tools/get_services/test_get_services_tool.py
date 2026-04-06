@@ -119,6 +119,7 @@ class TestGetServicesSuccess:
         output = tool.get_services(collection_concept_id="C1-PROV")
 
         assert output["total_hits"] == 2
+        assert "took_ms" not in output
 
     def test_service_search_receives_concept_id_list(self, monkeypatch):
         """Phase 2 search_cmr should receive the discovered service IDs as concept_id[]."""
