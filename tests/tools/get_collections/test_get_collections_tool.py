@@ -122,7 +122,7 @@ def test_get_collections_returns_normalized_results(monkeypatch):
 
     assert captured["concept_type"] == "collection"
     assert captured["search_params"]["keyword"] == "land surface temperature"
-    assert captured["page_size"] == 20
+    assert captured["page_size"] == 10
     assert captured["method"] == "GET"
     assert output["status"] == "success"
     assert output["total_hits"] == 1

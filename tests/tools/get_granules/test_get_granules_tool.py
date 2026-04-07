@@ -61,7 +61,7 @@ def test_get_granules_returns_normalized_results(monkeypatch):
 
     assert captured["concept_type"] == "granule"
     assert captured["search_params"]["collection_concept_id"] == "C123-PROV"
-    assert captured["page_size"] == 20
+    assert captured["page_size"] == 10
     assert output["status"] == "success"
     assert output["total_hits"] == 1
     assert output["granules"][0]["concept_id"] == "G123-PROV"

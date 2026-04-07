@@ -165,8 +165,22 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
 
     version = umm.get("Version")
 
+    related_urls = [
+        {
+            "url": u.get("URL"),
+            "type": u.get("Type"),
+            "subtype": u.get("Subtype"),
+            "description": u.get("Description"),
+        }
+        for u in umm.get("RelatedUrls", [])
+        if u.get("URL")
+    ]
+
     return {
         "concept_id": concept_id,
+        "native_id": meta.get("native-id"),
+        "revision_id": meta.get("revision-id"),
+        "provider_id": meta.get("provider-id"),
         "short_name": umm.get("ShortName"),
         "version": str(version) if version is not None else None,
         "entry_title": umm.get("EntryTitle") or umm.get("ShortName") or meta.get("concept-id", ""),
@@ -176,6 +190,12 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
         "is_ongoing": is_ongoing,
         "platforms": _dedupe_strings(platforms),
         "instruments": _dedupe_strings(instruments),
+        "processing_level_id": umm.get("ProcessingLevel", {}).get("Id"),
+        "doi": umm.get("DOI", {}).get("DOI"),
+        "collection_data_type": umm.get("CollectionDataType"),
+        "temporal_resolution": _extract_collection_temporal_resolution(umm),
+        "spatial_resolution": _extract_collection_spatial_resolution(umm),
+        "related_urls": related_urls,
     }
 
 
@@ -189,8 +209,13 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
 
     time_start, time_end = extract_granule_temporal_extent(umm)
 
+    size_mb, data_format = _extract_granule_archive_info(umm)
+
     return {
         "concept_id": concept_id,
+        "native_id": meta.get("native-id"),
+        "revision_id": meta.get("revision-id"),
+        "provider_id": meta.get("provider-id"),
         "collection_concept_id": (
             meta.get("parent-collection-id")
             or umm.get("CollectionConceptId")
@@ -200,6 +225,11 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
         "producer_granule_id": umm.get("ProducerGranuleId"),
         "time_start": time_start,
         "time_end": time_end,
+        "cloud_cover": umm.get("CloudCover"),
+        "day_night_flag": umm.get("DataGranule", {}).get("DayNightFlag"),
+        "size_mb": size_mb,
+        "data_format": data_format,
+        "bounding_box": _extract_granule_bounding_box(umm),
         "access_urls": extract_access_urls(umm),
     }
 
@@ -324,3 +354,152 @@ def _dedupe_strings(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _extract_collection_temporal_resolution(umm: dict[str, Any]) -> str | None:
+    """Extract the first human-readable temporal resolution from UMM-C.
+
+    Searches the TemporalExtents array for a defined resolution. Combines the numeric
+    Value and Unit into a single string (e.g., "1 Day") for the LLM.
+    Defensive type checking is required as CMR payloads occasionally deviate from schema.
+    """
+    extents = umm.get("TemporalExtents", [])
+    # CMR sometimes returns a single string instead of a list of extents
+    if not isinstance(extents, list):
+        return None
+
+    for extent in extents:
+        # Ensure the extent item is actually a dictionary before calling .get()
+        if not isinstance(extent, dict):
+            continue
+        for res in extent.get("TemporalResolutions", []):
+            # Ensure the resolution item is a dictionary
+            if not isinstance(res, dict):
+                continue
+            value = res.get("Value")
+            unit = res.get("Unit")
+            if value is not None and unit:
+                return f"{value} {unit}"
+    return None
+
+
+def _extract_collection_spatial_resolution(umm: dict[str, Any]) -> str | None:
+    """Extract the first human-readable spatial resolution from UMM-C.
+
+    Deeply inspects the HorizontalSpatialDomain for gridded, non-gridded, or point resolutions.
+    If X and Y dimensions exist, it combines them (e.g., "1000x1000 Meters").
+    If only X exists, it returns a 1D string (e.g., "1000 Meters").
+    """
+    spatial_extent = umm.get("SpatialExtent", {})
+    # Prevent AttributeError if CMR returns a list or string instead of a dict
+    if not isinstance(spatial_extent, dict):
+        return None
+
+    domain = spatial_extent.get("HorizontalSpatialDomain", {})
+    # Ensure domain is a dict before deep traversal
+    if not isinstance(domain, dict):
+        return None
+
+    resolution = domain.get("ResolutionAndCoordinateSystem", {})
+    if not isinstance(resolution, dict):
+        return None
+
+    for res_type in ["HorizontalDataResolution", "VerticalDataResolution"]:
+        for key in ["GriddedResolutions", "NonGriddedResolutions", "PointResolution"]:
+            res_container = resolution.get(res_type, {})
+            # Ensure the resolution type container is a dict
+            if not isinstance(res_container, dict):
+                continue
+
+            res_list = res_container.get(key, [])
+            if res_list:
+                # CMR schema allows either a list of resolutions or a single object
+                item = res_list[0] if isinstance(res_list, list) else res_list
+                # Ensure the extracted item is a dict before calling .get()
+                if not isinstance(item, dict):
+                    continue
+
+                x = item.get("XDimension")
+                y = item.get("YDimension")
+                unit = item.get("Unit")
+                if x is not None and y is not None and unit:
+                    return f"{x}x{y} {unit}"
+                if x is not None and unit:
+                    return f"{x} {unit}"
+    return None
+
+
+def _extract_granule_archive_info(umm: dict[str, Any]) -> tuple[float | None, str | None]:
+    """Extract the size in MB and data format from UMM-G.
+
+    Pulls the first available ArchiveAndDistributionInformation entry. Converts raw bytes
+    into Megabytes so the LLM can more easily interpret and communicate file sizes.
+    """
+    granule = umm.get("DataGranule", {})
+    # Ensure DataGranule is a dict (CMR sometimes omits it entirely or uses null)
+    if not isinstance(granule, dict):
+        return None, None
+
+    archive_info = granule.get("ArchiveAndDistributionInformation", [])
+    # Ensure the distribution info is a list before iterating
+    if not isinstance(archive_info, list):
+        return None, None
+
+    for info in archive_info:
+        # Ensure the info item is a dictionary before extracting size/format
+        if not isinstance(info, dict):
+            continue
+        size = info.get("SizeInBytes")
+        fmt = info.get("Format")
+        try:
+            # Safely cast size to float in case CMR returned it as a string
+            size_mb = round(float(size) / (1024 * 1024), 2) if size is not None else None
+        except (ValueError, TypeError):
+            size_mb = None
+        return size_mb, fmt
+    return None, None
+
+
+def _extract_granule_bounding_box(umm: dict[str, Any]) -> list[float] | None:
+    """Extract the first bounding box as [West, South, East, North] from UMM-G.
+
+    Returns the Minimum Bounding Rectangle (MBR) computed by CMR. For swathes or irregular
+    polygons, this MBR fully encloses the data but may contain empty space at the corners.
+    The 4-element array format provides a lightweight geospatial context for the LLM.
+    """
+    extent = umm.get("SpatialExtent", {})
+    # Prevent AttributeError if CMR returns a list or string instead of a dict
+    if not isinstance(extent, dict):
+        return None
+
+    domain = extent.get("HorizontalSpatialDomain", {})
+    # Ensure domain is a dict before extracting geometry
+    if not isinstance(domain, dict):
+        return None
+
+    geometries = domain.get("Geometry", {})
+    # Ensure geometry is a dict before looking for bounding rectangles
+    if not isinstance(geometries, dict):
+        return None
+
+    rects = geometries.get("BoundingRectangles", [])
+    # Ensure BoundingRectangles is a list before iterating
+    if not isinstance(rects, list):
+        return None
+
+    for bbox in rects:
+        # Ensure the individual bbox is a dictionary
+        if not isinstance(bbox, dict):
+            continue
+        try:
+            # Safely cast to float, catching TypeError if a value is None
+            # or ValueError if a value is an un-parseable string
+            return [
+                float(bbox["WestBoundingCoordinate"]),
+                float(bbox["SouthBoundingCoordinate"]),
+                float(bbox["EastBoundingCoordinate"]),
+                float(bbox["NorthBoundingCoordinate"]),
+            ]
+        except (KeyError, ValueError, TypeError):
+            continue
+    return None

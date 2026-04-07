@@ -88,16 +88,27 @@ CloudCoverMaxParam = Annotated[
 class GranuleResult(BaseModel):
     """Minimal granule result for direct CMR-backed retrieval."""
 
-    concept_id: str = Field(..., description="CMR granule concept ID")
-    collection_concept_id: str | None = Field(None, description="Parent collection concept ID")
-    granule_ur: str = Field(..., description="Granule UR")
-    producer_granule_id: str | None = Field(None, description="Producer granule ID")
-    time_start: datetime | None = Field(None, description="Granule temporal start")
-    time_end: datetime | None = Field(None, description="Granule temporal end")
     access_urls: list[str] = Field(
         default_factory=list,
         description="Actionable data access URLs (Note: Access requires Earthdata Login authentication)",
     )
+    bounding_box: list[float] | None = Field(
+        None,
+        description="[West, South, East, North] Minimum Bounding Rectangle (MBR). Note: For swath data or irregular polygons, this bounding box fully encloses the data but may contain empty space at the corners.",
+    )
+    cloud_cover: float | None = Field(None, description="Cloud cover percentage")
+    collection_concept_id: str | None = Field(None, description="Parent collection concept ID")
+    concept_id: str = Field(..., description="CMR granule concept ID")
+    data_format: str | None = Field(None, description="File format (e.g., NetCDF-4, GeoTIFF)")
+    day_night_flag: str | None = Field(None, description="DAY, NIGHT, BOTH, or UNSPECIFIED")
+    granule_ur: str = Field(..., description="Granule UR")
+    native_id: str | None = Field(None, description="The native ID of the granule record")
+    producer_granule_id: str | None = Field(None, description="Producer granule ID")
+    provider_id: str | None = Field(None, description="The provider ID of the granule")
+    revision_id: int | None = Field(None, description="The revision ID of the granule metadata")
+    size_mb: float | None = Field(None, description="Size of the data granule in MB")
+    time_end: datetime | None = Field(None, description="Granule temporal end")
+    time_start: datetime | None = Field(None, description="Granule temporal start")
 
 
 class GetGranulesInput(BaseModel):
@@ -117,5 +128,5 @@ class GetGranulesOutput(BaseCmrSearchOutput):
     """Output model for get_granules."""
 
     granules: list[GranuleResult] = Field(
-        default_factory=list, description="Normalized granule results mapped from UMM-G (max 20)"
+        default_factory=list, description="Normalized granule results mapped from UMM-G (max 10)"
     )

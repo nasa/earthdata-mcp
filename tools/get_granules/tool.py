@@ -36,7 +36,7 @@ def get_granules(
     cloud_cover_min: CloudCoverMinParam = None,
     cloud_cover_max: CloudCoverMaxParam = None,
 ) -> dict:
-    """Search CMR granules for a single parent collection, returning up to 20 results.
+    """Search CMR granules for a single parent collection, returning up to 10 results.
 
     When checking data availability for a specific time period or geographic area, always
     provide temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. Without these
@@ -102,7 +102,7 @@ def get_granules(
             search_cmr(
                 concept_type="granule",
                 search_params=search_params,
-                page_size=20,
+                page_size=10,
                 method=method,
                 files=files,
             ),

@@ -21,7 +21,6 @@ class ToolManifest:
     """Handles manifest loading with sensible defaults."""
 
     DEFAULT_MANIFEST = {
-        "name": "unnamed_tool",
         "description": "No description provided.",
         "tags": [],
     }
@@ -46,7 +45,9 @@ class ToolManifest:
 
     @property
     def name(self) -> str:
-        """Get the tool name from the manifest."""
+        """Get the tool name from the manifest (required)."""
+        if "name" not in self.manifest:
+            raise ValueError("manifest.json missing required 'name' field")
         return self.manifest["name"]
 
     @property

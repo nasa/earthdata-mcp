@@ -1,7 +1,7 @@
 """Input and output models for the get_collections MCP tool."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -105,16 +105,29 @@ SpatialWktGeometryParam = Annotated[
 class CollectionResult(BaseModel):
     """Minimal collection result for direct CMR-backed discovery."""
 
-    concept_id: str = Field(..., description="CMR collection concept ID")
-    short_name: str | None = Field(None, description="Collection short name")
-    version: str | None = Field(None, description="Collection version")
-    entry_title: str = Field(..., description="Collection title")
     abstract: str | None = Field(None, description="Collection summary or abstract")
-    time_start: datetime | None = Field(None, description="Start of temporal coverage")
-    time_end: datetime | None = Field(None, description="End of temporal coverage")
-    is_ongoing: bool = Field(default=False, description="Whether the collection is ongoing")
-    platforms: list[str] = Field(default_factory=list, description="Platform short names")
+    collection_data_type: str | None = Field(
+        None, description="e.g., SCIENCE_QUALITY, NEAR_REAL_TIME"
+    )
+    concept_id: str = Field(..., description="CMR collection concept ID")
+    doi: str | None = Field(None, description="Digital Object Identifier")
+    entry_title: str = Field(..., description="Collection title")
     instruments: list[str] = Field(default_factory=list, description="Instrument short names")
+    is_ongoing: bool = Field(default=False, description="Whether the collection is ongoing")
+    native_id: str | None = Field(None, description="The native ID of the collection record")
+    platforms: list[str] = Field(default_factory=list, description="Platform short names")
+    processing_level_id: str | None = Field(None, description="Processing level (e.g., L3, L4)")
+    provider_id: str | None = Field(None, description="The provider ID of the collection")
+    related_urls: list[dict[str, Any]] = Field(
+        default_factory=list, description="List of related URLs (e.g., documentation, guides)"
+    )
+    revision_id: int | None = Field(None, description="The revision ID of the collection metadata")
+    short_name: str | None = Field(None, description="Collection short name")
+    spatial_resolution: str | None = Field(None, description="Human-readable spatial resolution")
+    temporal_resolution: str | None = Field(None, description="Human-readable temporal resolution")
+    time_end: datetime | None = Field(None, description="End of temporal coverage")
+    time_start: datetime | None = Field(None, description="Start of temporal coverage")
+    version: str | None = Field(None, description="Collection version")
 
 
 class GetCollectionsInput(BaseModel):

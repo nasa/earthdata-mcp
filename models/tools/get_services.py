@@ -21,31 +21,31 @@ CollectionConceptIdParam = Annotated[
 class ServiceResult(BaseModel):
     """Minimal service result for direct CMR-backed retrieval."""
 
-    concept_id: str = Field(..., description="CMR service concept ID")
-    native_id: str | None = Field(None, description="The native ID of the service record")
-    revision_id: int | None = Field(None, description="The revision ID of the service metadata")
-    provider_id: str | None = Field(None, description="The provider ID of the service")
-    name: str | None = Field(None, description="The name of the service")
-    long_name: str | None = Field(None, description="The long name of the service")
-    type: str | None = Field(None, description="The type of the service")
-    version: str | None = Field(None, description="The edition or version of the service")
-    description: str | None = Field(None, description="A brief description of the service")
-    url: dict[str, Any] | None = Field(None, description="Primary endpoint URL information")
-    related_urls: list[dict[str, Any]] | None = Field(
-        None, description="Documentation, guides, or other related links"
-    )
     access_constraints: dict[str, Any] | str | None = Field(
         None, description="Authentication or authorization requirements"
     )
-    use_constraints: dict[str, Any] | str | None = Field(
-        None, description="Legal restrictions or usage limits"
-    )
-    service_options: dict[str, Any] | None = Field(
-        None, description="Subset types, supported projections, output formats"
-    )
+    concept_id: str = Field(..., description="CMR service concept ID")
+    description: str | None = Field(None, description="A brief description of the service")
+    long_name: str | None = Field(None, description="The long name of the service")
+    name: str | None = Field(None, description="The name of the service")
+    native_id: str | None = Field(None, description="The native ID of the service record")
     operation_metadata: list[dict[str, Any]] | None = Field(
         None, description="Operation names and distributed computing platform"
     )
+    provider_id: str | None = Field(None, description="The provider ID of the service")
+    related_urls: list[dict[str, Any]] | None = Field(
+        None, description="Documentation, guides, or other related links"
+    )
+    revision_id: int | None = Field(None, description="The revision ID of the service metadata")
+    service_options: dict[str, Any] | None = Field(
+        None, description="Subset types, supported projections, output formats"
+    )
+    type: str | None = Field(None, description="The type of the service")
+    url: dict[str, Any] | None = Field(None, description="Primary endpoint URL information")
+    use_constraints: dict[str, Any] | str | None = Field(
+        None, description="Legal restrictions or usage limits"
+    )
+    version: str | None = Field(None, description="The edition or version of the service")
 
 
 class GetServicesInput(BaseModel):

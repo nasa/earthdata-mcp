@@ -37,7 +37,7 @@ def get_collections(  # pylint: disable=too-many-arguments
     temporal_end_date: TemporalEndDateParam = None,
     spatial_wkt_geometry: SpatialWktGeometryParam = None,
 ) -> dict:
-    """Search CMR collections and return up to 20 normalized results.
+    """Search CMR collections and return up to 10 normalized results.
 
     Unfiltered searches are supported and return a broad set of collections sorted by usage.
     When the user's question involves a specific time period or geographic area, always include
@@ -109,7 +109,7 @@ def get_collections(  # pylint: disable=too-many-arguments
             search_cmr(
                 concept_type="collection",
                 search_params=search_params,
-                page_size=20,
+                page_size=10,
                 method=method,
                 files=files,
             ),

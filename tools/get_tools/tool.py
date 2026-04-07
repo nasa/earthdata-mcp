@@ -25,6 +25,9 @@ def get_tools(
 
     The returned items use snake_cased keys that map directly to the UMM-T schema, including:
     - concept_id: CMR tool concept ID
+    - native_id: The native ID of the tool record
+    - revision_id: The revision ID of the tool metadata
+    - provider_id: The provider ID of the tool
     - name: The name of the tool
     - long_name: The long name of the tool
     - type: The type of the tool (e.g., Downloadable Tool, Web User Interface, Web Portal, Model)
