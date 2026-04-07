@@ -30,12 +30,12 @@ class TestToolManifest:
         assert manifest.description == "A test tool"
         assert manifest.tags == ["test", "example"]
 
-    def test_manifest_without_file(self, tmp_path, caplog):
+    def test_manifest_without_file(self, tmp_path):
         """Test behavior when manifest.json doesn't exist."""
         with pytest.raises(FileNotFoundError, match="No manifest.json found"):
             ToolManifest(tmp_path)
 
-    def test_manifest_with_invalid_json(self, tmp_path, caplog):
+    def test_manifest_with_invalid_json(self, tmp_path):
         """Test behavior when manifest.json contains invalid JSON."""
         manifest_path = tmp_path / "manifest.json"
         manifest_path.write_text("{invalid json}")
