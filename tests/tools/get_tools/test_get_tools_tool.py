@@ -135,7 +135,7 @@ class TestGetToolsNoResults:
 
     def test_returns_no_results_when_associations_key_absent(self, monkeypatch):
         tool = _load_tool()
-        item = {"meta": {"concept-id": "C1-PROV", "associations": {}}, "umm": {}}
+        item = {"meta": {"concept-id": "C1-PROV"}, "umm": {}}
         page = CMRSearchResponse(
             items=[item], total_hits=1, took_ms=5, search_after=None, page_size=1
         )
@@ -205,7 +205,10 @@ class TestGetToolsErrors:
         monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
         output = tool.get_tools(collection_concept_id="C1-PROV")
         assert output["status"] == "error"
-        assert output["error_message"] == "An unexpected internal error occurred during collection lookup."
+        assert (
+            output["error_message"]
+            == "An unexpected internal error occurred during collection lookup."
+        )
 
     def test_returns_error_on_unexpected_tool_error(self, monkeypatch):
         tool = _load_tool()

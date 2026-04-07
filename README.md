@@ -93,7 +93,7 @@ The server will start and be available at `http://127.0.0.1:5001/mcp`.
 
 1. Create folder under `tools/<toolname>/`
 2. Add required files:
-   - `manifest.json` - Tool metadata including `"entry_function"`, `"name"`, `"description"`, and a strictly required `"version"` string (e.g., `"0.1.0"`). See existing tools for examples.
+   - `manifest.json` - Tool metadata including `"entry_function"`, `"name"`, `"description"`, and a strictly required `"version"` string (using generic SemVer formats, e.g., `"1.2.3"`). See existing tools for examples.
    - `tool.py` - Implementation as a **synchronous** `def` function whose name matches the `"entry_function"` value. Do not use `async def`.
    - `output_model.py` - Pydantic output model (the loader auto-discovers the first `BaseModel` subclass for JSON schema generation).
 3. The tool is automatically discovered and registered by `loader.py`.
@@ -104,8 +104,8 @@ The server will start and be available at `http://127.0.0.1:5001/mcp`.
 Individual tools must follow Semantic Versioning (SemVer) in their `manifest.json`. You MUST bump the version when changing a tool's LLM-facing interface:
 
 - **Major (`x.0.0`)**: Breaking changes to the tool's interface (e.g., removing an input parameter, changing an output field name).
-- **Minor (`0.x.0`)**: Backwards-compatible additions (e.g., adding an optional input parameter or a new output field).
-- **Patch (`0.0.x`)**: Internal bug fixes or performance improvements that do not change the tool's LLM interface.
+- **Minor (`x.y.0`)**: Backwards-compatible additions (e.g., adding an optional input parameter or a new output field).
+- **Patch (`x.y.z`)**: Internal bug fixes or performance improvements that do not change the tool's LLM interface.
 
 ### Running Tests
 

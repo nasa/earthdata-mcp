@@ -134,6 +134,7 @@ class TestCreateSimpleTool:
         call_kwargs = mock_mcp.tool.call_args[1]
         assert call_kwargs["name"] == "test_tool"
         assert call_kwargs["description"] == "A test tool"
+        assert call_kwargs["version"] == manifest_data["version"]
         assert call_kwargs["output_schema"] is None
 
     def test_create_simple_tool_with_output_schema(self, tmp_path):
@@ -156,6 +157,7 @@ class TestCreateSimpleTool:
 
         call_kwargs = mock_mcp.tool.call_args[1]
         assert call_kwargs["output_schema"] == output_schema
+        assert call_kwargs["version"] == manifest_data["version"]
 
     def test_create_simple_tool_passes_annotations(self, tmp_path):
         """Test creating a tool forwards manifest annotations into mcp.tool."""

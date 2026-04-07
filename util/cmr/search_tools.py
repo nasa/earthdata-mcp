@@ -165,15 +165,19 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
 
     version = umm.get("Version")
 
+    related_list = umm.get("RelatedUrls")
+    if not isinstance(related_list, list):
+        related_list = []
+
     related_urls = [
         {
-            "url": u.get("URL"),
-            "type": u.get("Type"),
-            "subtype": u.get("Subtype"),
-            "description": u.get("Description"),
+            "url": url_item.get("URL"),
+            "type": url_item.get("Type"),
+            "subtype": url_item.get("Subtype"),
+            "description": url_item.get("Description"),
         }
-        for u in umm.get("RelatedUrls", [])
-        if u.get("URL")
+        for url_item in related_list
+        if isinstance(url_item, dict) and url_item.get("URL")
     ]
 
     return {
@@ -190,8 +194,10 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
         "is_ongoing": is_ongoing,
         "platforms": _dedupe_strings(platforms),
         "instruments": _dedupe_strings(instruments),
-        "processing_level_id": umm.get("ProcessingLevel", {}).get("Id"),
-        "doi": umm.get("DOI", {}).get("DOI"),
+        "processing_level_id": umm.get("ProcessingLevel").get("Id")
+        if isinstance(umm.get("ProcessingLevel"), dict)
+        else None,
+        "doi": umm.get("DOI").get("DOI") if isinstance(umm.get("DOI"), dict) else None,
         "collection_data_type": umm.get("CollectionDataType"),
         "temporal_resolution": _extract_collection_temporal_resolution(umm),
         "spatial_resolution": _extract_collection_spatial_resolution(umm),
@@ -211,6 +217,9 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
 
     size_mb, data_format = _extract_granule_archive_info(umm)
 
+    parent_coll = umm.get("ParentCollection")
+    data_granule = umm.get("DataGranule")
+
     return {
         "concept_id": concept_id,
         "native_id": meta.get("native-id"),
@@ -219,14 +228,16 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
         "collection_concept_id": (
             meta.get("parent-collection-id")
             or umm.get("CollectionConceptId")
-            or umm.get("ParentCollection", {}).get("CollectionConceptId")
+            or (parent_coll.get("CollectionConceptId") if isinstance(parent_coll, dict) else None)
         ),
         "granule_ur": umm.get("GranuleUR") or meta.get("native-id") or meta.get("concept-id", ""),
         "producer_granule_id": umm.get("ProducerGranuleId"),
         "time_start": time_start,
         "time_end": time_end,
         "cloud_cover": umm.get("CloudCover"),
-        "day_night_flag": umm.get("DataGranule", {}).get("DayNightFlag"),
+        "day_night_flag": data_granule.get("DayNightFlag")
+        if isinstance(data_granule, dict)
+        else None,
         "size_mb": size_mb,
         "data_format": data_format,
         "bounding_box": _extract_granule_bounding_box(umm),
@@ -295,6 +306,9 @@ def normalize_tool_item(item: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "concept_id": concept_id,
+        "native_id": meta.get("native-id"),
+        "revision_id": meta.get("revision-id"),
+        "provider_id": meta.get("provider-id"),
         "name": umm.get("Name"),
         "long_name": umm.get("LongName"),
         "type": umm.get("Type"),
@@ -448,7 +462,7 @@ def _extract_granule_archive_info(umm: dict[str, Any]) -> tuple[float | None, st
     Pulls the first available ArchiveAndDistributionInformation entry. Converts raw bytes
     into Megabytes so the LLM can more easily interpret and communicate file sizes.
     """
-    granule = umm.get("DataGranule", {})
+    granule = umm.get("DataGranule")
     # Ensure DataGranule is a dict (CMR sometimes omits it entirely or uses null)
     if not isinstance(granule, dict):
         return None, None
