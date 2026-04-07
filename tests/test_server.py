@@ -77,7 +77,7 @@ class TestMainFunction:
         ):
             server.main()
 
-            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            mock_print.assert_called_once_with("Running MCP over Streamable HTTP...")
             # Check that uvicorn was called with correct args (don't check app object identity)
             assert mock_uvicorn.call_count == 1
             call_args = mock_uvicorn.call_args
@@ -85,15 +85,15 @@ class TestMainFunction:
             assert call_args[1]["port"] == 5001
 
     @patch("server.uvicorn.run")
-    def test_main_sse_mode(self, mock_uvicorn):
-        """Test main function in SSE mode."""
+    def test_main_streamable_http_mode(self, mock_uvicorn):
+        """Test main function in streamable-http mode."""
         with (
-            patch.object(sys, "argv", ["server.py", "sse"]),
+            patch.object(sys, "argv", ["server.py", "streamable-http"]),
             patch("builtins.print") as mock_print,
         ):
             server.main()
 
-            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            mock_print.assert_called_once_with("Running MCP over Streamable HTTP...")
             # Check that uvicorn was called with correct args
             assert mock_uvicorn.call_count == 1
             call_args = mock_uvicorn.call_args
@@ -109,7 +109,7 @@ class TestMainFunction:
         ):
             server.main()
 
-            mock_print.assert_called_once_with("Running MCP over HTTP streaming...")
+            mock_print.assert_called_once_with("Running MCP over Streamable HTTP...")
             # Check that uvicorn was called with correct args
             assert mock_uvicorn.call_count == 1
             call_args = mock_uvicorn.call_args
@@ -172,7 +172,7 @@ class TestMainEntryPoint:
 
             # Verify that main() was called (which calls uvicorn.run)
             assert mock_uvicorn.called, "main() should have been executed"
-            mock_print.assert_any_call("Running MCP over HTTP streaming...")
+            mock_print.assert_any_call("Running MCP over Streamable HTTP...")
 
 
 class TestImportTimeErrorHandling:

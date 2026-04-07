@@ -35,13 +35,13 @@ The repository is structured around a few core domains:
 
 ## For Consumers: Connecting to the Server
 
-The Earthdata MCP server is deployed remotely and communicates via the official Model Context Protocol Server-Sent Events (SSE) transport. To use the server, configure your MCP-compatible client to point to our endpoint.
+The Earthdata MCP server is deployed remotely and communicates via the official Model Context Protocol **Streamable HTTP** transport. To use the server, configure your MCP-compatible client to point to our endpoint.
 
 ### Connection URL
 
 Configure your client to connect to the following HTTP endpoint. Most MCP clients require these standard parameters:
 
-- **Transport Type**: `sse` (Server-Sent Events)
+- **Transport Type**: `streamable-http`
 - **URL**: `https://cmr.earthdata.nasa.gov/mcp`
 - **Timeout**: `60000` (Recommended: 60 seconds to allow for complex spatial/temporal queries)
 
@@ -50,7 +50,7 @@ Works with:
 - Claude Code CLI
 - VS Code MCP extensions
 - LibreChat
-- Any MCP-compatible client that supports standard SSE transport
+- Any MCP-compatible client that supports Streamable HTTP transport
 
 ---
 
@@ -135,7 +135,7 @@ uv run pytest tests/test_server.py
    ```
 
 3. Connect at `http://localhost:6274`:
-   - Transport Type: **SSE**
+   - Transport Type: **Streamable HTTP**
    - URL: `http://localhost:5001/mcp`
 
 ### Local Database & Cache Configuration (Legacy)

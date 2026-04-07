@@ -51,7 +51,7 @@ async def health(_request):
 
 
 # Build the app with middleware and the intended path
-app = mcp.http_app(path="/mcp", middleware=[cors], transport="sse")
+app = mcp.http_app(path="/mcp", middleware=[cors])
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
@@ -63,7 +63,7 @@ def main():
 
     The server can run in these modes:
     - stdio: Run as standard I/O process (useful for subprocess communication)
-    - http/sse: Run as HTTP server with streaming responses (default)
+    - http: Run as HTTP server with Streamable HTTP transport (default)
     """
 
     mode = sys.argv[1] if len(sys.argv) > 1 else "http"
@@ -72,8 +72,9 @@ def main():
         print("Running MCP in stdio mode...")
         mcp.run()
 
-    elif mode in ("http", "sse"):
-        print("Running MCP over HTTP streaming...")
+    elif mode in ("http", "streamable-http"):
+        print("Running MCP over Streamable HTTP...")
+        logger.info("Using Streamable HTTP transport (default)")
         uvicorn.run(app, host="127.0.0.1", port=5001)
 
     else:
