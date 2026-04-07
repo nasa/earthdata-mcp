@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_tools")
-def get_tools(
+def get_tools(  # pylint: disable=too-many-return-statements
     collection_concept_id: CollectionConceptIdParam,
 ) -> dict:
     """Search CMR tools for a single parent collection, returning all associated normalized results.

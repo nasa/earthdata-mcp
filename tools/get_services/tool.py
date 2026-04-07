@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_services")
-def get_services(
+def get_services(  # pylint: disable=too-many-return-statements
     collection_concept_id: CollectionConceptIdParam,
 ) -> dict:
     """Search CMR services for a single parent collection, returning all associated normalized results.

@@ -203,6 +203,7 @@ class TestCreateSimpleTool:
             def decorator(func):
                 nonlocal wrapper_func
                 wrapper_func = func
+                # Mock the @observe decorator to return the function unchanged
                 return func
 
             return decorator
@@ -212,6 +213,8 @@ class TestCreateSimpleTool:
 
         register_func(mock_mcp)
 
+        # In fastmcp v3, the tool decorator doesn't return the wrapper,
+        # but our loader specifically wraps the tool_func inside wrapper()
         # pylint: disable=not-callable
         result = await wrapper_func(keyword="test")
         assert result == {"result": "Processed test"}
@@ -223,8 +226,8 @@ class TestLoadToolsFromDirectory:
 
     @patch("loader.importlib.import_module")
     def test_load_tools_success(self, mock_import, tmp_path, caplog):
-        caplog.set_level(logging.DEBUG)
         """Test successfully loading tools from directory."""
+        caplog.set_level(logging.DEBUG)
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
@@ -286,8 +289,8 @@ class TestLoadToolsFromDirectory:
         assert len(result["failed"]) == 0
 
     def test_load_tools_missing_manifest(self, tmp_path, caplog):
-        caplog.set_level(logging.DEBUG)
         """Test behavior when tool directory has no manifest.json."""
+        caplog.set_level(logging.DEBUG)
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
@@ -302,8 +305,8 @@ class TestLoadToolsFromDirectory:
 
     @patch("loader.importlib.import_module")
     def test_load_tools_skips_disabled_manifest(self, mock_import, tmp_path, caplog):
-        caplog.set_level(logging.DEBUG)
         """Tools with enabled=false in manifest should be skipped."""
+        caplog.set_level(logging.DEBUG)
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
@@ -383,8 +386,8 @@ class TestLoadToolsFromDirectory:
 
     @patch("loader.importlib.import_module")
     def test_load_tools_with_output_schema(self, mock_import, tmp_path, caplog):
-        caplog.set_level(logging.DEBUG)
         """Test loading tool with JSON output schema."""
+        caplog.set_level(logging.DEBUG)
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
@@ -423,8 +426,8 @@ class TestLoadToolsFromDirectory:
 
     @patch("loader.importlib.import_module")
     def test_load_tools_missing_name_field(self, mock_import, tmp_path, caplog):
-        caplog.set_level(logging.DEBUG)
         """Test behavior when manifest.json is missing the 'name' field."""
+        caplog.set_level(logging.DEBUG)
         tools_dir = tmp_path / "tools"
         tools_dir.mkdir()
 
