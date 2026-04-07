@@ -55,6 +55,18 @@ class TestToolManifest:
         assert manifest.get("custom_field") == "custom_value"
         assert manifest.get("nonexistent", "default") == "default"
 
+    def test_manifest_missing_required_keys(self, tmp_path):
+        """Test behavior when a valid manifest.json is missing required keys."""
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps({"description": "No name or version!"}))
+
+        manifest = ToolManifest(tmp_path)
+
+        with pytest.raises(ValueError, match="missing required 'name' field"):
+            _ = manifest.name
+        with pytest.raises(ValueError, match="missing required 'version' field"):
+            _ = manifest.version
+
     def test_manifest_annotations_from_nested_object(self, tmp_path):
         """Test loading annotations from the nested annotations object."""
         manifest_data = {
