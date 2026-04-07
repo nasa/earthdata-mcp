@@ -406,11 +406,13 @@ class TestLoadToolsFromDirectory:
 
         # Create a real module-like object to bypass mock's weird dir() behavior
         class DummyModule:
-            pass
+            """Dummy module for mocking imports."""
 
         from pydantic import BaseModel
 
         class DummyOutput(BaseModel):
+            """Dummy Pydantic output model."""
+
             result: str
 
         mock_output_module = DummyModule()
