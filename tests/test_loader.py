@@ -32,31 +32,16 @@ class TestToolManifest:
 
     def test_manifest_without_file(self, tmp_path, caplog):
         """Test behavior when manifest.json doesn't exist."""
-        manifest = ToolManifest(tmp_path)
-
-        with pytest.raises(ValueError, match="missing required 'name' field"):
-            _ = manifest.name
-        with pytest.raises(ValueError, match="missing required 'version' field"):
-            _ = manifest.version
-        assert manifest.description == "No description provided."
-        assert manifest.tags == []
-
-        assert "No manifest.json found" in caplog.text
+        with pytest.raises(FileNotFoundError, match="No manifest.json found"):
+            ToolManifest(tmp_path)
 
     def test_manifest_with_invalid_json(self, tmp_path, caplog):
         """Test behavior when manifest.json contains invalid JSON."""
         manifest_path = tmp_path / "manifest.json"
         manifest_path.write_text("{invalid json}")
 
-        manifest = ToolManifest(tmp_path)
-
-        with pytest.raises(ValueError, match="missing required 'name' field"):
-            _ = manifest.name
-        with pytest.raises(ValueError, match="missing required 'version' field"):
-            _ = manifest.version
-        assert manifest.description == "No description provided."
-
-        assert "Could not read manifest.json" in caplog.text
+        with pytest.raises(ValueError, match="Could not read manifest.json"):
+            ToolManifest(tmp_path)
 
     def test_manifest_get_method(self, tmp_path):
         """Test the get method of ToolManifest."""

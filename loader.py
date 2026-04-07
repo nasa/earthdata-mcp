@@ -35,9 +35,9 @@ class ToolManifest:
                     file_manifest = json.load(f)
                 self.manifest.update(file_manifest)
             except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
-                logger.warning("Could not read manifest.json: %s", e)
+                raise ValueError(f"Could not read manifest.json: {e}") from e
         else:
-            logger.warning("No manifest.json found at %s", manifest_path)
+            raise FileNotFoundError(f"No manifest.json found at {manifest_path}")
 
     def get(self, key: str, default=None):
         """Get a manifest value."""

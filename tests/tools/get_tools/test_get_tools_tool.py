@@ -57,7 +57,12 @@ class TestGetToolsSuccess:
     def test_tools_contains_normalized_items(self, monkeypatch):
         tool = _load_tool()
         raw_item = {
-            "meta": {"concept-id": "TL1-PROV"},
+            "meta": {
+                "concept-id": "TL1-PROV",
+                "native-id": "NATIVE-1",
+                "provider-id": "PROV",
+                "revision-id": 1,
+            },
             "umm": {
                 "Name": "Giovanni",
                 "Type": "Web User Interface",
@@ -74,6 +79,10 @@ class TestGetToolsSuccess:
         assert output["tools"][0]["concept_id"] == "TL1-PROV"
         assert output["tools"][0]["name"] == "Giovanni"
         assert output["tools"][0]["access_constraints"] == "Requires Earthdata Login"
+        assert output["tools"][0]["native_id"] == "NATIVE-1"
+        assert output["tools"][0]["provider_id"] == "PROV"
+        assert output["tools"][0]["revision_id"] == 1
+        assert output["tools"][0]["type"] == "Web User Interface"
 
     def test_total_hits_reflects_tool_page(self, monkeypatch):
         tool = _load_tool()
