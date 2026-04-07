@@ -372,7 +372,15 @@ def _extract_collection_temporal_resolution(umm: dict[str, Any]) -> str | None:
         # Ensure the extent item is actually a dictionary before calling .get()
         if not isinstance(extent, dict):
             continue
-        for res in extent.get("TemporalResolutions", []):
+
+        # CMR sometimes uses an array "TemporalResolutions" or a single object "TemporalResolution"
+        resolutions = extent.get("TemporalResolutions", [])
+        if not resolutions:
+            single_res = extent.get("TemporalResolution")
+            if single_res:
+                resolutions = [single_res]
+
+        for res in resolutions:
             # Ensure the resolution item is a dictionary
             if not isinstance(res, dict):
                 continue
@@ -405,7 +413,12 @@ def _extract_collection_spatial_resolution(umm: dict[str, Any]) -> str | None:
         return None
 
     for res_type in ["HorizontalDataResolution", "VerticalDataResolution"]:
-        for key in ["GriddedResolutions", "NonGriddedResolutions", "PointResolution"]:
+        for key in [
+            "GriddedResolutions",
+            "NonGriddedResolutions",
+            "PointResolution",
+            "GenericResolutions",
+        ]:
             res_container = resolution.get(res_type, {})
             # Ensure the resolution type container is a dict
             if not isinstance(res_container, dict):
