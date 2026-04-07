@@ -40,6 +40,19 @@ class TestServerInitialization:
         assert server.logger.name == "server"
 
 
+class TestHealthEndpoint:
+    """Test the ALB health check endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_health_returns_ok(self):
+        """Health endpoint should return {"earthdata-mcp": {"ok?": True}}."""
+        import json
+
+        response = await server.health(None)
+        assert response.status_code == 200
+        assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
+
+
 class TestMainFunction:
     """Test the main() function with different modes."""
 

@@ -26,6 +26,7 @@ class TestToolManifest:
         manifest = ToolManifest(tmp_path)
 
         assert manifest.name == "test_tool"
+        assert manifest.version == "1.0.0"
         assert manifest.description == "A test tool"
         assert manifest.tags == ["test", "example"]
 
@@ -35,6 +36,8 @@ class TestToolManifest:
 
         with pytest.raises(ValueError, match="missing required 'name' field"):
             _ = manifest.name
+        with pytest.raises(ValueError, match="missing required 'version' field"):
+            _ = manifest.version
         assert manifest.description == "No description provided."
         assert manifest.tags == []
 
@@ -49,6 +52,8 @@ class TestToolManifest:
 
         with pytest.raises(ValueError, match="missing required 'name' field"):
             _ = manifest.name
+        with pytest.raises(ValueError, match="missing required 'version' field"):
+            _ = manifest.version
         assert manifest.description == "No description provided."
 
         assert "Could not read manifest.json" in caplog.text
