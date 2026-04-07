@@ -255,6 +255,38 @@ def extract_access_urls(umm: dict[str, Any]) -> list[str]:
     return _dedupe_strings(urls)
 
 
+def normalize_tool_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a CMR UMM tool item into the MCP-facing response shape."""
+    meta = item.get("meta", {})
+    umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing tool record: %s", concept_id)
+
+    return {
+        "concept_id": concept_id,
+        "name": umm.get("Name"),
+        "long_name": umm.get("LongName"),
+        "type": umm.get("Type"),
+        "version": umm.get("Version"),
+        "description": umm.get("Description"),
+        "url": umm.get("URL"),
+        "doi": umm.get("DOI"),
+        "related_urls": umm.get("RelatedURLs"),
+        "supported_input_formats": umm.get("SupportedInputFormats"),
+        "supported_output_formats": umm.get("SupportedOutputFormats"),
+        "supported_operating_systems": umm.get("SupportedOperatingSystems"),
+        "supported_browsers": umm.get("SupportedBrowsers"),
+        "supported_software_languages": umm.get("SupportedSoftwareLanguages"),
+        "tool_keywords": umm.get("ToolKeywords"),
+        "organizations": umm.get("Organizations"),
+        "quality": umm.get("Quality"),
+        "access_constraints": umm.get("AccessConstraints"),
+        "use_constraints": umm.get("UseConstraints"),
+        "potential_action": umm.get("PotentialAction"),
+    }
+
+
 def normalize_service_item(item: dict[str, Any]) -> dict[str, Any]:
     """Normalize a CMR UMM service item into the MCP-facing response shape."""
     meta = item.get("meta", {})
