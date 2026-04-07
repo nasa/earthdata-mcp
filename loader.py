@@ -126,7 +126,6 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
     """Load all tools from the tools directory."""
     tools_dir = Path(tools_dir)
     loaded = []
-    failed = []
 
     for tool_folder in sorted(tools_dir.iterdir()):
         if not tool_folder.is_dir() or tool_folder.name.startswith((".", "__")):
@@ -203,7 +202,6 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
             logger.info("[LOAD] ✓ %s", tool_name)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            failed.append(tool_folder.name)
             logger.error("[FAIL] ✗ %s: %s", tool_folder.name, e)
             raise RuntimeError(
                 f"Failed to load tool '{tool_folder.name}' from {manifest_path}"
@@ -212,8 +210,6 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
     # Summary
     logger.info("\n%s", "=" * 50)
     logger.info("Loaded: %d tools", len(loaded))
-    if failed:
-        logger.info("Failed: %d tools: %s", len(failed), ", ".join(failed))
     logger.info("%s\n", "=" * 50)
 
-    return {"loaded": loaded, "failed": failed}
+    return {"loaded": loaded, "failed": []}

@@ -385,6 +385,51 @@ class TestLoadToolsFromDirectory:
         assert "✗ broken_tool" in caplog.text
 
     @patch("loader.importlib.import_module")
+    def test_load_tools_with_pydantic_output_schema(self, mock_import, tmp_path, caplog):
+        """Test loading tool with Pydantic output schema."""
+        caplog.set_level(logging.DEBUG)
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir()
+
+        tool_dir = tools_dir / "pydantic_tool"
+        tool_dir.mkdir()
+
+        manifest = {"name": "pydantic_tool", "version": "1.0.0", "entry_function": "register"}
+        (tool_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        mock_tool_module = Mock()
+
+        def mock_register(param: str) -> dict:
+            return {"result": param}
+
+        mock_tool_module.register = mock_register
+
+        # Create a real module-like object to bypass mock's weird dir() behavior
+        class DummyModule:
+            pass
+
+        from pydantic import BaseModel
+
+        class DummyOutput(BaseModel):
+            result: str
+
+        mock_output_module = DummyModule()
+        setattr(mock_output_module, "DummyOutput", DummyOutput)
+
+        mock_import.side_effect = [
+            mock_tool_module,  # First call: tool.py
+            mock_output_module,  # Second call: output_model.py
+        ]
+
+        mock_mcp = Mock()
+        mock_mcp.tool = Mock(return_value=lambda f: f)
+
+        result = load_tools_from_directory(mock_mcp, str(tools_dir))
+
+        assert "pydantic_tool" in result["loaded"]
+        assert "Using Pydantic model DummyOutput for pydantic_tool" in caplog.text
+
+    @patch("loader.importlib.import_module")
     def test_load_tools_with_output_schema(self, mock_import, tmp_path, caplog):
         """Test loading tool with JSON output schema."""
         caplog.set_level(logging.DEBUG)
