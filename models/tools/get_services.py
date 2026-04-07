@@ -22,6 +22,9 @@ class ServiceResult(BaseModel):
     """Minimal service result for direct CMR-backed retrieval."""
 
     concept_id: str = Field(..., description="CMR service concept ID")
+    native_id: str | None = Field(None, description="The native ID of the service record")
+    revision_id: int | None = Field(None, description="The revision ID of the service metadata")
+    provider_id: str | None = Field(None, description="The provider ID of the service")
     name: str | None = Field(None, description="The name of the service")
     long_name: str | None = Field(None, description="The long name of the service")
     type: str | None = Field(None, description="The type of the service")

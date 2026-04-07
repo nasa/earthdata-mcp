@@ -25,6 +25,9 @@ def get_services(
 
     The returned items use snake_cased keys that map directly to the UMM-S schema, including:
     - concept_id: CMR service concept ID
+    - native_id: The native ID of the service record
+    - revision_id: The revision ID of the service metadata
+    - provider_id: The provider ID of the service
     - name: The name of the service
     - long_name: The long name of the service
     - type: The type of the service

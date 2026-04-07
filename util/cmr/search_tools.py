@@ -265,6 +265,9 @@ def normalize_service_item(item: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "concept_id": concept_id,
+        "native_id": meta.get("native-id"),
+        "revision_id": meta.get("revision-id"),
+        "provider_id": meta.get("provider-id"),
         "name": umm.get("Name"),
         "long_name": umm.get("LongName"),
         "type": umm.get("Type"),
