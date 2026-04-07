@@ -205,6 +205,9 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
         except Exception as e:  # pylint: disable=broad-exception-caught
             failed.append(tool_folder.name)
             logger.error("[FAIL] ✗ %s: %s", tool_folder.name, e)
+            raise RuntimeError(
+                f"Failed to load tool '{tool_folder.name}' from {manifest_path}"
+            ) from e
 
     # Summary
     logger.info("\n%s", "=" * 50)

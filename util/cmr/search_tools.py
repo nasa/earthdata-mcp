@@ -483,7 +483,9 @@ def _extract_granule_archive_info(umm: dict[str, Any]) -> tuple[float | None, st
             size_mb = round(float(size) / (1024 * 1024), 2) if size is not None else None
         except (ValueError, TypeError):
             size_mb = None
-        return size_mb, fmt
+
+        if size_mb is not None or fmt is not None:
+            return size_mb, fmt
     return None, None
 
 

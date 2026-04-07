@@ -356,14 +356,11 @@ class TestLoadToolsFromDirectory:
         )
 
         mock_mcp = Mock()
-        result = load_tools_from_directory(mock_mcp, str(tools_dir))
+        with pytest.raises(RuntimeError, match="Failed to load tool 'bad_enabled_tool'"):
+            load_tools_from_directory(mock_mcp, str(tools_dir))
 
-        assert not result["loaded"]
-        assert result["failed"] == ["bad_enabled_tool"]
         mock_import.assert_not_called()
-
         assert "'enabled' field must be a boolean" in caplog.text
-        assert "bad_enabled_tool" in caplog.text
 
     @patch("loader.importlib.import_module")
     def test_load_tools_missing_entry_function(self, mock_import, tmp_path, caplog):
@@ -382,9 +379,8 @@ class TestLoadToolsFromDirectory:
         mock_import.return_value = mock_module
 
         mock_mcp = Mock()
-        result = load_tools_from_directory(mock_mcp, str(tools_dir))
-
-        assert "broken_tool" in result["failed"]
+        with pytest.raises(RuntimeError, match="Failed to load tool 'broken_tool'"):
+            load_tools_from_directory(mock_mcp, str(tools_dir))
 
         assert "✗ broken_tool" in caplog.text
 
@@ -447,9 +443,8 @@ class TestLoadToolsFromDirectory:
         (tool_dir / "manifest.json").write_text(json.dumps(manifest))
 
         mock_mcp = Mock()
-        result = load_tools_from_directory(mock_mcp, str(tools_dir))
-
-        assert "no_name_tool" in result["failed"]
+        with pytest.raises(RuntimeError, match="Failed to load tool 'no_name_tool'"):
+            load_tools_from_directory(mock_mcp, str(tools_dir))
 
         assert "✗ no_name_tool" in caplog.text
         assert "missing 'name' field" in caplog.text
