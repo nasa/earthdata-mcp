@@ -35,21 +35,22 @@ The repository is structured around a few core domains:
 
 ## For Consumers: Connecting to the Server
 
-The Earthdata MCP server is deployed remotely and communicates via Streamable HTTP. To use the server, you simply need to configure your MCP-compatible client to point to our endpoint.
+The Earthdata MCP server is deployed remotely and communicates via the official Model Context Protocol Server-Sent Events (SSE) transport. To use the server, configure your MCP-compatible client to point to our endpoint.
 
 ### Connection URL
 
-Configure your client to connect to the following HTTP endpoint:
+Configure your client to connect to the following HTTP endpoint. Most MCP clients require these standard parameters:
 
-```text
-https://cmr.earthdata.nasa.gov/mcp
-```
+- **Transport Type**: `sse` (Server-Sent Events)
+- **URL**: `https://cmr.earthdata.nasa.gov/mcp`
+- **Timeout**: `60000` (Recommended: 60 seconds to allow for complex spatial/temporal queries)
 
 Works with:
 
 - Claude Code CLI
 - VS Code MCP extensions
-- Any MCP-compatible client that supports Streamable HTTP transport
+- LibreChat
+- Any MCP-compatible client that supports standard SSE transport
 
 ---
 
@@ -92,11 +93,19 @@ The server will start and be available at `http://127.0.0.1:5001/mcp`.
 
 1. Create folder under `tools/<toolname>/`
 2. Add required files:
-   - `manifest.json` - Tool metadata including `"entry_function"` (the name of the callable in `tool.py`), `"name"`, `"description"`, and optional `"enabled"` flag. See `get_services/manifest.json` or `get_granules/manifest.json` for examples.
-   - `tool.py` - Implementation as a **synchronous** `def` function whose name matches the `"entry_function"` value in `manifest.json`. `loader.py` wraps it in an async handler automatically; do not use `async def`. See `get_services/tool.py` or `get_granules/tool.py` for examples.
+   - `manifest.json` - Tool metadata including `"entry_function"`, `"name"`, `"description"`, and a strictly required `"version"` string (e.g., `"0.1.0"`). See existing tools for examples.
+   - `tool.py` - Implementation as a **synchronous** `def` function whose name matches the `"entry_function"` value. Do not use `async def`.
    - `output_model.py` - Pydantic output model (the loader auto-discovers the first `BaseModel` subclass for JSON schema generation).
 3. The tool is automatically discovered and registered by `loader.py`.
 4. Test with MCP Inspector, then add pytest under `tests/`
+
+### Tool Versioning Policy
+
+Individual tools must follow Semantic Versioning (SemVer) in their `manifest.json`. You MUST bump the version when changing a tool's LLM-facing interface:
+
+- **Major (`x.0.0`)**: Breaking changes to the tool's interface (e.g., removing an input parameter, changing an output field name).
+- **Minor (`0.x.0`)**: Backwards-compatible additions (e.g., adding an optional input parameter or a new output field).
+- **Patch (`0.0.x`)**: Internal bug fixes or performance improvements that do not change the tool's LLM interface.
 
 ### Running Tests
 
@@ -126,7 +135,7 @@ uv run pytest tests/test_server.py
    ```
 
 3. Connect at `http://localhost:6274`:
-   - Transport Type: **Streamable HTTP**
+   - Transport Type: **SSE**
    - URL: `http://localhost:5001/mcp`
 
 ### Local Database & Cache Configuration (Legacy)

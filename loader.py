@@ -55,6 +55,13 @@ class ToolManifest:
         return self.manifest["description"]
 
     @property
+    def version(self) -> str:
+        """Get the tool version from the manifest (required)."""
+        if "version" not in self.manifest:
+            raise ValueError("manifest.json missing required 'version' field")
+        return self.manifest["version"]
+
+    @property
     def tags(self) -> list:
         """Get the tool tags from the manifest, returning empty list if not specified."""
         return self.manifest.get("tags", [])
@@ -93,6 +100,7 @@ def create_simple_tool(
         tool_kwargs = {
             "name": manifest.name,
             "description": manifest.description,
+            "version": manifest.version,
             "output_schema": output_schema,
         }
         if manifest.annotations:

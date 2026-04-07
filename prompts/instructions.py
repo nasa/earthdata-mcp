@@ -97,9 +97,10 @@ During **granule verification** (`get_granules`):
 - 0 granules for the user's requested place/time is the correct answer.
 - You may run a broader follow-up search only to explain nearby coverage, not to overturn the availability answer.
 
-Error handling:
+Error handling & Feedback:
 - If a tool returns status `error`, explain the issue in plain language and suggest corrective action (e.g., malformed geometry, invalid date range).
 - Never silently ignore errors or present error responses as successful results.
+- If a tool consistently fails, or if the user asks for data/functionality that the MCP server does not currently support, kindly suggest they open an issue at: https://github.com/nasa/earthdata-mcp
 
 ### EXAMPLE INTERACTION TRACE
 User: "I need sea surface temperature data near Hawaii for January 2024"

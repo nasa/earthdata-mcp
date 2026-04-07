@@ -2,7 +2,7 @@
     "name": "get_services",
     "module": "tool",
     "description": "Search NASA CMR services for a specific parent collection and return all associated normalized UMM-S records.\n\nKey fields in each returned item:\n- concept_id: CMR service concept ID\n- native_id: native ID of the service record\n- revision_id: revision ID of the service metadata\n- provider_id: provider ID of the service\n- name: service name\n- type: service type (e.g., OPeNDAP, WCS, Harmony, WMS, WMTS, ESI, EGI - No Processing)\n- version: service version string\n- description: human-readable service description\n- url: Primary endpoint URL information\n- service_options: supported output formats, projections, subset types, and interpolation methods\n- operation_metadata: operation names (e.g., GetCapabilities, GetMap) and distributed computing platform\n\nKey parameters:\n- collection_concept_id: required parent collection concept ID\n\nIteration & Refinement:\n- All services associated with the collection are fetched in a single request. Paging is not supported.\n\nNote: A collection may be associated with multiple services of different types. Check type to distinguish between data access services (e.g., OPeNDAP, WCS) and discovery/visualization services (e.g., WMS, WMTS).",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "tags": [
         "nasa",
         "earthdata",

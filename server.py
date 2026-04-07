@@ -21,8 +21,16 @@ logger = logging.getLogger(__name__)
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 
+# Get server version from environment, defaulting to "dev"
+server_version = os.environ.get("EARTHDATA_MCP_VERSION", "dev")
+
 # Initialize FastMCP server
-mcp = FastMCP("earthdata-mcp", instructions=MCP_SERVER_INSTRUCTIONS)
+mcp = FastMCP(
+    "earthdata-mcp",
+    instructions=MCP_SERVER_INSTRUCTIONS,
+    version=server_version,
+    website_url="https://github.com/nasa/earthdata-mcp",
+)
 
 # Get CORS middleware configuration
 cors = get_cors_middleware()
@@ -43,7 +51,7 @@ async def health(_request):
 
 
 # Build the app with middleware and the intended path
-app = mcp.http_app(path="/mcp", middleware=[cors])
+app = mcp.http_app(path="/mcp", middleware=[cors], transport="sse")
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
