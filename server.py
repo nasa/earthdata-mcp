@@ -1,6 +1,7 @@
 """Server File - FastMCP server for CMR tools."""
 
 import logging
+import os
 import sys
 
 import uvicorn
@@ -17,7 +18,8 @@ load_dotenv()
 
 # Initialize logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 
 # Initialize FastMCP server
 mcp = FastMCP("earthdata-mcp", instructions=MCP_SERVER_INSTRUCTIONS)

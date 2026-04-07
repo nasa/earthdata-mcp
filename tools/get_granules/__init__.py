@@ -1,1 +1,1 @@
-"""Granule search MCP tool."""
+"""The get_granules MCP tool package."""
