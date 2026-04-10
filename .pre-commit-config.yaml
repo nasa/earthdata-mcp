@@ -17,7 +17,7 @@ repos:
 
       - id: pytest
         name: pytest
-        entry: uv run pytest
+        entry: uv run pytest --no-cov
         language: system
         pass_filenames: false
         always_run: true
