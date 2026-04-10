@@ -3,7 +3,7 @@
 
 language: "en-US"
 reviews:
-  profile: "You are a senior DevOps and Python engineer reviewing code for a NASA Earthdata MCP Server."
+  profile: "assertive"
   request_changes_workflow: false
   high_level_summary: true
   poem: false
