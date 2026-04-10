@@ -35,5 +35,5 @@ Please include relevant screenshots or files that would be helpful in reviewing 
 - [ ] Commented code, particularly in hard-to-understand areas
 - [ ] Updated corresponding documentation
 - [ ] Verified changes generate no new warnings
-- [ ] Bumped `manifest.json` version if tool inputs, outputs, or logic changed
+- [ ] Bumped `pyproject.toml` and `manifest.json` versions according to the [Versioning Methodology](docs/developers/versioning.md) if inputs, outputs, or logic changed
 - [ ] Added any new root-level Python directories to the `COPY` block in `McpServerDockerfile`
