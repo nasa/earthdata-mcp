@@ -18,6 +18,7 @@ COPY middleware/ middleware/
 COPY models/ models/
 COPY tools/ tools/
 COPY util/ util/
+COPY prompts/ prompts/
 
 # Expose port for health checks and traffic
 EXPOSE 8080

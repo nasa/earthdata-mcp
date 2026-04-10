@@ -27,12 +27,13 @@ List impacted areas (e.g., specific tools, middleware, infrastructure).
 
 Please include relevant screenshots or files that would be helpful in reviewing and verifying this change.
 
-## Checklist
+## Pre-Review Checklist
 
-- [ ] I have added automated tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] **Tool Versioning:** If I changed an MCP tool's inputs, outputs, or logic, I have explicitly bumped its `version` in its `manifest.json` according to SemVer.
+- [ ] Added automated tests that prove the fix is effective or feature works
+- [ ] Verified new and existing unit tests pass locally
+- [ ] Performed a self-review of the code
+- [ ] Commented code, particularly in hard-to-understand areas
+- [ ] Updated corresponding documentation
+- [ ] Verified changes generate no new warnings
+- [ ] Bumped `manifest.json` version if tool inputs, outputs, or logic changed
+- [ ] Added any new root-level Python directories to the `COPY` block in `McpServerDockerfile`
