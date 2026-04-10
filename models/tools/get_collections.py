@@ -95,8 +95,9 @@ SpatialWktGeometryParam = Annotated[
             "POINT(lon lat), LINESTRING(lon lat, ...), "
             "or ENVELOPE(minLon, maxLon, maxLat, minLat). "
             "Restricts results to collections whose declared extent intersects this area. "
-            "Set this whenever the user specifies a geographic region — omitting it returns "
-            "collections with global or unspecified coverage."
+            "CMR returns any collection that touches this shape, so precise geometries are "
+            "preferred to prevent false positives. Set this whenever the user specifies a geographic region "
+            "— omitting it returns collections with global or unspecified coverage."
         )
     ),
 ]

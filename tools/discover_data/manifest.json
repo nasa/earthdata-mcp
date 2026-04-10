@@ -2,7 +2,7 @@
   "name": "discover_data",
   "module": "tool",
   "description": "Discover NASA Earth science collections from natural-language queries and return ranked collection matches with optional clarifying questions.\n\nKey parameters:\n- query: required natural-language request\n- temporal_constraint / spatial_constraint: optional explicit constraints\n- search_context: optional follow-up context from prior response (opaque passthrough)\n- max_results / similarity_threshold: optional ranking controls\n\nFollow-up behavior:\n- Pass search_context back unchanged between iterations\n- To answer clarifying questions, set search_context.user_refinements with question_id -> selected option\n- Params must be sent as a native object, not a JSON string",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "tags": [
     "nasa",
     "earthdata",

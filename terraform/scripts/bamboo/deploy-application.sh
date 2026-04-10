@@ -63,6 +63,7 @@ export TF_VAR_load_balancer_name="${bamboo_LOAD_BALANCER_NAME}"
 [ -n "$bamboo_EMBEDDINGS_TABLE" ] && export TF_VAR_embeddings_table="$bamboo_EMBEDDINGS_TABLE"
 [ -n "$bamboo_ASSOCIATIONS_TABLE" ] && export TF_VAR_associations_table="$bamboo_ASSOCIATIONS_TABLE"
 [ -n "$bamboo_LANGFUSE_BASE_URL" ] && export TF_VAR_langfuse_host="$bamboo_LANGFUSE_BASE_URL"
+
 [ -n "$bamboo_LANGFUSE_PUBLIC_KEY" ] && export TF_VAR_langfuse_public_key="$bamboo_LANGFUSE_PUBLIC_KEY"
 [ -n "$bamboo_MCP_SERVER_CPU" ] && export TF_VAR_mcp_server_cpu="$bamboo_MCP_SERVER_CPU"
 [ -n "$bamboo_MCP_SERVER_MEMORY" ] && export TF_VAR_mcp_server_memory="$bamboo_MCP_SERVER_MEMORY"

@@ -34,3 +34,6 @@ terraform.tgz
 .terraform
 .terraform.lock.hcl
 terraform_backend.tf
+
+# Local AI Configuration
+.continue/rules/local/

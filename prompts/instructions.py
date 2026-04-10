@@ -11,9 +11,9 @@ You MUST follow this two-step process to prevent hallucinating data availability
 ### SPATIAL CONSTRAINTS
 All WKT geometries use **(LONGITUDE LATITUDE)** order — longitude first, latitude second. This is the OPPOSITE of the Google Maps (lat, lon) convention.
 
-When you construct geometry from a place name, use an approximate bounding-box POLYGON. Precision is not critical — CMR performs intersection checks, so a box that fully contains the area of interest is better than a precise boundary that might miss edge coverage.
-- "Gulf of Mexico" → `POLYGON((-98 18, -80 18, -80 31, -98 31, -98 18))`
-- "Tokyo" → `POINT(139.69 35.68)`
+When you construct geometry from a place name, strive for precision. CMR performs an "intersects" search, meaning it will return a granule if even the slightest edge of it touches your provided geometry. Drawing an overly large bounding box will return massive amounts of irrelevant data that just happened to cross the boundary.
+- If a user asks for a specific city or point of interest, use a precise `POINT` (e.g., Tokyo → `POINT(139.69 35.68)`).
+- If they ask for a region or body of water, use an accurate `POLYGON` or `ENVELOPE` that tightly hugs the area (e.g., "Gulf of Mexico" → `POLYGON((-98 18, -80 18, -80 31, -98 31, -98 18))`).
 - New York City is `POINT(-74.006 40.7128)`, NOT `POINT(40.7128 -74.006)`
 
 When the user provides their own WKT or GeoJSON:

@@ -30,6 +30,38 @@ class TestServerInitialization:
         assert "earthaccess" in server.mcp.instructions
         assert "DISCOVER COLLECTIONS" in server.mcp.instructions
 
+    @patch("importlib.metadata.version")
+    def test_server_version_from_metadata(self, mock_version):
+        """Test that server version is correctly pulled from package metadata."""
+        mock_version.return_value = "1.2.3"
+
+        # Reload module to trigger initialization
+        if "server" in sys.modules:
+            del sys.modules["server"]
+
+        import server as fresh_server  # pylint: disable=reimported
+
+        assert fresh_server.server_version == "1.2.3"
+        assert fresh_server.mcp.version == "1.2.3"
+        assert fresh_server.mcp.name == "earthdata-mcp"
+        mock_version.assert_called_once_with("earthdata-mcp")
+
+    @patch("importlib.metadata.version")
+    def test_server_version_fallback_to_dev(self, mock_version):
+        """Test that server defaults to 'dev' when package is not installed."""
+        mock_version.side_effect = importlib.metadata.PackageNotFoundError()
+
+        # Reload module to trigger initialization
+        if "server" in sys.modules:
+            del sys.modules["server"]
+
+        import server as fresh_server  # pylint: disable=reimported
+
+        assert fresh_server.server_version == "dev"
+        assert fresh_server.mcp.version == "dev"
+        assert fresh_server.mcp.name == "earthdata-mcp"
+        mock_version.assert_called_once_with("earthdata-mcp")
+
     def test_server_load_tools_error_handling(self):
         """Test that server properly logs errors during tool loading."""
         # This test verifies the error handling exists
