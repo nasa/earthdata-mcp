@@ -41,7 +41,7 @@ def get_weather(location: str) -> dict:
 ```
 
 **C. `output_model.py`**
-A Pydantic output model. The MCP server auto-discovers the first `BaseModel` subclass defined here to generate the JSON schema for the LLM.
+A Pydantic output model. Keep exactly one `BaseModel` subclass in this file; the loader registers the first matching model it finds when inspecting the module.
 
 ```python
 from pydantic import BaseModel
