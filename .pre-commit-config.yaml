@@ -10,7 +10,14 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: uv run pylint util/ tests/ lambdas/ tools/
+        entry: uv run pylint util/ tests/ lambdas/ tools/ prompts/ rag_eval/ models/ server.py loader.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
         language: system
         pass_filenames: false
         always_run: true

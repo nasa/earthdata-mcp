@@ -21,6 +21,9 @@
 # util/
 !util/
 
+# prompts/
+!prompts/
+
 # Exclude artifacts from allowed dirs
 **/__pycache__
 **/*.pyc

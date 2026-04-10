@@ -79,6 +79,7 @@ class GetToolsInput(BaseModel):
     @field_validator("collection_concept_id")
     @classmethod
     def validate_format(cls, v: str) -> str:
+        """Validate that the collection concept ID matches the CMR format."""
         if not re.match(r"^C\d+-[A-Za-z0-9_]+$", v):
             raise ValueError(
                 "Invalid collection concept ID format. "

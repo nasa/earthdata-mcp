@@ -8,11 +8,11 @@ reviews:
   high_level_summary: true
   poem: false
   review_status: true
-  
+
   # Custom path-based instructions for the AI reviewer
   path_instructions:
     - path: "**/*.py"
       instructions: |
-        CRITICAL DEPLOYMENT CHECK: 
-        If this pull request introduces a new root-level Python directory or package (e.g., a new folder containing `.py` files that is imported elsewhere), you MUST verify that this new directory is explicitly added to the `COPY` block in `McpServerDockerfile`.
-        If the directory is missing from `McpServerDockerfile`'s `COPY` instructions, leave a blocking comment on the PR indicating that the ECS deployment will fail with a `ModuleNotFoundError` on startup unless the Dockerfile is updated.
+        CRITICAL DEPLOYMENT CHECK:
+        If this pull request introduces a new root-level Python directory or package (e.g., a new folder containing `.py` files that is imported elsewhere), you MUST verify that this new directory is explicitly added to BOTH the `COPY` block in `McpServerDockerfile` AND the allowlist (`!my_folder/`) in `McpServerDockerfile.dockerignore`.
+        If the directory is missing from either file, leave a blocking comment on the PR indicating that the ECS deployment will fail with a `ModuleNotFoundError` on startup because the strict `.dockerignore` policy will strip the files.

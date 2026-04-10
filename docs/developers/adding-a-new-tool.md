@@ -51,18 +51,29 @@ class GetWeatherOutput(BaseModel):
     temperature: int
 ```
 
-### 3. Update the Dockerfile (Crucial Step)
+### 3. Update the Dockerfile & Dockerignore (Crucial Step)
 
-If you added a new root-level Python directory (e.g., you created a `prompts/` or `config/` folder outside of `tools/`), you **MUST** update `McpServerDockerfile` to explicitly `COPY` that directory into the container.
+If you added a new root-level Python directory (e.g., you created a `prompts/` or `config/` folder outside of `tools/`), you **MUST** update both the Dockerfile and the `.dockerignore` file.
 
-*If you forget this, the AWS ECS container will crash with a `ModuleNotFoundError` on startup.*
+*If you forget either of these, the AWS ECS container will crash with a `ModuleNotFoundError` on startup because the strict ignore policy will strip the files from the build context!*
+
+**1. Add to `McpServerDockerfile`:**
 
 ```dockerfile
-# In McpServerDockerfile
 COPY models/ models/
 COPY tools/ tools/
 COPY util/ util/
 COPY new_folder/ new_folder/ # Add your new folder here!
+```
+
+**2. Allowlist in `McpServerDockerfile.dockerignore`:**
+
+```dockerignore
+# util/
+!util/
+
+# new_folder/
+!new_folder/ # Add your new folder here!
 ```
 
 ### 4. Tool Versioning

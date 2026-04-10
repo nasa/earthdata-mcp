@@ -36,4 +36,4 @@ Please include relevant screenshots or files that would be helpful in reviewing 
 - [ ] Updated corresponding documentation
 - [ ] Verified changes generate no new warnings
 - [ ] Bumped `pyproject.toml` and `manifest.json` versions according to the [Versioning Methodology](docs/developers/versioning.md) if inputs, outputs, or logic changed
-- [ ] Added any new root-level Python directories to the `COPY` block in `McpServerDockerfile`
+- [ ] Added any new root-level Python directories to `McpServerDockerfile` AND `McpServerDockerfile.dockerignore`
