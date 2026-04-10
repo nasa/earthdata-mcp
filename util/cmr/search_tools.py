@@ -490,9 +490,9 @@ def _extract_granule_archive_info(umm: dict[str, Any]) -> tuple[float | None, st
 
 
 def _extract_granule_bounding_box(umm: dict[str, Any]) -> list[float] | None:
-    """Extract the first bounding box as [West, South, East, North] from UMM-G.
+    """Extract the Minimum Bounding Rectangle (MBR) as [West, South, East, North] from UMM-G.
 
-    Returns the Minimum Bounding Rectangle (MBR) computed by CMR. For swathes or irregular
+    Aggregates all valid bounding rectangles into a single MBR. For swathes or irregular
     polygons, this MBR fully encloses the data but may contain empty space at the corners.
     The 4-element array format provides a lightweight geospatial context for the LLM.
     """
@@ -516,6 +516,8 @@ def _extract_granule_bounding_box(umm: dict[str, Any]) -> list[float] | None:
     if not isinstance(rects, list):
         return None
 
+    min_west, min_south, max_east, max_north = None, None, None, None
+
     for bbox in rects:
         # Ensure the individual bbox is a dictionary
         if not isinstance(bbox, dict):
@@ -523,12 +525,18 @@ def _extract_granule_bounding_box(umm: dict[str, Any]) -> list[float] | None:
         try:
             # Safely cast to float, catching TypeError if a value is None
             # or ValueError if a value is an un-parseable string
-            return [
-                float(bbox["WestBoundingCoordinate"]),
-                float(bbox["SouthBoundingCoordinate"]),
-                float(bbox["EastBoundingCoordinate"]),
-                float(bbox["NorthBoundingCoordinate"]),
-            ]
+            w = float(bbox["WestBoundingCoordinate"])
+            s = float(bbox["SouthBoundingCoordinate"])
+            e = float(bbox["EastBoundingCoordinate"])
+            n = float(bbox["NorthBoundingCoordinate"])
+
+            min_west = min(min_west, w) if min_west is not None else w
+            min_south = min(min_south, s) if min_south is not None else s
+            max_east = max(max_east, e) if max_east is not None else e
+            max_north = max(max_north, n) if max_north is not None else n
         except (KeyError, ValueError, TypeError):
             continue
+
+    if min_west is not None:
+        return [min_west, min_south, max_east, max_north]
     return None
