@@ -416,7 +416,7 @@ class TestLoadToolsFromDirectory:
             result: str
 
         mock_output_module = DummyModule()
-        mock_output_module.DummyOutput = DummyOutput
+        mock_output_module.DummyOutput = DummyOutput  # pylint: disable=attribute-defined-outside-init
 
         mock_import.side_effect = [
             mock_tool_module,  # First call: tool.py

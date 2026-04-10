@@ -1,62 +1,18 @@
-"""Input and output models for the get_collections MCP tool."""
+"""Input and output models for the get_granules MCP tool."""
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from models.tools.cmr_search import BaseCmrSearchOutput
 
-KeywordParam = Annotated[
-    str | None,
+CollectionConceptIdParam = Annotated[
+    str,
     Field(
         description=(
-            "Free-text keyword search. Case insensitive. "
-            "IMPORTANT — CMR uses AND logic: each space-separated word is matched independently "
-            "and ALL words must appear somewhere in a collection's indexed fields "
-            "(title, summary, short name, GCMD science keywords, platform and instrument names, "
-            "project names, processing level, archive centers, additional attributes, etc.). "
-            "Words do NOT need to appear in the same field or as a contiguous phrase. "
-            "Because every word must match, adding more words makes the search STRICTER, not broader — "
-            "the opposite of typical web search engines. Prefer 2–4 precise terms over long queries. "
-            "Example: 'soil moisture' (2 terms, broad) vs 'soil moisture SMAP L3' (4 terms, narrow). "
-            "Phrase search: wrap the entire value in escaped double quotes to require an exact phrase "
-            "(e.g., '\\\"sea surface temperature\\\"'). Only a single phrase is supported; "
-            "you cannot mix a phrase with additional standalone words. "
-            "Wildcards supported: * (zero or more chars), ? (any single char). "
-            "Use scientific terms: geophysical variable names ('sea surface temperature', "
-            "'soil moisture'), instrument names (MODIS, ASCAT, VIIRS, AIRS, Landsat, etc.), or "
-            "platform names (Terra, Aqua, SMAP, Sentinel-1, etc.). "
-            "For known product short names use the short_name parameter instead."
-        )
-    ),
-]
-
-ConceptIdParam = Annotated[
-    str | None,
-    Field(
-        description=(
-            "Exact CMR concept ID (format: C<number>-<PROVIDER>, "
-            "e.g., C2036882064-POCLOUD). Use for direct lookup of a known collection."
-        )
-    ),
-]
-
-ShortNameParam = Annotated[
-    str | None,
-    Field(
-        description=(
-            "Collection short name (e.g., MOD11A1, SPL3SMP, MUR-JPL-L4-GLOB-v4.1). "
-            "Exact match by default; wildcards * and ? are supported."
-        )
-
-ProviderParam = Annotated[
-    str | None,
-    Field(
-        description=(
-            "Data provider short name (e.g., PODAAC, NSIDC_ECS, GESDISC, ORNL_DAAC, "
-            "LAADS, GES_DISC, GHRC_DAAC, ASDC, LPDAAC_ECS). "
-            "Restricts results to collections from that provider."
+            "Parent collection concept ID (format: C<number>-<PROVIDER>, "
+            "e.g., C2723758340-GES_DISC). Required to scope granule search."
         )
     ),
 ]
@@ -65,10 +21,10 @@ TemporalStartDateParam = Annotated[
     str | None,
     Field(
         description=(
-            "Start of temporal filter in ISO 8601 format (e.g., 2020-01-01T00:00:00Z). "
-            "Restricts results to collections whose declared temporal range overlaps this window. "
-            "Set this whenever the user specifies a time period — omitting it returns collections "
-            "regardless of when their data was collected."
+            "Start of temporal filter in ISO 8601 format (e.g., 2024-01-01T00:00:00Z). "
+            "Finds granules whose temporal extent overlaps this window. "
+            "Set this whenever the user specifies a time period — omitting it returns granules "
+            "from the entire collection archive regardless of date."
         )
     ),
 ]
@@ -77,10 +33,10 @@ TemporalEndDateParam = Annotated[
     str | None,
     Field(
         description=(
-            "End of temporal filter in ISO 8601 format (e.g., 2020-12-31T23:59:59Z). "
-            "Restricts results to collections whose declared temporal range overlaps this window. "
-            "Set this whenever the user specifies a time period — omitting it returns collections "
-            "regardless of when their data was collected."
+            "End of temporal filter in ISO 8601 format (e.g., 2024-01-31T23:59:59Z). "
+            "Finds granules whose temporal extent overlaps this window. "
+            "Set this whenever the user specifies a time period — omitting it returns granules "
+            "from the entire collection archive regardless of date."
         )
     ),
 ]
@@ -100,52 +56,78 @@ SpatialWktGeometryParam = Annotated[
     ),
 ]
 
+CloudCoverMinParam = Annotated[
+    float | None,
+    Field(
+        description=(
+            "Minimum cloud cover percentage (0–100, inclusive). "
+            "Use with cloud_cover_max to filter optical/visible imagery granules by cloud cover. "
+            "Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, "
+            "etc). Omit for non-optical data (SAR, altimetry, etc.)."
+        ),
+        ge=0,
+        le=100,
+    ),
+]
 
-class CollectionResult(BaseModel):
-    """Minimal collection result for direct CMR-backed discovery."""
+CloudCoverMaxParam = Annotated[
+    float | None,
+    Field(
+        description=(
+            "Maximum cloud cover percentage (0–100, inclusive). "
+            "Use with cloud_cover_min to filter optical/visible imagery granules by cloud cover. "
+            "For example, set cloud_cover_max=20 to find mostly clear scenes. "
+            "Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, "
+            "etc). Omit for non-optical data (SAR, altimetry, etc.)."
+        ),
+        ge=0,
+        le=100,
+    ),
+]
 
-    abstract: str | None = Field(None, description="Collection summary or abstract")
-    collection_data_type: str | None = Field(
-        None, description="e.g., SCIENCE_QUALITY, NEAR_REAL_TIME"
+
+class GranuleResult(BaseModel):
+    """Minimal granule result for direct CMR-backed retrieval."""
+
+    access_urls: list[str] = Field(
+        default_factory=list,
+        description="Actionable data access URLs (Note: Access requires Earthdata Login authentication)",
     )
-    concept_id: str = Field(..., description="CMR collection concept ID")
-    doi: str | None = Field(None, description="Digital Object Identifier")
-    entry_title: str = Field(..., description="Collection title")
-    instruments: list[str] = Field(default_factory=list, description="Instrument short names")
-    is_ongoing: bool = Field(default=False, description="Whether the collection is ongoing")
-    native_id: str | None = Field(None, description="The native ID of the collection record")
-    platforms: list[str] = Field(default_factory=list, description="Platform short names")
-    processing_level_id: str | None = Field(None, description="Processing level (e.g., L3, L4)")
-    provider_id: str | None = Field(None, description="The provider ID of the collection")
-    related_urls: list[dict[str, Any]] = Field(
-        default_factory=list, description="List of related URLs (e.g., documentation, guides)"
+    bounding_box: list[float] | None = Field(
+        None,
+        description="[West, South, East, North] Minimum Bounding Rectangle (MBR). Note: For swath data or irregular polygons, this bounding box fully encloses the data but may contain empty space at the corners.",
     )
-    revision_id: int | None = Field(None, description="The revision ID of the collection metadata")
-    short_name: str | None = Field(None, description="Collection short name")
-    spatial_resolution: str | None = Field(None, description="Human-readable spatial resolution")
-    temporal_resolution: str | None = Field(None, description="Human-readable temporal resolution")
-    time_end: datetime | None = Field(None, description="End of temporal coverage")
-    time_start: datetime | None = Field(None, description="Start of temporal coverage")
-    version: str | None = Field(None, description="Collection version")
+    cloud_cover: float | None = Field(None, description="Cloud cover percentage")
+    collection_concept_id: str | None = Field(None, description="Parent collection concept ID")
+    concept_id: str = Field(..., description="CMR granule concept ID")
+    data_format: str | None = Field(None, description="File format (e.g., NetCDF-4, GeoTIFF)")
+    day_night_flag: str | None = Field(None, description="DAY, NIGHT, BOTH, or UNSPECIFIED")
+    granule_ur: str = Field(..., description="Granule UR")
+    native_id: str | None = Field(None, description="The native ID of the granule record")
+    producer_granule_id: str | None = Field(None, description="Producer granule ID")
+    provider_id: str | None = Field(None, description="The provider ID of the granule")
+    revision_id: int | None = Field(None, description="The revision ID of the granule metadata")
+    size_mb: float | None = Field(None, description="Size of the data granule in MB")
+    time_end: datetime | None = Field(None, description="Granule temporal end")
+    time_start: datetime | None = Field(None, description="Granule temporal start")
 
 
-class GetCollectionsInput(BaseModel):
-    """Input model for get_collections."""
+class GetGranulesInput(BaseModel):
+    """Input model for get_granules."""
 
     model_config = ConfigDict(extra="forbid")
 
-    keyword: KeywordParam = None
-    concept_id: ConceptIdParam = None
-    short_name: ShortNameParam = None
-    provider: ProviderParam = None
+    collection_concept_id: CollectionConceptIdParam
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
+    cloud_cover_min: CloudCoverMinParam = None
+    cloud_cover_max: CloudCoverMaxParam = None
 
 
-class GetCollectionsOutput(BaseCmrSearchOutput):
-    """Output model for get_collections."""
+class GetGranulesOutput(BaseCmrSearchOutput):
+    """Output model for get_granules."""
 
-    collections: list[CollectionResult] = Field(
-        default_factory=list, description="Normalized collection results mapped from UMM-C"
+    granules: list[GranuleResult] = Field(
+        default_factory=list, description="Normalized granule results mapped from UMM-G (max 10)"
     )
