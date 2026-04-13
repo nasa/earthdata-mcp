@@ -99,9 +99,7 @@ class EarthdataEvaluator:
             )
 
             # Get concept IDs for hydration
-            concept_ids = [
-                r["external_id"] for r in results if r["type"] == "collection"
-            ]
+            concept_ids = [r["external_id"] for r in results if r["type"] == "collection"]
 
             # Hydrate collections from database to get proper title/abstract
 
@@ -130,7 +128,9 @@ class EarthdataEvaluator:
 
             # Generate a simple answer from collections
             if collections:
-                answer = f"Found {len(collections)} relevant data collections based on embedding search."
+                answer = (
+                    f"Found {len(collections)} relevant data collections based on embedding search."
+                )
             else:
                 answer = "No relevant data collections found in embedding search."
 
@@ -180,11 +180,9 @@ class EarthdataEvaluator:
                     return []
 
                 # Get all collection relevance scores using shared logic
-                relevance_data = (
-                    await SingleEvaluation.compute_dataset_relevance_scores(
-                        question=question,
-                        collections=collections,
-                    )
+                relevance_data = await SingleEvaluation.compute_dataset_relevance_scores(
+                    question=question,
+                    collections=collections,
                 )
 
                 individual_scores = relevance_data.get("individual_scores", [])
@@ -210,7 +208,7 @@ class EarthdataEvaluator:
 
                     evaluations.append(
                         Evaluation(
-                            name=f"embedding_collection_{i+1}_relevance",
+                            name=f"embedding_collection_{i + 1}_relevance",
                             value=score,
                             comment=comment,
                         )
@@ -224,9 +222,7 @@ class EarthdataEvaluator:
                 return evaluations
 
             except Exception as e:
-                logger.error(
-                    "Error in collection_relevance_evaluator: %s", e, exc_info=True
-                )
+                logger.error("Error in collection_relevance_evaluator: %s", e, exc_info=True)
                 return []
 
         # Evaluator for context precision with reference
@@ -264,9 +260,7 @@ class EarthdataEvaluator:
                 )
 
             except Exception as e:
-                logger.error(
-                    "Error in context_precision_evaluator: %s", e, exc_info=True
-                )
+                logger.error("Error in context_precision_evaluator: %s", e, exc_info=True)
                 return None
 
         # Evaluator for context recall
@@ -449,9 +443,7 @@ class SingleEvaluation:
 
         try:
             # Extract only the specified fields for relevance scoring
-            dataset_subset = {
-                field: collection.get(field, "") for field in collection_fields
-            }
+            dataset_subset = {field: collection.get(field, "") for field in collection_fields}
 
             prompt_input = DatasetRelevanceInput(
                 question=question,
@@ -697,8 +689,7 @@ def main():
 
     if not dataset_name:
         raise ValueError(
-            "DATASET_NAME environment variable not set. "
-            "Example: earthdata/manual-test"
+            "DATASET_NAME environment variable not set. Example: earthdata/manual-test"
         )
 
     # Initialize evaluator

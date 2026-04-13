@@ -69,9 +69,7 @@ def generate_answer_from_collections(
 
     # Use first field as primary identifier (usually title)
     primary_field = fields[0] if fields else next(iter(collections[0].keys()), "id")
-    top_identifiers = ", ".join(
-        str(c.get(primary_field, "Unknown")) for c in collections[:3]
-    )
+    top_identifiers = ", ".join(str(c.get(primary_field, "Unknown")) for c in collections[:3])
     return (
         f"Found {len(collections)} relevant data collections. "
         f"Top matches include: {top_identifiers}."

@@ -114,9 +114,7 @@ class TestSingleEvaluation:
     @patch("rag_eval.evals.create_bedrock_llm")
     @patch("rag_eval.evals.create_bedrock_embeddings")
     @patch("rag_eval.evals.DatasetRelevancePrompt")
-    def test_initialize_components_only_once(
-        self, mock_prompt, mock_embeddings, mock_llm
-    ):
+    def test_initialize_components_only_once(self, mock_prompt, mock_embeddings, mock_llm):
         """Test that components are only initialized once (singleton)."""
         mock_llm.return_value = MagicMock()
         mock_embeddings.return_value = MagicMock()
@@ -452,15 +450,11 @@ class TestEarthdataEvaluator:
         """Test evaluator function creation."""
         evaluator = EarthdataEvaluator()
         evaluators = evaluator.create_evaluators()
-        assert (
-            len(evaluators) == 3
-        )  # collection_relevance, context_precision, context_recall
+        assert len(evaluators) == 3  # collection_relevance, context_precision, context_recall
 
     @pytest.mark.asyncio
     @patch("rag_eval.evals.SingleEvaluation.compute_dataset_relevance_scores")
-    async def test_collection_relevance_evaluator(
-        self, mock_compute, sample_collections
-    ):
+    async def test_collection_relevance_evaluator(self, mock_compute, sample_collections):
         """Test collection relevance evaluator."""
         mock_compute.return_value = {
             "individual_scores": [0.8, 0.6],
@@ -567,9 +561,7 @@ class TestEarthdataEvaluator:
 
     @pytest.mark.asyncio
     @patch("rag_eval.evals.SingleEvaluation.compute_context_recall")
-    async def test_context_recall_evaluator_no_reference(
-        self, mock_compute, sample_collections
-    ):
+    async def test_context_recall_evaluator_no_reference(self, mock_compute, sample_collections):
         """Test context recall evaluator without reference."""
         evaluator = EarthdataEvaluator()
         evaluators = evaluator.create_evaluators()
@@ -651,9 +643,7 @@ class TestEarthdataEvaluator:
 
     @pytest.mark.asyncio
     @patch("rag_eval.evals.SingleEvaluation.compute_context_recall")
-    async def test_context_recall_evaluator_error_handling(
-        self, mock_compute, sample_collections
-    ):
+    async def test_context_recall_evaluator_error_handling(self, mock_compute, sample_collections):
         """Test error handling in context recall evaluator."""
         mock_compute.side_effect = Exception("Recall error")
 
@@ -714,9 +704,7 @@ class TestEarthdataEvaluator:
 
     @patch("rag_eval.evals.search_all_entity_types")
     @patch("rag_eval.evals.get_datastore")
-    def test_embedding_task_execution_no_search_results(
-        self, _mock_get_datastore, mock_search
-    ):
+    def test_embedding_task_execution_no_search_results(self, _mock_get_datastore, mock_search):
         """Test embedding search task execution with no search results."""
         mock_search.return_value = []
 
@@ -730,10 +718,7 @@ class TestEarthdataEvaluator:
 
         assert result["question"] == "Test question"
         assert result["collections"] == []
-        assert (
-            result["answer"]
-            == "No relevant data collections found in embedding search."
-        )
+        assert result["answer"] == "No relevant data collections found in embedding search."
 
     @patch("rag_eval.evals.get_langfuse")
     @patch("rag_eval.evals.flush_langfuse")
@@ -757,9 +742,7 @@ class TestEarthdataEvaluator:
 
         mock_dataset.run_experiment.assert_called_once()
         call_kwargs = mock_dataset.run_experiment.call_args.kwargs
-        assert (
-            "custom-experiment" in call_kwargs["name"]
-        )  # 'name' parameter, not 'experiment_name'
+        assert "custom-experiment" in call_kwargs["name"]  # 'name' parameter, not 'experiment_name'
         assert call_kwargs["max_concurrency"] == 5
 
     @patch("rag_eval.evals.get_langfuse")
@@ -847,9 +830,7 @@ class TestSingleEvaluationErrorHandling:
         bad_collection = {"concept_id": "C1234", "title": "Test"}
 
         # Patch the DatasetRelevanceInput to raise an exception during creation
-        with patch(
-            "rag_eval.evals.DatasetRelevanceInput", side_effect=TypeError("Field error")
-        ):
+        with patch("rag_eval.evals.DatasetRelevanceInput", side_effect=TypeError("Field error")):
             score = await SingleEvaluation.compute_single_collection_relevance(
                 question=sample_question, collection=bad_collection
             )
@@ -1021,9 +1002,7 @@ class TestMainFunction:
 
         mock_llm_factory.return_value = MagicMock()
 
-        create_bedrock_llm(
-            model="amazon.nova-lite-v1:0", temperature=0.5, max_tokens=2000
-        )
+        create_bedrock_llm(model="amazon.nova-lite-v1:0", temperature=0.5, max_tokens=2000)
 
         mock_llm_factory.assert_called_once()
         call_args = mock_llm_factory.call_args

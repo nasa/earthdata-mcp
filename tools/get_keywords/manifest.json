@@ -1,0 +1,30 @@
+{
+  "name": "get_keywords",
+  "version": "0.1.0",
+  "description": "Discover official Earthdata vocabulary (like 'ATMOSPHERIC WATER VAPOR') directly from NASA's Keyword Management System (KMS). Use this to find the exact preferred labels to construct successful get_collections searches.\n\nKey fields in each returned item:\n- prefLabel: The preferred label to use in searches\n- uuid: The KMS concept UUID\n- definition: Context and expanded acronyms\n- scheme: The vocabulary scheme (e.g. sciencekeywords, platforms)",
+  "entry_function": "get_keywords",
+  "module": "tool",
+  "tags": [
+    "nasa",
+    "earthdata",
+    "kms",
+    "keywords",
+    "vocabulary",
+    "search"
+  ],
+  "examples": {
+    "global_search": {
+      "description": "Search for keywords across all schemes",
+      "params": {
+        "query": "moisture"
+      }
+    },
+    "targeted_search": {
+      "description": "Search for keywords within a specific scheme",
+      "params": {
+        "query": "moisture",
+        "scheme": "sciencekeywords"
+      }
+    }
+  }
+}
