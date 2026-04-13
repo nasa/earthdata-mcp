@@ -13,7 +13,7 @@ NASA's Keyword Management System (KMS) uses precise taxonomy. Rely heavily on th
 - The user asks for a general concept (e.g., "ocean currents", "wildfires", "rain").
 - You are unsure of the exact instrument acronym (e.g., searching for "MODIS" vs "Moderate Resolution Imaging Spectroradiometer").
 - Your initial `get_collections` query yields 0 results.
-Read the returned `definitions` to confidently select the most accurate `prefLabel`, and use that exact string in your subsequent `get_collections` search.
+Read the returned `definition` to confidently select the most accurate `prefLabel`, and use that exact string in your subsequent `get_collections` search.
 
 ### SPATIAL CONSTRAINTS
 All WKT geometries use **(LONGITUDE LATITUDE)** order — longitude first, latitude second. This is the OPPOSITE of the Google Maps (lat, lon) convention.
