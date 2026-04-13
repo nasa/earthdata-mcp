@@ -105,3 +105,29 @@ def test_get_keywords_api_error(mock_search_kms_pattern: MagicMock) -> None:
     assert result["total_hits"] == 0
     assert len(result["keywords"]) == 0
     assert "Failed to communicate with KMS API" in result["error_message"]
+
+
+def test_get_keywords_malformed_response_types(mock_search_kms_pattern: MagicMock) -> None:
+    """Test behavior when the KMS API returns unexpected types for scheme or definitions."""
+    tool = _load_tool()
+
+    mock_search_kms_pattern.return_value = [
+        {
+            "uuid": "test-uuid-3",
+            "prefLabel": "BAD DATA",
+            "scheme": None,  # Should default to {}
+            "definitions": ["This is a string, not a dict", 123],  # Should fail isinstance(dict)
+        }
+    ]
+
+    result = tool.get_keywords(query="BAD DATA")
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 1
+    assert len(result["keywords"]) == 1
+
+    kw = result["keywords"][0]
+    assert kw["uuid"] == "test-uuid-3"
+    assert kw["prefLabel"] == "BAD DATA"
+    assert kw["definition"] is None  # Because definitions[0] wasn't a dict
+    assert kw["scheme"] == {}  # Because scheme wasn't a dict
