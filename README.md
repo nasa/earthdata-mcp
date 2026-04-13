@@ -6,6 +6,7 @@ To start querying Earthdata immediately, see **[Connecting to the Server](#for-c
 
 ### Available Tools
 
+- **`get_keywords`**: Discovers official Earthdata scientific vocabulary terms (from NASA KMS) to translate colloquial user inputs (e.g. "rain") into precise search labels (e.g. "PRECIPITATION AMOUNT").
 - **`get_collections`**: Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
 - **`get_granules`**: Searches for specific data files (granules) within a collection. Used to verify actual data availability for a given time and location.
 - **`get_services`**: Discovers data access endpoints (OPeNDAP, Harmony) and visualization layers (WMS/WMTS) associated with a collection.
@@ -25,7 +26,7 @@ The repository is structured around a few core domains:
 
 - **`server.py` & `loader.py`**: The FastMCP server entry point and dynamic tool registration logic.
 - **`prompts/`**: System prompts and instructions that define the LLM's workflow and persona.
-- **`tools/`**: Self-contained MCP tools wrapping NASA CMR APIs (`get_collections`, `get_granules`, `get_services`, `get_tools`).
+- **`tools/`**: Self-contained MCP tools wrapping NASA CMR APIs (`get_collections`, `get_granules`, `get_keywords`, `get_services`, `get_tools`).
 - **`models/`**: Pydantic models for tool input validation and standardized CMR API responses.
 - **`tests/`**: Comprehensive test suite (using `pytest`) covering server initialization, tool logic, and mocked CMR API responses.
 - **`docs/`**: Project documentation separated into `consumers/` and `developers/`.
