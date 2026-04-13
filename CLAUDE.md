@@ -7,15 +7,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project uses `uv` for dependency management and running commands.
 
 ### Development Server
+
 - **Run local server:** `uv run server.py http` (Starts the FastMCP server at `http://127.0.0.1:5001/mcp/v1`)
 - **Inspector:** `npx @modelcontextprotocol/inspector` (Connects to `http://localhost:5001/mcp/v1` using Streamable HTTP transport)
 
 ### Testing
+
 - **Run all tests:** `uv run pytest`
 - **Run a specific test file:** `uv run pytest tests/test_server.py`
 - **Run tests with verbose output:** `uv run pytest -v`
 
 ### Linting and Formatting
+
 - **Format code:** `uv run ruff format .`
 - **Lint and fix:** `uv run ruff check . --fix`
 - **Run pylint:** `uv run pylint util/ tests/ lambdas/ tools/ prompts/ models/ server.py loader.py`
@@ -26,6 +29,7 @@ This project uses `uv` for dependency management and running commands.
 The Earthdata MCP server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR) via the Model Context Protocol (MCP).
 
 ### Core Components
+
 - **`server.py`**: The main entry point that initializes the `FastMCP` server and handles routing.
 - **`loader.py`**: Dynamically discovers and loads tools from the `tools/` directory.
 - **`tools/`**: Contains self-contained MCP tools (`get_collections`, `get_granules`, `get_services`, `get_tools`).
@@ -36,12 +40,14 @@ The Earthdata MCP server provides LLM agents with direct access to NASA's Common
 - **`lambdas/` & `discover_data` (Legacy)**: Ingestion and embedding pipelines that are actively being deprecated in favor of direct, real-time CMR API integrations.
 
 ### Agent Workflow
+
 When modifying or adding features, remember the intended LLM workflow:
 1. **Discover**: Find collections using spatial/temporal or keyword constraints.
 2. **Verify**: Check for actual data files (granules) to confirm coverage.
 3. **Access**: Provide users with code snippets using the `earthaccess` library for authentication and download.
 
 ### Documentation Maintenance
+
 When adding new tools, changing existing behavior, or modifying the architecture, ensure that documentation is kept up-to-date:
 - **`README.md`**: Update core project information, available tools, and top-level instructions.
 - **`docs/`**: This directory contains extensive documentation separated by audience:
