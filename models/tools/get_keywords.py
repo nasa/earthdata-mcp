@@ -25,7 +25,12 @@ class GetKeywordsInput(BaseModel):
 
     query: Annotated[
         str,
-        Field(description="The term to search for across KMS schemes (e.g. 'moisture')."),
+        Field(
+            ...,
+            min_length=1,
+            pattern=r"\S",
+            description="The term to search for across KMS schemes (e.g. 'moisture').",
+        ),
     ]
     scheme: Annotated[
         str | None,

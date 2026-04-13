@@ -32,7 +32,7 @@ The Earthdata MCP server provides LLM agents with direct access to NASA's Common
 
 - **`server.py`**: The main entry point that initializes the `FastMCP` server and handles routing.
 - **`loader.py`**: Dynamically discovers and loads tools from the `tools/` directory.
-- **`tools/`**: Contains self-contained MCP tools (`get_collections`, `get_granules`, `get_services`, `get_tools`).
+- **`tools/`**: Contains self-contained MCP tools (`get_collections`, `get_granules`, `get_keywords`, `get_services`, `get_tools`).
   - Each tool requires a `manifest.json` (defining name, description, version, etc.) and a `tool.py` containing the entry function.
   - Tools optionally define their output schema using a Pydantic model in `output_model.py`.
 - **`prompts/`**: Contains system instructions (`instructions.py`) that enforce the core agent workflow: **Discover** (`get_collections`) → **Verify** (`get_granules`) → **Access** (via the `earthaccess` Python library).
@@ -42,6 +42,7 @@ The Earthdata MCP server provides LLM agents with direct access to NASA's Common
 ### Agent Workflow
 
 When modifying or adding features, remember the intended LLM workflow:
+
 1. **Discover**: Find collections using spatial/temporal or keyword constraints.
 2. **Verify**: Check for actual data files (granules) to confirm coverage.
 3. **Access**: Provide users with code snippets using the `earthaccess` library for authentication and download.
@@ -49,6 +50,7 @@ When modifying or adding features, remember the intended LLM workflow:
 ### Documentation Maintenance
 
 When adding new tools, changing existing behavior, or modifying the architecture, ensure that documentation is kept up-to-date:
+
 - **`README.md`**: Update core project information, available tools, and top-level instructions.
 - **`docs/`**: This directory contains extensive documentation separated by audience:
   - **`docs/consumers/`**: User-facing documentation on how to connect and use the server.

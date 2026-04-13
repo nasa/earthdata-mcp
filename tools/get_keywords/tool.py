@@ -56,14 +56,22 @@ def get_keywords(
     keywords = []
     for concept in raw_concepts:
         definition_text = None
-        if concept.get("definitions") and isinstance(concept["definitions"], list):
+        if (
+            concept.get("definitions")
+            and isinstance(concept["definitions"], list)
+            and isinstance(concept["definitions"][0], dict)
+        ):
             definition_text = concept["definitions"][0].get("text")
+
+        scheme = concept.get("scheme", {})
+        if not isinstance(scheme, dict):
+            scheme = {}
 
         keywords.append(
             KeywordResult(
                 uuid=concept.get("uuid", ""),
                 prefLabel=concept.get("prefLabel", ""),
-                scheme=concept.get("scheme", {}),
+                scheme=scheme,
                 definition=definition_text,
             )
         )

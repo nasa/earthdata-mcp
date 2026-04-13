@@ -78,7 +78,7 @@ def _parse_concepts(data: dict) -> dict[str, dict]:
 
         definition = None
         definitions = concept.get("definitions", [])
-        if definitions and isinstance(definitions, list):
+        if definitions and isinstance(definitions, list) and isinstance(definitions[0], dict):
             definition = definitions[0].get("text")
 
         # Uppercase key for case-insensitive lookup

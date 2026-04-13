@@ -1,7 +1,9 @@
 """Tests for the get_keywords MCP tool."""
 
 import importlib
-from unittest.mock import patch
+import types
+from collections.abc import Generator
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -9,19 +11,19 @@ import requests
 from models.tools.cmr_search import SearchStatus
 
 
-def _load_tool():
+def _load_tool() -> types.ModuleType:
     """Load the tool module dynamically to avoid circular imports."""
     return importlib.import_module("tools.get_keywords.tool")
 
 
 @pytest.fixture
-def mock_search_kms_pattern():
+def mock_search_kms_pattern() -> Generator[MagicMock]:
     """Mock util.kms.client.search_kms_pattern."""
     with patch("tools.get_keywords.tool.search_kms_pattern") as mock_search:
         yield mock_search
 
 
-def test_get_keywords_global_success(mock_search_kms_pattern):
+def test_get_keywords_global_success(mock_search_kms_pattern: MagicMock) -> None:
     """Test successful global keyword search."""
     tool = _load_tool()
 
@@ -49,7 +51,7 @@ def test_get_keywords_global_success(mock_search_kms_pattern):
     mock_search_kms_pattern.assert_called_once_with("MODIS", None)
 
 
-def test_get_keywords_scheme_specific_success(mock_search_kms_pattern):
+def test_get_keywords_scheme_specific_success(mock_search_kms_pattern: MagicMock) -> None:
     """Test successful scheme-specific keyword search."""
     tool = _load_tool()
 
@@ -77,7 +79,7 @@ def test_get_keywords_scheme_specific_success(mock_search_kms_pattern):
     mock_search_kms_pattern.assert_called_once_with("WATER", "sciencekeywords")
 
 
-def test_get_keywords_no_results(mock_search_kms_pattern):
+def test_get_keywords_no_results(mock_search_kms_pattern: MagicMock) -> None:
     """Test behavior when no keywords match the pattern (client returns [])."""
     tool = _load_tool()
 
@@ -91,7 +93,7 @@ def test_get_keywords_no_results(mock_search_kms_pattern):
     assert result["error_message"] is None
 
 
-def test_get_keywords_api_error(mock_search_kms_pattern):
+def test_get_keywords_api_error(mock_search_kms_pattern: MagicMock) -> None:
     """Test behavior when the KMS API throws an exception."""
     tool = _load_tool()
 

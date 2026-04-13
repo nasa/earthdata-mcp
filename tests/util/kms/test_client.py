@@ -34,6 +34,7 @@ def test_search_kms_pattern_global(mock_requests_get):
     args, kwargs = mock_requests_get.call_args
     assert args[0] == "https://cmr.earthdata.nasa.gov/kms/concepts/pattern/TEST%20QUERY"
     assert kwargs["params"]["format"] == "json"
+    assert kwargs["timeout"] == 10
 
 
 def test_search_kms_pattern_scheme(mock_requests_get):
@@ -56,6 +57,7 @@ def test_search_kms_pattern_scheme(mock_requests_get):
         == "https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments/pattern/TEST"
     )
     assert kwargs["params"]["format"] == "json"
+    assert kwargs["timeout"] == 10
 
 
 def test_search_kms_pattern_no_results(mock_requests_get):
