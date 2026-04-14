@@ -560,7 +560,7 @@ def normalize_citation_item(item: dict[str, Any]) -> dict[str, Any]:
         "name": umm.get("Name"),
         "identifier": umm.get("Identifier"),
         "identifier_type": umm.get("IdentifierType"),
-        "associated_collections": associations.get("collections"),
+        "associated_collections": associations.get("collections") or [],
         "resolution_authority": umm.get("ResolutionAuthority"),
         "related_identifiers": umm.get("RelatedIdentifiers"),
         "abstract": umm.get("Abstract"),

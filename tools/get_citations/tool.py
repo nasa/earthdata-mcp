@@ -125,6 +125,10 @@ def get_citations(  # pylint: disable=too-many-return-statements
         ).model_dump()
 
     if citation_page is None or not citation_page.items:
+        if citation_ids:
+            logger.warning(
+                "CMR returned no citations despite collection associations: %s", citation_ids
+            )
         return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
     citations = [normalize_citation_item(item) for item in citation_page.items]

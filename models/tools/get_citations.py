@@ -12,8 +12,8 @@ class CitationResult(BaseModel):
     """Normalized citation result for direct CMR-backed retrieval."""
 
     abstract: str | None = Field(None, description="The abstract of the citation")
-    associated_collections: list[str] | None = Field(
-        None,
+    associated_collections: list[str] = Field(
+        default_factory=list,
         description="CMR concept IDs of NASA datasets (collections) associated with this citation. CRITICAL: Pass these IDs to the get_collections tool to retrieve the human-readable dataset details.",
     )
     citation_metadata: dict[str, Any] | None = Field(
