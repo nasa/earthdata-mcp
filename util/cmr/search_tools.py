@@ -540,3 +540,30 @@ def _extract_granule_bounding_box(umm: dict[str, Any]) -> list[float] | None:
     if min_west is not None:
         return [min_west, min_south, max_east, max_north]
     return None
+
+
+def normalize_citation_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a CMR UMM citation item into the MCP-facing response shape."""
+    meta = item.get("meta", {})
+    umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing citation record: %s", concept_id)
+
+    associations = meta.get("associations") or {}
+
+    return {
+        "concept_id": concept_id,
+        "native_id": meta.get("native-id"),
+        "revision_id": meta.get("revision-id"),
+        "provider_id": meta.get("provider-id"),
+        "name": umm.get("Name"),
+        "identifier": umm.get("Identifier"),
+        "identifier_type": umm.get("IdentifierType"),
+        "associated_collections": associations.get("collections"),
+        "resolution_authority": umm.get("ResolutionAuthority"),
+        "related_identifiers": umm.get("RelatedIdentifiers"),
+        "abstract": umm.get("Abstract"),
+        "citation_metadata": umm.get("CitationMetadata"),
+        "metadata_specification": umm.get("MetadataSpecification"),
+    }

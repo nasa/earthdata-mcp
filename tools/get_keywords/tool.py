@@ -1,4 +1,4 @@
-"""Direct KMS keyword discovery tool."""
+"""Direct KMS keyword search tool."""
 
 import logging
 
