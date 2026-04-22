@@ -61,7 +61,12 @@ def test_get_citations_invalid_input() -> None:
     # Missing both
     res = tool.get_citations()
     assert res["status"] == SearchStatus.ERROR
-    assert "Must provide either" in res["error_message"]
+    assert "exactly one" in res["error_message"]
+
+    # Provide both
+    res = tool.get_citations(collection_concept_id="C12345-PROV", identifier="10.x/test")
+    assert res["status"] == SearchStatus.ERROR
+    assert "exactly one" in res["error_message"]
 
     # Invalid collection ID format
     res = tool.get_citations(collection_concept_id="INVALID")
@@ -178,7 +183,7 @@ def test_get_citations_generic_exception(mock_search_cmr: MagicMock) -> None:
     """Test generic unhandled exceptions."""
     tool = _load_tool()
 
-    mock_search_cmr.side_effect = RuntimeError("Unexpected internal crash")
+    mock_search_cmr.side_effect = [RuntimeError("Unexpected internal crash")]
     res = tool.get_citations(collection_concept_id="C123-PROV")
     assert res["status"] == SearchStatus.ERROR
     assert "unexpected internal error" in res["error_message"]

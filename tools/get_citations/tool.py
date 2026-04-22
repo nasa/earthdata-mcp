@@ -20,6 +20,8 @@ def get_citations(  # pylint: disable=too-many-return-statements
 ) -> dict:
     """Search CMR citations by parent collection ID or specific citation identifier (DOI).
 
+    CRITICAL: You must provide EXACTLY ONE of `collection_concept_id` or `identifier`.
+
     The returned items use snake_cased keys mapping to UMM-Citations, including:
     - concept_id: CMR citation concept ID
     - name: The name or title of the citation
@@ -86,8 +88,8 @@ def get_citations(  # pylint: disable=too-many-return-statements
             collection_page.items[0].get("meta", {}).get("associations", {}).get("citations", [])
         )
 
-        # If no citations found and no fallback identifier provided, return immediately
-        if not citation_ids and not params.identifier:
+        # If no citations found on the collection, return immediately
+        if not citation_ids:
             return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
     # Phase 2: Fetch UMM-C records for the discovered citation concept IDs or direct identifier.
@@ -136,9 +138,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
     # If we looked up via collection, the true total is the length of the associations list.
     # Because we sliced to 10 for the fetch, CMR will only report up to 10 hits.
     real_total_hits = (
-        len(citation_ids)
-        if (params.collection_concept_id and citation_ids)
-        else citation_page.total_hits
+        len(citation_ids) if params.collection_concept_id else citation_page.total_hits
     )
 
     return GetCitationsOutput(

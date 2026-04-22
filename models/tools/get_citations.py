@@ -58,10 +58,10 @@ class GetCitationsInput(BaseModel):
     ]
 
     @model_validator(mode="after")
-    def check_at_least_one_identifier(self) -> "GetCitationsInput":
-        """Ensure either a collection_concept_id or identifier is provided."""
-        if not self.collection_concept_id and not self.identifier:
-            raise ValueError("Must provide either a collection_concept_id or an identifier")
+    def check_exactly_one_identifier(self) -> "GetCitationsInput":
+        """Ensure exactly one of collection_concept_id or identifier is provided."""
+        if bool(self.collection_concept_id) == bool(self.identifier):
+            raise ValueError("Must provide exactly one of collection_concept_id or identifier.")
 
         # Validate format if collection_concept_id is provided
         if self.collection_concept_id and not re.match(
