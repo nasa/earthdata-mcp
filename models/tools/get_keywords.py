@@ -36,7 +36,13 @@ class GetKeywordsInput(BaseModel):
         str | None,
         Field(
             None,
-            description="Optional. A single KMS scheme to narrow the search (e.g., 'sciencekeywords', 'platforms', 'instruments'). If omitted, searches across all schemes globally.",
+            description=(
+                "Optional. A single KMS scheme to narrow the search (e.g., 'sciencekeywords', "
+                "'platforms', 'instruments', 'projects', 'providers', 'locations'). "
+                "If omitted, searches across all schemes globally. "
+                "A complete list of valid scheme names can be fetched from "
+                "https://cmr.earthdata.nasa.gov/kms/concept_schemes"
+            ),
         ),
     ]
 
