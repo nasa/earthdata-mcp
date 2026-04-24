@@ -39,3 +39,4 @@ terraform_backend.tf
 .continue/rules/local/
 
 .claude/
+CLAUDE.md
