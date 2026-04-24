@@ -926,8 +926,7 @@ def test_discover_data_tool_association_error(monkeypatch):
 
     assert output["status"] == "error"
     assert output["error_message"] == (
-        "Tool association enrichment failed due to a service error. "
-        "Please try your request again."
+        "Tool association enrichment failed due to a service error. Please try your request again."
     )
     # Internal error detail must not be exposed to the caller
     assert "CMR" not in output["error_message"]

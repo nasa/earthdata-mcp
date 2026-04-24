@@ -147,8 +147,7 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
             enabled = manifest.get("enabled", True)
             if not isinstance(enabled, bool):
                 raise ValueError(
-                    "manifest.json 'enabled' field must be a boolean for "
-                    f"tool '{tool_folder.name}'"
+                    f"manifest.json 'enabled' field must be a boolean for tool '{tool_folder.name}'"
                 )
             if enabled is False:
                 logger.info("[SKIP] %s: Disabled in manifest", tool_folder.name)

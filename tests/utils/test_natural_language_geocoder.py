@@ -161,9 +161,9 @@ class TestNormalizeGeometryToWkt:  # pylint: disable=too-many-public-methods
         # make_valid() on a bow-tie typically produces a MultiPolygon
         if repaired.geom_type == "MultiPolygon":
             for part in repaired.geoms:
-                assert LinearRing(
-                    part.exterior.coords
-                ).is_ccw, f"Exterior ring of repaired part is not CCW: {part}"
+                assert LinearRing(part.exterior.coords).is_ccw, (
+                    f"Exterior ring of repaired part is not CCW: {part}"
+                )
         else:
             assert LinearRing(repaired.exterior.coords).is_ccw
 
@@ -183,9 +183,9 @@ class TestNormalizeGeometryToWkt:  # pylint: disable=too-many-public-methods
         oriented = shapely_wkt.loads(result)
         assert oriented.geom_type == "MultiPolygon"
         for part in oriented.geoms:
-            assert LinearRing(
-                part.exterior.coords
-            ).is_ccw, f"Exterior ring of MultiPolygon part is not CCW: {part}"
+            assert LinearRing(part.exterior.coords).is_ccw, (
+                f"Exterior ring of MultiPolygon part is not CCW: {part}"
+            )
 
     def test_preserves_ccw_multipolygon_orientation(self):
         """Test that a MultiPolygon already counter-clockwise stays counter-clockwise after normalization."""
@@ -258,13 +258,13 @@ class TestNormalizeGeometryToWkt:  # pylint: disable=too-many-public-methods
 
         oriented = shapely_wkt.loads(result)
         for part in oriented.geoms:
-            assert LinearRing(
-                part.exterior.coords
-            ).is_ccw, f"Exterior ring of part is not CCW: {part}"
+            assert LinearRing(part.exterior.coords).is_ccw, (
+                f"Exterior ring of part is not CCW: {part}"
+            )
             for interior in part.interiors:
-                assert not LinearRing(
-                    interior.coords
-                ).is_ccw, f"Interior ring (hole) of part is not CW: {interior}"
+                assert not LinearRing(interior.coords).is_ccw, (
+                    f"Interior ring (hole) of part is not CW: {interior}"
+                )
 
     # Tests for convert_text_to_geom function.
 
