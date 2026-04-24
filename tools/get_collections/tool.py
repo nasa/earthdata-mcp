@@ -121,8 +121,8 @@ def get_collections(  # pylint: disable=too-many-arguments
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected error during collection search: %s", exc)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error during collection search")
         return GetCollectionsOutput(
             status=SearchStatus.ERROR,
             error_message="An unexpected internal error occurred during collection search.",

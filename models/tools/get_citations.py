@@ -60,7 +60,13 @@ class GetCitationsInput(BaseModel):
     @model_validator(mode="after")
     def check_exactly_one_identifier(self) -> "GetCitationsInput":
         """Ensure exactly one of collection_concept_id or identifier is provided."""
-        if bool(self.collection_concept_id) == bool(self.identifier):
+        if self.collection_concept_id is not None and self.collection_concept_id == "":
+            raise ValueError("collection_concept_id cannot be an empty string.")
+
+        if self.identifier is not None and self.identifier == "":
+            raise ValueError("identifier cannot be an empty string.")
+
+        if (self.collection_concept_id is None) == (self.identifier is None):
             raise ValueError("Must provide exactly one of collection_concept_id or identifier.")
 
         # Validate format if collection_concept_id is provided

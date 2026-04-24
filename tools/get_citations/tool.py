@@ -70,11 +70,10 @@ def get_citations(  # pylint: disable=too-many-return-statements
                 status=SearchStatus.ERROR,
                 error_message=str(exc),
             ).model_dump()
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.exception(
-                "Unexpected error during collection lookup for %s: %s",
+                "Unexpected error during collection lookup for %s",
                 params.collection_concept_id,
-                exc,
             )
             return GetCitationsOutput(
                 status=SearchStatus.ERROR,
@@ -117,10 +116,8 @@ def get_citations(  # pylint: disable=too-many-return-statements
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        logger.exception(
-            "Unexpected error during citation fetch for query %s: %s", search_params, exc
-        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error during citation fetch for query %s", search_params)
         return GetCitationsOutput(
             status=SearchStatus.ERROR,
             error_message="An unexpected internal error occurred during citation fetch.",

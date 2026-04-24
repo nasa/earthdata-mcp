@@ -80,11 +80,10 @@ def get_tools(  # pylint: disable=too-many-return-statements
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.exception(
-            "Unexpected error during collection lookup for %s: %s",
+            "Unexpected error during collection lookup for %s",
             params.collection_concept_id,
-            exc,
         )
         return GetToolsOutput(
             status=SearchStatus.ERROR,
@@ -116,10 +115,8 @@ def get_tools(  # pylint: disable=too-many-return-statements
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        logger.exception(
-            "Unexpected error during tool fetch for %s: %s", params.collection_concept_id, exc
-        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error during tool fetch for %s", params.collection_concept_id)
         return GetToolsOutput(
             status=SearchStatus.ERROR,
             error_message="An unexpected internal error occurred during tool fetch.",

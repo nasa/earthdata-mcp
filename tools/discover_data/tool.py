@@ -258,7 +258,7 @@ def discover_data(params: DiscoverDataInput) -> dict:  # pylint: disable=too-man
         ).model_dump()
 
     except Exception as e:
-        logger.exception("Error in discover_data: %s", e)
+        logger.exception("Error in discover_data")
 
         trace_update(
             tags=["error"],

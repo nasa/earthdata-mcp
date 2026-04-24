@@ -72,11 +72,10 @@ def get_services(  # pylint: disable=too-many-return-statements
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.exception(
-            "Unexpected error during collection lookup for %s: %s",
+            "Unexpected error during collection lookup for %s",
             params.collection_concept_id,
-            exc,
         )
         return GetServicesOutput(
             status=SearchStatus.ERROR,
@@ -110,9 +109,9 @@ def get_services(  # pylint: disable=too-many-return-statements
             status=SearchStatus.ERROR,
             error_message=str(exc),
         ).model_dump()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.exception(
-            "Unexpected error during service fetch for %s: %s", params.collection_concept_id, exc
+            "Unexpected error during service fetch for %s", params.collection_concept_id
         )
         return GetServicesOutput(
             status=SearchStatus.ERROR,
