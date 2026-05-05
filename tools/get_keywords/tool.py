@@ -42,6 +42,14 @@ def get_keywords(
             error_message=f"Failed to communicate with KMS API: {e}",
             keywords=[],
         ).model_dump()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error in get_keywords for query '%s': %s", query, e)
+        return GetKeywordsOutput(
+            status=SearchStatus.ERROR,
+            total_hits=0,
+            error_message="An unexpected error occurred while processing KMS keywords.",
+            keywords=[],
+        ).model_dump()
 
     if not raw_concepts:
         return GetKeywordsOutput(

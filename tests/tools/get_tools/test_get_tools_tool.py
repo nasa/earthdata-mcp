@@ -1,6 +1,7 @@
 """Tests for the get_tools MCP tool."""
 
 import importlib
+from unittest.mock import patch
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -233,3 +234,20 @@ class TestGetToolsErrors:
         output = tool.get_tools(collection_concept_id="C1-PROV")
         assert output["status"] == "error"
         assert output["error_message"] == "An unexpected internal error occurred during tool fetch."
+
+
+def test_get_tools_calls_trace_update(monkeypatch):
+    """Test telemetry tracing."""
+    tool = _load_tool()
+
+    page = _collection_page([])
+
+    def fake_search_cmr(**kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    with patch.object(tool, "trace_update") as mock_trace_update:
+        tool.get_tools(collection_concept_id="C1-PROV")
+
+    assert mock_trace_update.called

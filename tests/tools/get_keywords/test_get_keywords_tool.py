@@ -131,3 +131,25 @@ def test_get_keywords_malformed_response_types(mock_search_kms_pattern: MagicMoc
     assert kw["prefLabel"] == "BAD DATA"
     assert kw["definition"] is None  # Because definitions[0] wasn't a dict
     assert kw["scheme"] == {}  # Because scheme wasn't a dict
+
+
+def test_get_keywords_unexpected_error(mock_search_kms_pattern):
+    """Test behavior on generic unexpected exception."""
+    tool = _load_tool()
+    mock_search_kms_pattern.side_effect = RuntimeError("Boom")
+
+    result = tool.get_keywords(query="TEST")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert "unexpected error" in result["error_message"].lower()
+
+
+def test_get_keywords_calls_trace_update(mock_search_kms_pattern):
+    """Test telemetry tracing."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = []
+
+    with patch.object(tool, "trace_update") as mock_trace_update:
+        tool.get_keywords(query="TEST")
+
+    assert mock_trace_update.called

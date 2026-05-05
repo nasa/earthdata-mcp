@@ -1,6 +1,7 @@
 """Unit tests for the get_variables MCP tool."""
 
 import importlib
+from unittest.mock import patch
 
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
@@ -171,3 +172,150 @@ def test_get_variables_cmr_error(monkeypatch):
 
     assert result["status"] == SearchStatus.ERROR
     assert "CMR API is down" in result["error_message"]
+
+
+def test_get_variables_returns_error_on_unexpected_failure(monkeypatch):
+    """Test unexpected internal error handling."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**kwargs):
+        raise RuntimeError("unexpected failure")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(keyword="SST")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert "unexpected internal error" in result["error_message"]
+
+
+def test_get_variables_calls_trace_update(monkeypatch):
+    """Test telemetry tracing."""
+    tool = _load_tool()
+
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=10)
+
+    def fake_search_cmr(**kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    with patch.object(tool, "trace_update") as mock_trace_update:
+        tool.get_variables(keyword="SST")
+
+    assert mock_trace_update.called
+
+
+def test_get_variables_collection_cmr_error(monkeypatch):
+    """Test get_variables handling of CMRError during collection lookup."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**kwargs):
+        raise CMRError("Collection search failed")
+        yield
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert "Collection search failed" in result["error_message"]
+
+
+def test_get_variables_collection_unexpected_error(monkeypatch):
+    """Test get_variables handling of unexpected error during collection lookup."""
+    tool = _load_tool()
+
+    def fake_search_cmr(**kwargs):
+        raise RuntimeError("Boom")
+        yield
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert "unexpected internal error occurred during collection lookup" in result["error_message"]
+
+
+def test_get_variables_collection_empty_items(monkeypatch):
+    """Test get_variables when collection page has no items."""
+    tool = _load_tool()
+
+    page = CMRSearchResponse(
+        items=[],
+        total_hits=0,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    def fake_search_cmr(**kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV")
+
+    assert result["status"] == SearchStatus.NO_RESULTS
+    assert result["variables"] == []
+
+
+def test_get_variables_collection_no_variable_associations(monkeypatch):
+    """Test get_variables when collection exists but has no variable associations."""
+    tool = _load_tool()
+
+    page = CMRSearchResponse(
+        items=[{"meta": {"concept-id": "C99999-PROV", "associations": {}}}],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    def fake_search_cmr(**kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV")
+
+    assert result["status"] == SearchStatus.NO_RESULTS
+    assert result["variables"] == []
+
+
+def test_get_variables_variable_search_empty_items(monkeypatch):
+    """Test get_variables when variable search yields empty items after successful collection lookup."""
+    tool = _load_tool()
+
+    coll_page = CMRSearchResponse(
+        items=[
+            {"meta": {"concept-id": "C99999-PROV", "associations": {"variables": ["V67890-PROV"]}}}
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    var_page = CMRSearchResponse(
+        items=[],
+        total_hits=0,
+        took_ms=5,
+        search_after=None,
+        page_size=10,
+    )
+
+    def fake_search_cmr(**kwargs):
+        if kwargs["concept_type"] == "collection":
+            yield coll_page
+        else:
+            yield var_page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV")
+
+    assert result["status"] == SearchStatus.NO_RESULTS
+    assert result["variables"] == []

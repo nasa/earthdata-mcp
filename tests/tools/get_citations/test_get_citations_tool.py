@@ -195,3 +195,15 @@ def test_get_citations_generic_exception(mock_search_cmr: MagicMock) -> None:
     res = tool.get_citations(collection_concept_id="C123-PROV")
     assert res["status"] == SearchStatus.ERROR
     assert "unexpected internal error" in res["error_message"]
+
+
+def test_get_citations_calls_trace_update(mock_search_cmr: MagicMock) -> None:
+    """Test telemetry tracing."""
+    tool = _load_tool()
+
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
+
+    with patch.object(tool, "trace_update") as mock_trace_update:
+        tool.get_citations(identifier="10.1234/test")
+
+    assert mock_trace_update.called
