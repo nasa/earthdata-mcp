@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 
 
@@ -48,6 +49,7 @@ def test_get_keywords_global_success(mock_search_kms_pattern: MagicMock) -> None
     assert kw["definition"] == "A very cool instrument."
     assert kw["scheme"]["shortName"] == "instruments"
 
+    assert result["next_cursor"] is None
     mock_search_kms_pattern.assert_called_once_with("MODIS", None)
 
 
@@ -153,3 +155,90 @@ def test_get_keywords_calls_trace_update(mock_search_kms_pattern):
         tool.get_keywords(query="TEST")
 
     assert mock_trace_update.called
+
+
+def _make_concept(n: int) -> dict:
+    return {
+        "uuid": f"uuid-{n}",
+        "prefLabel": f"KEYWORD {n}",
+        "scheme": {"shortName": "sciencekeywords"},
+        "definitions": [],
+    }
+
+
+def test_get_keywords_pagination_first_page(mock_search_kms_pattern: MagicMock) -> None:
+    """First page returns limit items, next_cursor is set, total_hits is full count."""
+    tool = _load_tool()
+    all_concepts = [_make_concept(i) for i in range(15)]
+    mock_search_kms_pattern.return_value = all_concepts
+
+    result = tool.get_keywords(query="KEYWORD", limit=10)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 15
+    assert len(result["keywords"]) == 10
+    assert result["keywords"][0]["prefLabel"] == "KEYWORD 0"
+    assert result["keywords"][9]["prefLabel"] == "KEYWORD 9"
+    assert result["next_cursor"] is not None
+    parsed = decode_cursor(result["next_cursor"])
+    assert parsed["backend"] == "kms"
+    assert parsed["value"] == 10
+
+
+def test_get_keywords_pagination_second_page(mock_search_kms_pattern: MagicMock) -> None:
+    """Second page returns remaining items, next_cursor is None."""
+    tool = _load_tool()
+    all_concepts = [_make_concept(i) for i in range(15)]
+    mock_search_kms_pattern.return_value = all_concepts
+
+    cursor = encode_cursor("kms", 10)
+    result = tool.get_keywords(query="KEYWORD", limit=10, cursor=cursor)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 15
+    assert len(result["keywords"]) == 5
+    assert result["keywords"][0]["prefLabel"] == "KEYWORD 10"
+    assert result["keywords"][4]["prefLabel"] == "KEYWORD 14"
+    assert result["next_cursor"] is None
+
+
+def test_get_keywords_pagination_exact_multiple(mock_search_kms_pattern: MagicMock) -> None:
+    """When total is exact multiple of limit, final page has next_cursor=None."""
+    tool = _load_tool()
+    all_concepts = [_make_concept(i) for i in range(10)]
+    mock_search_kms_pattern.return_value = all_concepts
+
+    cursor = encode_cursor("kms", 10)
+    result = tool.get_keywords(query="KEYWORD", limit=10, cursor=cursor)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 10
+    assert len(result["keywords"]) == 0
+    assert result["next_cursor"] is None
+
+
+def test_get_keywords_invalid_cursor(mock_search_kms_pattern: MagicMock) -> None:
+    """Garbage cursor returns an error response, not an unhandled exception."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = [_make_concept(0)]
+
+    result = tool.get_keywords(query="KEYWORD", cursor="not-valid-base64!!!")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["total_hits"] == 0
+    assert result["next_cursor"] is None
+    assert "cursor" in result["error_message"].lower()
+
+
+def test_get_keywords_cross_backend_cursor(mock_search_kms_pattern: MagicMock) -> None:
+    """A CMR cursor passed to get_keywords returns a clean error, not an exception."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = [_make_concept(0)]
+
+    cmr_cursor = encode_cursor("cmr", "some-cmr-token")
+    result = tool.get_keywords(query="KEYWORD", cursor=cmr_cursor)
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["total_hits"] == 0
+    assert result["next_cursor"] is None
+    assert "cursor" in result["error_message"].lower()

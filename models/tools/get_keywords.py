@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from models.pagination import CursorParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -45,11 +46,16 @@ class GetKeywordsInput(BaseModel):
             ),
         ),
     ]
+    limit: LimitParam = 10
+    cursor: CursorParam = None
 
 
 class GetKeywordsOutput(BaseCmrSearchOutput):
     """Output model for get_keywords."""
 
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page; None when no more results"
+    )
     keywords: list[KeywordResult] = Field(
         default_factory=list, description="List of matched KMS terms"
     )
