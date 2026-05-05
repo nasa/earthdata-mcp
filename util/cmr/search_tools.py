@@ -567,3 +567,34 @@ def normalize_citation_item(item: dict[str, Any]) -> dict[str, Any]:
         "citation_metadata": umm.get("CitationMetadata"),
         "metadata_specification": umm.get("MetadataSpecification"),
     }
+
+
+def normalize_variable_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a CMR UMM-V item into the MCP-facing response shape."""
+    meta = item.get("meta", {})
+    umm = item.get("umm", {})
+
+    concept_id = meta.get("concept-id", "")
+    logger.debug("Normalizing variable record: %s", concept_id)
+
+    return {
+        "concept_id": concept_id,
+        "name": umm.get("Name"),
+        "long_name": umm.get("LongName"),
+        "definition": umm.get("Definition"),
+        "data_type": umm.get("DataType"),
+        "units": umm.get("Units"),
+        "scale": umm.get("Scale"),
+        "offset": umm.get("Offset"),
+        "fill_values": umm.get("FillValues"),
+        "valid_ranges": umm.get("ValidRanges"),
+        "dimensions": umm.get("Dimensions"),
+        "standard_name": umm.get("StandardName"),
+        "science_keywords": umm.get("ScienceKeywords"),
+        "variable_type": umm.get("VariableType"),
+        "variable_sub_type": umm.get("VariableSubType"),
+        "sets": umm.get("Sets"),
+        "measurement_identifiers": umm.get("MeasurementIdentifiers"),
+        "sampling_identifiers": umm.get("SamplingIdentifiers"),
+        "related_urls": umm.get("RelatedURLs"),
+    }

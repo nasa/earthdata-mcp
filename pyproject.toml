@@ -141,6 +141,11 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+[tool.uv.workspace]
+members = [
+    "tmp/continue_notebook_test",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",

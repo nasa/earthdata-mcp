@@ -36,6 +36,7 @@ terraform.tgz
 terraform_backend.tf
 
 # Local AI Configuration
+.continue
 .continue/rules/local/
 
 .claude/

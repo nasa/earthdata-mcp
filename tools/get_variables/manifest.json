@@ -1,0 +1,22 @@
+{
+  "name": "get_variables",
+  "description": "Discover scientific variables and measurements associated with a collection, or look up variables by keyword. Use this tool to understand dataset variables, dimensions, and data processing parameters (such as scale, offset, and fill values) before downloading or analyzing data.\n\nKey fields in each returned item:\n- concept_id: CMR variable concept ID\n- name: Variable short name\n- long_name: Variable long name\n- definition: Variable definition\n- data_type: Data type of the variable\n- units: Units of measurement\n- scale: Scale factor\n- offset: Offset value\n- fill_values: Values indicating missing or invalid data\n- valid_ranges: Valid data ranges\n- dimensions: Variable dimensions",
+  "version": "0.1.0",
+  "module": "tool",
+  "entry_function": "get_variables",
+  "tags": ["nasa", "earthdata", "cmr", "variables", "measurements", "science", "data"],
+  "examples": {
+    "collection_search": {
+      "description": "Find variables associated with a specific collection",
+      "params": {
+        "collection_concept_id": "C2763266360-LPCLOUD"
+      }
+    },
+    "keyword_search": {
+      "description": "Look up variables using a free-text keyword",
+      "params": {
+        "keyword": "sea_surface_temperature"
+      }
+    }
+  }
+}

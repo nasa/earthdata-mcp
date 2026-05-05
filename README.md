@@ -12,6 +12,7 @@ To start querying Earthdata immediately, see **[Connecting to the Server](#for-c
 - **`get_services`**: Discovers data access endpoints (OPeNDAP, Harmony) and visualization layers (WMS/WMTS) associated with a collection.
 - **`get_tools`**: Finds web portals (e.g., Giovanni, Worldview) and downloadable software (e.g., Panoply) associated with a collection, returning URLs and deep-linking templates.
 - **`get_citations`**: Discovers citation records (publications, DOIs) associated with a collection, or looks up citations directly by identifier.
+- **`get_variables`**: Discovers scientific variables and measurements associated with a collection, or looks up variables by keyword. Use this to understand specific data parameters (scale, offset, fill values) before downloading or analyzing data.
 
 ### Agent Workflow Instructions
 
@@ -27,7 +28,7 @@ The repository is structured around a few core domains:
 
 - **`server.py` & `loader.py`**: The FastMCP server entry point and dynamic tool registration logic.
 - **`prompts/`**: System prompts and instructions that define the LLM's workflow and persona.
-- **`tools/`**: Self-contained MCP tools wrapping NASA CMR APIs (`get_collections`, `get_granules`, `get_keywords`, `get_services`, `get_tools`, `get_citations`).
+- **`tools/`**: Self-contained MCP tools wrapping NASA CMR APIs (`get_collections`, `get_granules`, `get_keywords`, `get_services`, `get_tools`, `get_citations`, `get_variables`).
 - **`models/`**: Pydantic models for tool input validation and standardized CMR API responses.
 - **`tests/`**: Comprehensive test suite (using `pytest`) covering server initialization, tool logic, and mocked CMR API responses.
 - **`docs/`**: Project documentation separated into `consumers/` and `developers/`.
