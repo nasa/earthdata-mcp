@@ -256,3 +256,300 @@ def test_get_collections_calls_trace_update(monkeypatch):
 
     assert output["status"] == "no_results"
     assert mock_trace_update.called
+
+
+# --- pagination ---
+
+
+def _make_collection_item(concept_id="C1-PROV"):
+    """Minimal UMM collection item for pagination/field tests."""
+    return {
+        "meta": {"concept-id": concept_id},
+        "umm": {
+            "ShortName": "SHORT",
+            "EntryTitle": "A Collection Title",
+            "Abstract": "Abstract text",
+        },
+    }
+
+
+def test_get_collections_returns_next_cursor_when_page_is_full(monkeypatch):
+    """next_cursor must be set when items == limit and search_after token is present."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_collection_item()],
+        total_hits=5,
+        took_ms=5,
+        search_after="tok-abc",
+        page_size=1,
+    )
+
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections(limit=1)
+
+    assert output["next_cursor"] is not None
+
+
+def test_get_collections_returns_no_cursor_on_last_page(monkeypatch):
+    """next_cursor must be None when items < limit."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_collection_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after="tok-xyz",
+        page_size=1,
+    )
+
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections(limit=5)
+
+    assert output["next_cursor"] is None
+
+
+def test_get_collections_cursor_passes_search_after(monkeypatch):
+    """A valid CMR cursor must decode and pass search_after to the backend."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    cursor = encode_cursor("cmr", "some-search-after-token")
+    tool.get_collections(cursor=cursor)
+
+    assert captured.get("search_after") == "some-search-after-token"
+
+
+def test_get_collections_passes_limit_as_page_size(monkeypatch):
+    """The limit param must be forwarded to CMR as page_size."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_collections(limit=25)
+
+    assert captured.get("page_size") == 25
+
+
+def test_get_collections_returns_error_on_invalid_cursor(monkeypatch):
+    """An invalid cursor string must produce a clean error response, not an exception."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections(cursor="this-is-not-a-valid-cursor!@#")
+
+    assert output["status"] == "error"
+    assert "cursor" in output["error_message"].lower()
+
+
+def test_get_collections_returns_error_on_cross_backend_cursor(monkeypatch):
+    """A KMS cursor passed to get_collections must produce a clean error response."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    kms_cursor = encode_cursor("kms", 20)
+    output = tool.get_collections(cursor=kms_cursor)
+
+    assert output["status"] == "error"
+    assert "cursor" in output["error_message"].lower()
+
+
+# --- field filtering ---
+
+
+def test_get_collections_fields_filtering_keeps_mandatory_fields(monkeypatch):
+    """fields param must keep only requested fields plus concept_id and entry_title."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_collection_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections(fields=["abstract"])
+
+    item = output["collections"][0]
+    assert "concept_id" in item
+    assert "entry_title" in item
+    assert "abstract" in item
+    assert "short_name" not in item
+
+
+def test_get_collections_fields_none_returns_all_fields(monkeypatch):
+    """When fields is None, all normalized fields must be present."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_collection_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections(fields=None)
+
+    item = output["collections"][0]
+    assert "abstract" in item
+    assert "short_name" in item
+
+
+# --- new search params ---
+
+
+def test_get_collections_platform_param(monkeypatch):
+    """platform param must map to platform[] in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_collections(platform=["Terra", "Aqua"])
+
+    assert captured["search_params"].get("platform[]") == ["Terra", "Aqua"]
+
+
+def test_get_collections_instrument_param(monkeypatch):
+    """instrument param must map to instrument[] in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_collections(instrument=["MODIS"])
+
+    assert captured["search_params"].get("instrument[]") == ["MODIS"]
+
+
+def test_get_collections_processing_level_id_param(monkeypatch):
+    """processing_level_id param must map to processing_level_id[] in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_collections(processing_level_id=["3", "3A"])
+
+    assert captured["search_params"].get("processing_level_id[]") == ["3", "3A"]
+
+
+def test_get_collections_has_granules_param(monkeypatch):
+    """has_granules=True must appear in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_collections(has_granules=True)
+
+    assert captured["search_params"].get("has_granules") is True
+
+
+# --- new response fields ---
+
+
+def _make_rich_collection_item():
+    """UMM collection item with all new Phase 2 fields populated."""
+    return {
+        "meta": {"concept-id": "C1-PROV"},
+        "umm": {
+            "ShortName": "SHORT",
+            "EntryTitle": "A Collection",
+            "CollectionProgress": "ACTIVE",
+            "ScienceKeywords": [
+                {
+                    "Category": "EARTH SCIENCE",
+                    "Topic": "LAND SURFACE",
+                    "Term": "SURFACE THERMAL PROPERTIES",
+                }
+            ],
+            "SpatialExtent": {
+                "HorizontalSpatialDomain": {
+                    "Geometry": {
+                        "BoundingRectangles": [
+                            {
+                                "WestBoundingCoordinate": -180.0,
+                                "EastBoundingCoordinate": 180.0,
+                                "NorthBoundingCoordinate": 90.0,
+                                "SouthBoundingCoordinate": -90.0,
+                            }
+                        ]
+                    }
+                }
+            },
+            "DataCenters": [{"Roles": ["ARCHIVER"], "ShortName": "PODAAC"}],
+            "ArchiveAndDistributionInformation": {
+                "FileDistributionInformation": [{"Format": "NetCDF-4", "Media": ["Online"]}]
+            },
+        },
+    }
+
+
+def test_get_collections_new_response_fields_present(monkeypatch):
+    """science_keywords, collection_progress, bounding_box, data_centers, and
+    archive_and_distribution_information must all appear in normalized output."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_rich_collection_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_collections()
+
+    item = output["collections"][0]
+    assert "science_keywords" in item
+    assert item["science_keywords"][0]["Category"] == "EARTH SCIENCE"
+    assert "collection_progress" in item
+    assert item["collection_progress"] == "ACTIVE"
+    assert "bounding_box" in item
+    assert item["bounding_box"] == [-180.0, -90.0, 180.0, 90.0]
+    assert "data_centers" in item
+    assert item["data_centers"][0]["short_name"] == "PODAAC"
+    assert "archive_and_distribution_information" in item
+    assert item["archive_and_distribution_information"][0]["format"] == "NetCDF-4"

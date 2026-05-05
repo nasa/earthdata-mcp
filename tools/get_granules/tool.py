@@ -4,13 +4,23 @@ import logging
 
 from langfuse import observe
 
+from models.pagination import (
+    MANDATORY_FIELDS_GRANULES,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_granules import (
     CloudCoverMaxParam,
     CloudCoverMinParam,
     CollectionConceptIdParam,
+    DayNightFlagParam,
     GetGranulesInput,
     GetGranulesOutput,
+    SortKeyParam,
     SpatialWktGeometryParam,
     TemporalEndDateParam,
     TemporalStartDateParam,
@@ -28,15 +38,20 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_granules")
-def get_granules(
+def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     collection_concept_id: CollectionConceptIdParam,
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
     spatial_wkt_geometry: SpatialWktGeometryParam = None,
     cloud_cover_min: CloudCoverMinParam = None,
     cloud_cover_max: CloudCoverMaxParam = None,
+    day_night_flag: DayNightFlagParam = None,
+    sort_key: SortKeyParam = None,
+    limit: LimitParam = 10,
+    cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
-    """Search CMR granules for a single parent collection, returning up to 10 results.
+    """Search CMR granules for a single parent collection, returning paginated results.
 
     When checking data availability for a specific time period or geographic area, always
     provide temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. Without these
@@ -84,7 +99,22 @@ def get_granules(
             spatial_wkt_geometry=spatial_wkt_geometry,
             cloud_cover_min=cloud_cover_min,
             cloud_cover_max=cloud_cover_max,
+            day_night_flag=day_night_flag,
+            sort_key=sort_key,
+            limit=limit,
+            cursor=cursor,
+            fields=fields,
         )
+
+        search_after = None
+        if params.cursor:
+            parsed = decode_cursor(params.cursor)
+            if parsed.get("backend") != "cmr":
+                raise ValueError(
+                    "Cursor is not valid for this tool. Cursors cannot be reused across "
+                    "different tools. Start a new search without a cursor parameter."
+                )
+            search_after = parsed.get("value")
 
         search_params: dict[str, object] = {"collection_concept_id": params.collection_concept_id}
 
@@ -96,13 +126,19 @@ def get_granules(
         if cloud_cover:
             search_params["cloud_cover"] = cloud_cover
 
+        if params.day_night_flag:
+            search_params["day_night_flag"] = params.day_night_flag
+        if params.sort_key:
+            search_params["sort_key"] = params.sort_key
+
         files = build_spatial_files(params.spatial_wkt_geometry)
         method = "POST" if files else "GET"
         page = next(
             search_cmr(
                 concept_type="granule",
                 search_params=search_params,
-                page_size=10,
+                page_size=params.limit,
+                search_after=search_after,
                 method=method,
                 files=files,
             ),
@@ -126,8 +162,25 @@ def get_granules(
 
     granules = [normalize_granule_item(item) for item in page.items]
     status = SearchStatus.SUCCESS if granules else SearchStatus.NO_RESULTS
-    return GetGranulesOutput(
+    next_cursor = (
+        encode_cursor("cmr", page.search_after)
+        if page.search_after and len(page.items) == params.limit
+        else None
+    )
+    response_dict = GetGranulesOutput(
         status=status,
         granules=granules,
         total_hits=page.total_hits,
+        next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        requested: set[str] = set(params.fields)
+        for item in response_dict["granules"]:
+            keys_to_remove = [
+                k for k in item if k not in requested and k not in MANDATORY_FIELDS_GRANULES
+            ]
+            for k in keys_to_remove:
+                del item[k]
+
+    return response_dict

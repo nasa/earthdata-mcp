@@ -1,10 +1,11 @@
 """Input and output models for the get_granules MCP tool."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 CollectionConceptIdParam = Annotated[
@@ -85,6 +86,26 @@ CloudCoverMaxParam = Annotated[
     ),
 ]
 
+DayNightFlagParam = Annotated[
+    str | None,
+    Field(
+        description=(
+            "Filter granules by day/night acquisition flag. Values: 'DAY', 'NIGHT', 'UNSPECIFIED'."
+        )
+    ),
+]
+
+SortKeyParam = Annotated[
+    str | None,
+    Field(
+        description=(
+            "Sort key for granule results. "
+            "e.g., '-start_date' (newest first), 'start_date' (oldest first). "
+            "CMR default is relevance score."
+        )
+    ),
+]
+
 
 class GranuleResult(BaseModel):
     """Minimal granule result for direct CMR-backed retrieval."""
@@ -92,6 +113,10 @@ class GranuleResult(BaseModel):
     access_urls: list[str] = Field(
         default_factory=list,
         description="Actionable data access URLs (Note: Access requires Earthdata Login authentication)",
+    )
+    additional_attributes: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Provider-specific attributes (e.g., tile coords, quality flags) — array of {name, values[]}",
     )
     bounding_box: list[float] | None = Field(
         None,
@@ -104,7 +129,14 @@ class GranuleResult(BaseModel):
     day_night_flag: str | None = Field(None, description="DAY, NIGHT, BOTH, or UNSPECIFIED")
     granule_ur: str = Field(..., description="Granule UR")
     native_id: str | None = Field(None, description="The native ID of the granule record")
+    orbit_info: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Orbit calculated spatial domains — array of {orbit_number, equator_crossing_longitude, equator_crossing_date_time}",
+    )
     producer_granule_id: str | None = Field(None, description="Producer granule ID")
+    production_date: datetime | None = Field(
+        None, description="Date the granule was generated (ProductionDateTime)"
+    )
     provider_id: str | None = Field(None, description="The provider ID of the granule")
     revision_id: int | None = Field(None, description="The revision ID of the granule metadata")
     size_mb: float | None = Field(None, description="Size of the data granule in MB")
@@ -123,11 +155,19 @@ class GetGranulesInput(BaseModel):
     spatial_wkt_geometry: SpatialWktGeometryParam = None
     cloud_cover_min: CloudCoverMinParam = None
     cloud_cover_max: CloudCoverMaxParam = None
+    day_night_flag: DayNightFlagParam = None
+    sort_key: SortKeyParam = None
+    limit: LimitParam = 10
+    cursor: CursorParam = None
+    fields: FieldsParam = None
 
 
 class GetGranulesOutput(BaseCmrSearchOutput):
     """Output model for get_granules."""
 
     granules: list[GranuleResult] = Field(
-        default_factory=list, description="Normalized granule results mapped from UMM-G (max 10)"
+        default_factory=list, description="Normalized granule results mapped from UMM-G"
+    )
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page of results"
     )

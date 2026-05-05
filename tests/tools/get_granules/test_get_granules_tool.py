@@ -296,3 +296,244 @@ def test_get_granules_calls_trace_update(monkeypatch):
 
     assert output["status"] == "no_results"
     assert mock_trace_update.called
+
+
+# --- pagination ---
+
+
+def _make_granule_item(concept_id="G1-PROV"):
+    """Minimal UMM granule item for pagination/field tests."""
+    return {
+        "meta": {"concept-id": concept_id, "parent-collection-id": "C1-PROV"},
+        "umm": {"GranuleUR": f"granule-{concept_id}"},
+    }
+
+
+def test_get_granules_returns_next_cursor_when_page_is_full(monkeypatch):
+    """next_cursor must be set when items == limit and search_after token is present."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_granule_item()],
+        total_hits=5,
+        took_ms=5,
+        search_after="tok-abc",
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV", limit=1)
+
+    assert output["next_cursor"] is not None
+
+
+def test_get_granules_returns_no_cursor_on_last_page(monkeypatch):
+    """next_cursor must be None when items < limit."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_granule_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after="tok-xyz",
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV", limit=5)
+
+    assert output["next_cursor"] is None
+
+
+def test_get_granules_cursor_passes_search_after(monkeypatch):
+    """A valid CMR cursor must decode and pass search_after to the backend."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    cursor = encode_cursor("cmr", "some-granule-token")
+    tool.get_granules(collection_concept_id="C1-PROV", cursor=cursor)
+
+    assert captured.get("search_after") == "some-granule-token"
+
+
+def test_get_granules_passes_limit_as_page_size(monkeypatch):
+    """The limit param must be forwarded to CMR as page_size."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_granules(collection_concept_id="C1-PROV", limit=20)
+
+    assert captured.get("page_size") == 20
+
+
+def test_get_granules_returns_error_on_invalid_cursor(monkeypatch):
+    """An invalid cursor string must produce a clean error response, not an exception."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV", cursor="not-valid-cursor!@#")
+
+    assert output["status"] == "error"
+    assert "cursor" in output["error_message"].lower()
+
+
+def test_get_granules_returns_error_on_cross_backend_cursor(monkeypatch):
+    """A KMS cursor passed to get_granules must produce a clean error response."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    kms_cursor = encode_cursor("kms", 20)
+    output = tool.get_granules(collection_concept_id="C1-PROV", cursor=kms_cursor)
+
+    assert output["status"] == "error"
+    assert "cursor" in output["error_message"].lower()
+
+
+# --- field filtering ---
+
+
+def test_get_granules_fields_filtering_keeps_mandatory_fields(monkeypatch):
+    """fields param must keep only requested fields plus concept_id and granule_ur."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_granule_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV", fields=["time_start"])
+
+    item = output["granules"][0]
+    assert "concept_id" in item
+    assert "granule_ur" in item
+    assert "time_start" in item
+    assert "provider_id" not in item
+
+
+def test_get_granules_fields_none_returns_all_fields(monkeypatch):
+    """When fields is None, all normalized fields must be present."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_granule_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV", fields=None)
+
+    item = output["granules"][0]
+    assert "provider_id" in item
+    assert "time_start" in item
+
+
+# --- new search params ---
+
+
+def test_get_granules_day_night_flag_param(monkeypatch):
+    """day_night_flag param must appear in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_granules(collection_concept_id="C1-PROV", day_night_flag="DAY")
+
+    assert captured["search_params"].get("day_night_flag") == "DAY"
+
+
+def test_get_granules_sort_key_param(monkeypatch):
+    """sort_key param must appear in CMR search_params."""
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    captured = {}
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    tool.get_granules(collection_concept_id="C1-PROV", sort_key="-start_date")
+
+    assert captured["search_params"].get("sort_key") == "-start_date"
+
+
+# --- new response fields ---
+
+
+def _make_rich_granule_item():
+    """UMM granule item with all new Phase 2 fields populated."""
+    return {
+        "meta": {"concept-id": "G1-PROV", "parent-collection-id": "C1-PROV"},
+        "umm": {
+            "GranuleUR": "granule-G1-PROV",
+            "DataGranule": {
+                "ProductionDateTime": "2024-01-15T10:00:00Z",
+                "DayNightFlag": "DAY",
+            },
+            "OrbitCalculatedSpatialDomains": [
+                {
+                    "OrbitalModelName": "MODIS",
+                    "OrbitNumber": 12345,
+                    "EquatorCrossingLongitude": -75.5,
+                    "EquatorCrossingDateTime": "2024-01-01T06:00:00Z",
+                }
+            ],
+            "AdditionalAttributes": [
+                {"Name": "TILE_ID", "Values": ["h18v04"]},
+                {"Name": "QAPERCENTCLOUDCOVER", "Values": ["5"]},
+            ],
+        },
+    }
+
+
+def test_get_granules_new_response_fields_present(monkeypatch):
+    """production_date, orbit_info, and additional_attributes must appear in normalized output."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_rich_granule_item()],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    output = tool.get_granules(collection_concept_id="C1-PROV")
+
+    item = output["granules"][0]
+    assert "production_date" in item
+    assert item["production_date"] is not None
+    assert "orbit_info" in item
+    assert item["orbit_info"][0]["orbit_number"] == 12345
+    assert "additional_attributes" in item
+    assert item["additional_attributes"][0]["name"] == "TILE_ID"

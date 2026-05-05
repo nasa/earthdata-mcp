@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 KeywordParam = Annotated[
@@ -103,14 +104,69 @@ SpatialWktGeometryParam = Annotated[
 ]
 
 
+PlatformParam = Annotated[
+    list[str] | None,
+    Field(
+        description=(
+            "Platform short names to filter by (e.g., ['Terra', 'Aqua']). "
+            "Most common scientific filter after temporal/spatial."
+        )
+    ),
+]
+
+InstrumentParam = Annotated[
+    list[str] | None,
+    Field(
+        description=(
+            "Instrument short names to filter by (e.g., ['MODIS', 'VIIRS']). "
+            "More precise than keyword for instrument filtering."
+        )
+    ),
+]
+
+ProcessingLevelIdParam = Annotated[
+    list[str] | None,
+    Field(
+        description=(
+            "Processing level IDs to filter by (e.g., ['3', '3A']). "
+            "Essential for choosing between L2 swath and L3 gridded products."
+        )
+    ),
+]
+
+HasGranulesParam = Annotated[
+    bool | None,
+    Field(
+        description=(
+            "When True, filters to collections that have actual granule data. "
+            "Prevents returning metadata-only shells."
+        )
+    ),
+]
+
+
 class CollectionResult(BaseModel):
     """Minimal collection result for direct CMR-backed discovery."""
 
     abstract: str | None = Field(None, description="Collection summary or abstract")
+    archive_and_distribution_information: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="File formats and media types (e.g., [{format, media_type}])",
+    )
+    bounding_box: list[float] | None = Field(
+        None, description="[West, South, East, North] Minimum Bounding Rectangle"
+    )
     collection_data_type: str | None = Field(
         None, description="e.g., SCIENCE_QUALITY, NEAR_REAL_TIME"
     )
+    collection_progress: str | None = Field(
+        None, description="ACTIVE, COMPLETE, DEPRECATED, or PLANNED"
+    )
     concept_id: str = Field(..., description="CMR collection concept ID")
+    data_centers: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Archiving DAACs — array of {role, short_name}",
+    )
     doi: str | None = Field(None, description="Digital Object Identifier")
     entry_title: str = Field(..., description="Collection title")
     instruments: list[str] = Field(default_factory=list, description="Instrument short names")
@@ -123,6 +179,10 @@ class CollectionResult(BaseModel):
         default_factory=list, description="List of related URLs (e.g., documentation, guides)"
     )
     revision_id: int | None = Field(None, description="The revision ID of the collection metadata")
+    science_keywords: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="GCMD science keyword hierarchy (Category/Topic/Term/VariableLevel)",
+    )
     short_name: str | None = Field(None, description="Collection short name")
     spatial_resolution: str | None = Field(None, description="Human-readable spatial resolution")
     temporal_resolution: str | None = Field(None, description="Human-readable temporal resolution")
@@ -143,6 +203,13 @@ class GetCollectionsInput(BaseModel):
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
+    platform: PlatformParam = None
+    instrument: InstrumentParam = None
+    processing_level_id: ProcessingLevelIdParam = None
+    has_granules: HasGranulesParam = None
+    limit: LimitParam = 10
+    cursor: CursorParam = None
+    fields: FieldsParam = None
 
 
 class GetCollectionsOutput(BaseCmrSearchOutput):
@@ -150,4 +217,7 @@ class GetCollectionsOutput(BaseCmrSearchOutput):
 
     collections: list[CollectionResult] = Field(
         default_factory=list, description="Normalized collection results mapped from UMM-C"
+    )
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page of results"
     )

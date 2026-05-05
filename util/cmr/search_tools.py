@@ -199,9 +199,14 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
         else None,
         "doi": umm.get("DOI").get("DOI") if isinstance(umm.get("DOI"), dict) else None,
         "collection_data_type": umm.get("CollectionDataType"),
+        "collection_progress": umm.get("CollectionProgress"),
         "temporal_resolution": _extract_collection_temporal_resolution(umm),
         "spatial_resolution": _extract_collection_spatial_resolution(umm),
         "related_urls": related_urls,
+        "science_keywords": umm.get("ScienceKeywords") or [],
+        "bounding_box": _extract_granule_bounding_box(umm),
+        "data_centers": _extract_collection_data_centers(umm),
+        "archive_and_distribution_information": _extract_collection_archive_info(umm),
     }
 
 
@@ -242,6 +247,11 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
         "data_format": data_format,
         "bounding_box": _extract_granule_bounding_box(umm),
         "access_urls": extract_access_urls(umm),
+        "production_date": parse_iso_datetime(data_granule.get("ProductionDateTime", ""))
+        if isinstance(data_granule, dict)
+        else None,
+        "orbit_info": _extract_granule_orbit_info(umm),
+        "additional_attributes": _extract_granule_additional_attributes(umm),
     }
 
 
@@ -356,6 +366,72 @@ def normalize_service_item(item: dict[str, Any]) -> dict[str, Any]:
         "service_options": umm.get("ServiceOptions"),
         "operation_metadata": umm.get("OperationMetadata"),
     }
+
+
+def _extract_granule_orbit_info(umm: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract orbit calculated spatial domain records from UMM-G."""
+    domains = umm.get("OrbitCalculatedSpatialDomains")
+    if not isinstance(domains, list):
+        return []
+    result = []
+    for domain in domains:
+        if not isinstance(domain, dict):
+            continue
+        result.append(
+            {
+                "orbit_number": domain.get("OrbitNumber"),
+                "equator_crossing_longitude": domain.get("EquatorCrossingLongitude"),
+                "equator_crossing_date_time": domain.get("EquatorCrossingDateTime"),
+            }
+        )
+    return result
+
+
+def _extract_granule_additional_attributes(umm: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract additional attributes from UMM-G as [{name, values}]."""
+    attrs = umm.get("AdditionalAttributes")
+    if not isinstance(attrs, list):
+        return []
+    result = []
+    for attr in attrs:
+        if not isinstance(attr, dict):
+            continue
+        result.append({"name": attr.get("Name"), "values": attr.get("Values") or []})
+    return result
+
+
+def _extract_collection_data_centers(umm: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract data center role and short name from UMM-C DataCenters[]."""
+    centers = umm.get("DataCenters")
+    if not isinstance(centers, list):
+        return []
+    result = []
+    for center in centers:
+        if not isinstance(center, dict):
+            continue
+        roles = center.get("Roles") or []
+        short_name = center.get("ShortName")
+        role = roles[0] if roles else None
+        result.append({"role": role, "short_name": short_name})
+    return result
+
+
+def _extract_collection_archive_info(umm: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract file format and media type from ArchiveAndDistributionInformation."""
+    adi = umm.get("ArchiveAndDistributionInformation")
+    if not isinstance(adi, dict):
+        return []
+    file_dist = adi.get("FileDistributionInformation")
+    if not isinstance(file_dist, list):
+        return []
+    result = []
+    for entry in file_dist:
+        if not isinstance(entry, dict):
+            continue
+        media = entry.get("Media")
+        media_type = media[0] if isinstance(media, list) and media else None
+        result.append({"format": entry.get("Format"), "media_type": media_type})
+    return result
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:

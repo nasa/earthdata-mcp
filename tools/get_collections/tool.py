@@ -4,12 +4,24 @@ import logging
 
 from langfuse import observe
 
+from models.pagination import (
+    MANDATORY_FIELDS_COLLECTIONS,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_collections import (
     ConceptIdParam,
     GetCollectionsInput,
     GetCollectionsOutput,
+    HasGranulesParam,
+    InstrumentParam,
     KeywordParam,
+    PlatformParam,
+    ProcessingLevelIdParam,
     ProviderParam,
     ShortNameParam,
     SpatialWktGeometryParam,
@@ -28,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 @observe(name="get_collections")
-def get_collections(  # pylint: disable=too-many-arguments
+def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     keyword: KeywordParam = None,
     concept_id: ConceptIdParam = None,
     short_name: ShortNameParam = None,
@@ -36,8 +48,15 @@ def get_collections(  # pylint: disable=too-many-arguments
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
     spatial_wkt_geometry: SpatialWktGeometryParam = None,
+    platform: PlatformParam = None,
+    instrument: InstrumentParam = None,
+    processing_level_id: ProcessingLevelIdParam = None,
+    has_granules: HasGranulesParam = None,
+    limit: LimitParam = 10,
+    cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
-    """Search CMR collections and return up to 10 normalized results.
+    """Search CMR collections and return normalized results with pagination.
 
     Unfiltered searches are supported and return a broad set of collections sorted by usage.
     When the user's question involves a specific time period or geographic area, always include
@@ -87,7 +106,24 @@ def get_collections(  # pylint: disable=too-many-arguments
             temporal_start_date=temporal_start_date,
             temporal_end_date=temporal_end_date,
             spatial_wkt_geometry=spatial_wkt_geometry,
+            platform=platform,
+            instrument=instrument,
+            processing_level_id=processing_level_id,
+            has_granules=has_granules,
+            limit=limit,
+            cursor=cursor,
+            fields=fields,
         )
+
+        search_after = None
+        if params.cursor:
+            parsed = decode_cursor(params.cursor)
+            if parsed.get("backend") != "cmr":
+                raise ValueError(
+                    "Cursor is not valid for this tool. Cursors cannot be reused across "
+                    "different tools. Start a new search without a cursor parameter."
+                )
+            search_after = parsed.get("value")
 
         search_params: dict[str, object] = {}
         if params.keyword:
@@ -98,6 +134,14 @@ def get_collections(  # pylint: disable=too-many-arguments
             search_params["short_name"] = params.short_name
         if params.provider:
             search_params["provider"] = params.provider
+        if params.platform:
+            search_params["platform[]"] = params.platform
+        if params.instrument:
+            search_params["instrument[]"] = params.instrument
+        if params.processing_level_id:
+            search_params["processing_level_id[]"] = params.processing_level_id
+        if params.has_granules is not None:
+            search_params["has_granules"] = params.has_granules
 
         temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
         if temporal:
@@ -109,7 +153,8 @@ def get_collections(  # pylint: disable=too-many-arguments
             search_cmr(
                 concept_type="collection",
                 search_params=search_params,
-                page_size=10,
+                page_size=params.limit,
+                search_after=search_after,
                 method=method,
                 files=files,
             ),
@@ -133,8 +178,25 @@ def get_collections(  # pylint: disable=too-many-arguments
 
     collections = [normalize_collection_item(item) for item in page.items]
     status = SearchStatus.SUCCESS if collections else SearchStatus.NO_RESULTS
-    return GetCollectionsOutput(
+    next_cursor = (
+        encode_cursor("cmr", page.search_after)
+        if page.search_after and len(page.items) == params.limit
+        else None
+    )
+    response_dict = GetCollectionsOutput(
         status=status,
         collections=collections,
         total_hits=page.total_hits,
+        next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        requested: set[str] = set(params.fields)
+        for item in response_dict["collections"]:
+            keys_to_remove = [
+                k for k in item if k not in requested and k not in MANDATORY_FIELDS_COLLECTIONS
+            ]
+            for k in keys_to_remove:
+                del item[k]
+
+    return response_dict
