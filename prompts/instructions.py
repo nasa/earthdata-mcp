@@ -63,6 +63,7 @@ results = earthaccess.search_data(
 earthaccess.download(results, local_path="./data")
 ```
 For advanced usage (subsetting, streaming to xarray), direct the user to https://earthaccess.readthedocs.io.
+**CRITICAL - Dependencies:** If you provide code to open or process the downloaded data (e.g., using `xarray`), you MUST explicitly instruct the user to install the required sub-dependencies for that specific data format (e.g., `h5netcdf` or `netcdf4` for NetCDF/HDF5, `rioxarray` and `rasterio` for GeoTIFF, `zarr` for Zarr stores) so their code does not fail on import.
 
 **Alternative Access Methods:**
 If the user is not familiar with Python or prefers other tools, briefly mention these alternatives:
