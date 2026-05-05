@@ -12,6 +12,7 @@ from models.pagination import (
     CursorParam,
     FieldsParam,
     LimitParam,
+    apply_field_filter,
     decode_cursor,
     encode_cursor,
 )
@@ -159,3 +160,41 @@ def test_fields_param_default_none():
     ta = TypeAdapter(FieldsParam)
     schema = ta.json_schema()
     assert schema.get("default") is None
+
+
+# --- apply_field_filter ---
+
+
+def test_apply_field_filter_removes_unrequested_fields():
+    """apply_field_filter must strip fields not in requested or mandatory sets."""
+    items = [{"concept_id": "C1", "entry_title": "T", "abstract": "A", "short_name": "S"}]
+    apply_field_filter(items, ["abstract"], MANDATORY_FIELDS_COLLECTIONS)
+    assert items[0] == {"concept_id": "C1", "entry_title": "T", "abstract": "A"}
+
+
+def test_apply_field_filter_always_keeps_mandatory_fields():
+    """apply_field_filter must retain mandatory fields even when not in requested list."""
+    items = [{"concept_id": "C1", "granule_ur": "G1", "provider_id": "P"}]
+    apply_field_filter(items, [], MANDATORY_FIELDS_GRANULES)
+    assert "concept_id" in items[0]
+    assert "granule_ur" in items[0]
+    assert "provider_id" not in items[0]
+
+
+def test_apply_field_filter_mutates_in_place():
+    """apply_field_filter must modify the original list, not return a new one."""
+    items = [{"concept_id": "C1", "name": "N", "extra": "X"}]
+    original = items
+    apply_field_filter(items, [], MANDATORY_FIELDS_DEFAULT)
+    assert items is original
+
+
+def test_apply_field_filter_handles_multiple_items():
+    """apply_field_filter must apply consistently to every item in the list."""
+    items = [
+        {"concept_id": "C1", "entry_title": "T1", "abstract": "A1"},
+        {"concept_id": "C2", "entry_title": "T2", "abstract": "A2"},
+    ]
+    apply_field_filter(items, [], MANDATORY_FIELDS_COLLECTIONS)
+    for item in items:
+        assert set(item.keys()) == {"concept_id", "entry_title"}

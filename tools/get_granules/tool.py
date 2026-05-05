@@ -9,6 +9,7 @@ from models.pagination import (
     CursorParam,
     FieldsParam,
     LimitParam,
+    apply_field_filter,
     decode_cursor,
     encode_cursor,
 )
@@ -67,6 +68,11 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     If you generate Python code for the user to download these granules, strongly recommend
     using the `earthaccess` Python library (https://earthaccess.readthedocs.io) as it
     automatically handles the complex OAuth authentication redirects.
+
+    Pagination: use limit (default 10, max 50) and cursor to page through results.
+    Pass the next_cursor from a previous response as cursor to advance to the next page.
+    Use fields to restrict which keys are returned per item and reduce response size.
+    Cursors are tool-specific and cannot be reused across different tools.
     """
     metadata = {
         "collection_concept_id": collection_concept_id,
@@ -175,12 +181,6 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     ).model_dump()
 
     if params.fields:
-        requested: set[str] = set(params.fields)
-        for item in response_dict["granules"]:
-            keys_to_remove = [
-                k for k in item if k not in requested and k not in MANDATORY_FIELDS_GRANULES
-            ]
-            for k in keys_to_remove:
-                del item[k]
+        apply_field_filter(response_dict["granules"], params.fields, MANDATORY_FIELDS_GRANULES)
 
     return response_dict

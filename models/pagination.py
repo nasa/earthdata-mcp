@@ -67,3 +67,16 @@ def decode_cursor(cursor: str) -> dict[str, Any]:
         return json.loads(payload)
     except Exception as e:
         raise ValueError(f"Invalid pagination cursor: {e}") from e
+
+
+def apply_field_filter(
+    items: list[dict[str, Any]],
+    fields: list[str],
+    mandatory: frozenset[str],
+) -> None:
+    """Filter item dicts in-place, keeping only requested fields plus mandatory ones."""
+    requested = set(fields)
+    for item in items:
+        keys_to_remove = [k for k in item if k not in requested and k not in mandatory]
+        for k in keys_to_remove:
+            del item[k]

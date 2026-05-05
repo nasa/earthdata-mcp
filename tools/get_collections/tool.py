@@ -9,6 +9,7 @@ from models.pagination import (
     CursorParam,
     FieldsParam,
     LimitParam,
+    apply_field_filter,
     decode_cursor,
     encode_cursor,
 )
@@ -71,6 +72,11 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     Prefer 2–4 precise terms. If 0 results, drop the least essential word and retry.
     Phrase search: wrap value in escaped double quotes for exact sequence matching;
     cannot be mixed with standalone keywords.
+
+    Pagination: use limit (default 10, max 50) and cursor to page through results.
+    Pass the next_cursor from a previous response as cursor to advance to the next page.
+    Use fields to restrict which keys are returned per item and reduce response size.
+    Cursors are tool-specific and cannot be reused across different tools.
     """
     metadata = {}
     if keyword:
@@ -191,12 +197,8 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     ).model_dump()
 
     if params.fields:
-        requested: set[str] = set(params.fields)
-        for item in response_dict["collections"]:
-            keys_to_remove = [
-                k for k in item if k not in requested and k not in MANDATORY_FIELDS_COLLECTIONS
-            ]
-            for k in keys_to_remove:
-                del item[k]
+        apply_field_filter(
+            response_dict["collections"], params.fields, MANDATORY_FIELDS_COLLECTIONS
+        )
 
     return response_dict
