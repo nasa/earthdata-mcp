@@ -101,7 +101,10 @@ SortKeyParam = Annotated[
         description=(
             "Sort key for granule results. "
             "e.g., '-start_date' (newest first), 'start_date' (oldest first). "
-            "CMR default is relevance score."
+            "CMR default is relevance score. "
+            "For ongoing or near-real-time (NRT) missions where the user wants the most recent data, "
+            "always use '-start_date' — CMR's default relevance scoring may return historical data first "
+            "if sort_key is not explicitly set."
         )
     ),
 ]

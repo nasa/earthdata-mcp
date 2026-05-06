@@ -36,9 +36,11 @@ FieldsParam = Annotated[
     Field(
         default=None,
         description=(
-            "Specific top-level keys to include per result item "
-            "(e.g., ['concept_id', 'entry_title', 'abstract']). "
-            "Use to reduce payload size. concept_id is always returned regardless."
+            "Strongly recommended. Pass an array of top-level keys to include per result item "
+            "(e.g., ['concept_id', 'entry_title', 'abstract']) to aggressively reduce payload size "
+            "and preserve context window. CMR responses are highly verbose — omitting this parameter "
+            "when fetching more than a few results will bloat your context. "
+            "concept_id is always returned regardless of what is specified here."
         ),
     ),
 ]

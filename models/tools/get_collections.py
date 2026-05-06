@@ -57,9 +57,14 @@ ProviderParam = Annotated[
     str | None,
     Field(
         description=(
-            "Data provider short name (e.g., PODAAC, NSIDC_ECS, GESDISC, ORNL_DAAC, "
-            "LAADS, GES_DISC, GHRC_DAAC, ASDC, LPDAAC_ECS). "
-            "Restricts results to collections from that provider."
+            "Data provider short name (e.g., PODAAC, NSIDC_ECS, GES_DISC, ORNL_DAAC, "
+            "LAADS, GHRC_DAAC, ASDC). "
+            "Restricts results to collections from that provider. "
+            "WARNING: NASA DAACs are actively migrating assets to the cloud under new provider IDs "
+            "(e.g., LPDAAC_ECS → LPCLOUD, PODAAC → POCLOUD). "
+            "If you know the exact short_name of a product, do NOT include the provider parameter — "
+            "a stale provider ID will silently return 0 results. "
+            "Use provider only when the user explicitly filters by archive center."
         )
     ),
 ]
