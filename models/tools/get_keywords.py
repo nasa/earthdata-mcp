@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models.pagination import CursorParam, LimitParam
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -48,6 +48,7 @@ class GetKeywordsInput(BaseModel):
     ]
     limit: LimitParam = 10
     cursor: CursorParam = None
+    fields: FieldsParam = None
 
 
 class GetKeywordsOutput(BaseCmrSearchOutput):

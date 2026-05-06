@@ -5,13 +5,22 @@ import logging
 import requests
 from langfuse import observe
 
-from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
+from models.pagination import (
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    apply_field_filter,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
-from models.tools.get_keywords import GetKeywordsOutput, KeywordResult
+from models.tools.get_keywords import GetKeywordsInput, GetKeywordsOutput, KeywordResult
 from util.kms.client import search_kms_pattern
 from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
+
+_MANDATORY_FIELDS = frozenset({"uuid"})
 
 
 @observe(name="get_keywords")
@@ -20,6 +29,7 @@ def get_keywords(
     scheme: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
     """Search NASA's Keyword Management System (KMS) for vocabulary terms.
 
@@ -40,36 +50,55 @@ def get_keywords(
     )
 
     try:
-        offset = 0
-        if cursor:
-            parsed = decode_cursor(cursor)
+        params = GetKeywordsInput(
+            query=query,
+            scheme=scheme,
+            limit=limit,
+            cursor=cursor,
+            fields=fields,
+        )
+    except (ValueError, TypeError) as exc:
+        logger.warning("get_keywords input validation failed: %s", exc)
+        return GetKeywordsOutput(
+            status=SearchStatus.ERROR,
+            total_hits=0,
+            next_cursor=None,
+            error_message=str(exc),
+            keywords=[],
+        ).model_dump()
+
+    offset = 0
+    if params.cursor:
+        try:
+            parsed = decode_cursor(params.cursor)
             if parsed.get("backend") != "kms":
                 raise ValueError(
                     "Cursor is not valid for this tool. Cursors cannot be reused across "
                     "different tools. Start a new search without a cursor parameter."
                 )
             offset = parsed.get("value", 0)
+        except ValueError as exc:
+            return GetKeywordsOutput(
+                status=SearchStatus.ERROR,
+                total_hits=0,
+                next_cursor=None,
+                error_message=str(exc),
+                keywords=[],
+            ).model_dump()
 
-        raw_concepts = search_kms_pattern(query, scheme)
-    except ValueError as e:
+    try:
+        raw_concepts = search_kms_pattern(params.query, params.scheme)
+    except requests.RequestException as exc:
+        logger.error("Failed to fetch KMS keywords: %s", exc)
         return GetKeywordsOutput(
             status=SearchStatus.ERROR,
             total_hits=0,
             next_cursor=None,
-            error_message=str(e),
+            error_message=f"Failed to communicate with KMS API: {exc}",
             keywords=[],
         ).model_dump()
-    except requests.RequestException as e:
-        logger.error("Failed to fetch KMS keywords: %s", e)
-        return GetKeywordsOutput(
-            status=SearchStatus.ERROR,
-            total_hits=0,
-            next_cursor=None,
-            error_message=f"Failed to communicate with KMS API: {e}",
-            keywords=[],
-        ).model_dump()
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected error in get_keywords for query '%s': %s", query, e)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error in get_keywords for query '%s': %s", params.query, exc)
         return GetKeywordsOutput(
             status=SearchStatus.ERROR,
             total_hits=0,
@@ -88,8 +117,10 @@ def get_keywords(
         ).model_dump()
 
     total_hits = len(raw_concepts)
-    page_concepts = raw_concepts[offset : offset + limit]
-    next_cursor = encode_cursor("kms", offset + limit) if offset + limit < total_hits else None
+    page_concepts = raw_concepts[offset : offset + params.limit]
+    next_cursor = (
+        encode_cursor("kms", offset + params.limit) if offset + params.limit < total_hits else None
+    )
 
     keywords = []
     for concept in page_concepts:
@@ -114,10 +145,15 @@ def get_keywords(
             )
         )
 
-    return GetKeywordsOutput(
+    response_dict = GetKeywordsOutput(
         status=SearchStatus.SUCCESS,
         total_hits=total_hits,
         next_cursor=next_cursor,
         error_message=None,
         keywords=keywords,
     ).model_dump()
+
+    if params.fields:
+        apply_field_filter(response_dict["keywords"], params.fields, _MANDATORY_FIELDS)
+
+    return response_dict

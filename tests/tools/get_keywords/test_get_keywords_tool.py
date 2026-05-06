@@ -242,3 +242,18 @@ def test_get_keywords_cross_backend_cursor(mock_search_kms_pattern: MagicMock) -
     assert result["total_hits"] == 0
     assert result["next_cursor"] is None
     assert "cursor" in result["error_message"].lower()
+
+
+def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:
+    """fields parameter strips unrequested keys, keeping uuid as mandatory."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = [_make_concept(0)]
+
+    result = tool.get_keywords(query="KEYWORD", fields=["prefLabel"])
+
+    assert result["status"] == SearchStatus.SUCCESS
+    item = result["keywords"][0]
+    assert "uuid" in item
+    assert "prefLabel" in item
+    assert "scheme" not in item
+    assert "definition" not in item
