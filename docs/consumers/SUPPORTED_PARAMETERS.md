@@ -40,37 +40,37 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 | ❌ | N/A | `updated_since` | Filter by recently updated collections |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `abstract` | `Abstract` | Collection summary or abstract |
-| ✅ | `archive_and_distribution_information` | `ArchiveAndDistributionInformation` | File formats and media types (e.g., [{format, media_type}]) |
-| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | [West, South, East, North] Minimum Bounding Rectangle |
-| ✅ | `collection_data_type` | `CollectionDataType` | e.g., SCIENCE_QUALITY, NEAR_REAL_TIME |
-| ✅ | `collection_progress` | `CollectionProgress` | ACTIVE, COMPLETE, DEPRECATED, or PLANNED |
-| ✅ | `concept_id` | `meta.concept-id` | CMR collection concept ID |
-| ✅ | `data_centers` | `DataCenters` | Archiving DAACs — array of {role, short_name} |
-| ✅ | `doi` | `DOI` | Digital Object Identifier |
-| ✅ | `entry_title` | `EntryTitle` | Collection title |
-| ✅ | `instruments` | `Platforms.Instruments.ShortName` | Instrument short names |
-| ✅ | `is_ongoing` | `IsOngoing` | Whether the collection is ongoing |
-| ✅ | `native_id` | `meta.native-id` | The native ID of the collection record |
-| ✅ | `platforms` | `Platforms.ShortName` | Platform short names |
-| ✅ | `processing_level_id` | `ProcessingLevel.Id` | Processing level (e.g., L3, L4) |
-| ✅ | `provider_id` | `meta.provider-id` | The provider ID of the collection |
-| ✅ | `related_urls` | `RelatedUrls` | List of related URLs (e.g., documentation, guides) |
-| ✅ | `revision_id` | `meta.revision-id` | The revision ID of the collection metadata |
-| ✅ | `science_keywords` | `ScienceKeywords` | GCMD science keyword hierarchy (Category/Topic/Term/VariableLevel) |
-| ✅ | `short_name` | `ShortName` | Collection short name |
-| ✅ | `spatial_resolution` | `SpatialExtent.HorizontalSpatialDomain.ResolutionAndCoordinateSystem` | Human-readable spatial resolution |
-| ✅ | `temporal_resolution` | `TemporalExtents.TemporalResolution` | Human-readable temporal resolution |
-| ✅ | `time_end` | `TemporalExtents.RangeDateTimes.EndingDateTime` | End of temporal coverage |
-| ✅ | `time_start` | `TemporalExtents.RangeDateTimes.BeginningDateTime` | Start of temporal coverage |
-| ✅ | `version` | `Version` | Collection version |
-| ❌ | N/A | `AccessConstraints` | Access constraints and authorization requirements |
-| ❌ | N/A | `AdditionalAttributes` | Provider-specific additional attributes |
-| ❌ | N/A | `ContactGroups/ContactPersons` | Point of contact information |
-| ❌ | N/A | `Projects` | Projects or campaigns associated with the collection |
-| ❌ | N/A | `SpatialKeywords` | Geographic location keywords |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `abstract` | `Abstract` | | Collection summary or abstract |
+| ✅ | `archive_and_distribution_information` | `ArchiveAndDistributionInformation` | ✅ | File formats and media types (e.g., [{format, media_type}]) |
+| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | ✅ | [West, South, East, North] Minimum Bounding Rectangle |
+| ✅ | `collection_data_type` | `CollectionDataType` | | e.g., SCIENCE_QUALITY, NEAR_REAL_TIME |
+| ✅ | `collection_progress` | `CollectionProgress` | | ACTIVE, COMPLETE, DEPRECATED, or PLANNED |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR collection concept ID |
+| ✅ | `data_centers` | `DataCenters` | ✅ | Archiving DAACs — array of {role, short_name} |
+| ✅ | `doi` | `DOI` | | Digital Object Identifier |
+| ✅ | `entry_title` | `EntryTitle` | | Collection title |
+| ✅ | `instruments` | `Platforms.Instruments.ShortName` | ✅ | Instrument short names |
+| ✅ | `is_ongoing` | `IsOngoing` | ✅ | Whether the collection is ongoing |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the collection record |
+| ✅ | `platforms` | `Platforms.ShortName` | ✅ | Platform short names |
+| ✅ | `processing_level_id` | `ProcessingLevel.Id` | | Processing level (e.g., L3, L4) |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the collection |
+| ✅ | `related_urls` | `RelatedUrls` | ✅ | List of related URLs (e.g., documentation, guides) |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the collection metadata |
+| ✅ | `science_keywords` | `ScienceKeywords` | | GCMD science keyword hierarchy (Category/Topic/Term/VariableLevel) |
+| ✅ | `short_name` | `ShortName` | | Collection short name |
+| ✅ | `spatial_resolution` | `SpatialExtent.HorizontalSpatialDomain.ResolutionAndCoordinateSystem` | ✅ | Human-readable spatial resolution |
+| ✅ | `temporal_resolution` | `TemporalExtents.TemporalResolution` | ✅ | Human-readable temporal resolution |
+| ✅ | `time_end` | `TemporalExtents.RangeDateTimes.EndingDateTime` | ✅ | End of temporal coverage |
+| ✅ | `time_start` | `TemporalExtents.RangeDateTimes.BeginningDateTime` | ✅ | Start of temporal coverage |
+| ✅ | `version` | `Version` | | Collection version |
+| ❌ | N/A | `AccessConstraints` | | Access constraints and authorization requirements |
+| ❌ | N/A | `AdditionalAttributes` | | Provider-specific additional attributes |
+| ❌ | N/A | `ContactGroups/ContactPersons` | | Point of contact information |
+| ❌ | N/A | `Projects` | | Projects or campaigns associated with the collection |
+| ❌ | N/A | `SpatialKeywords` | | Geographic location keywords |
 
 ---
 
@@ -97,31 +97,31 @@ Searches for specific data files (granules) within a collection to verify actual
 | ❌ | N/A | `updated_since` | Filter by recently updated granules |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `access_urls` | `RelatedUrls` | Actionable data access URLs (Note: Access requires Earthdata Login authentication) |
-| ✅ | `additional_attributes` | `AdditionalAttributes` | Provider-specific attributes (e.g., tile coords, quality flags) — array of {name, values[]} |
-| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | [West, South, East, North] Minimum Bounding Rectangle (MBR). Note: For swath data or irregular polygons, this bounding box fully encloses the data but may contain empty space at the corners. |
-| ✅ | `cloud_cover` | `CloudCover` | Cloud cover percentage |
-| ✅ | `collection_concept_id` | `CollectionReference.ShortName/Version` | Parent collection concept ID |
-| ✅ | `concept_id` | `meta.concept-id` | CMR granule concept ID |
-| ✅ | `data_format` | `DataFormat` | File format (e.g., NetCDF-4, GeoTIFF) |
-| ✅ | `day_night_flag` | `DataGranule.DayNightFlag` | DAY, NIGHT, BOTH, or UNSPECIFIED |
-| ✅ | `granule_ur` | `GranuleUR` | Granule UR |
-| ✅ | `native_id` | `meta.native-id` | The native ID of the granule record |
-| ✅ | `orbit_info` | `SpatialExtent.OrbitCalculatedSpatialDomains` | Orbit calculated spatial domains — array of {orbit_number, equator_crossing_longitude, equator_crossing_date_time} |
-| ✅ | `producer_granule_id` | `DataGranule.ProducerGranuleId` | Producer granule ID |
-| ✅ | `production_date` | `DataGranule.ProductionDateTime` | Date the granule was generated (ProductionDateTime) |
-| ✅ | `provider_id` | `meta.provider-id` | The provider ID of the granule |
-| ✅ | `revision_id` | `meta.revision-id` | The revision ID of the granule metadata |
-| ✅ | `size_mb` | `DataGranule.ArchiveAndDistributionInformation` | Size of the data granule in MB |
-| ✅ | `time_end` | `TemporalExtent.RangeDateTime.EndingDateTime` | Granule temporal end |
-| ✅ | `time_start` | `TemporalExtent.RangeDateTime.BeginningDateTime` | Granule temporal start |
-| ❌ | N/A | `AccessConstraints` | Access constraints and authorization requirements |
-| ❌ | N/A | `InputGranules` | Provenance information about source granules |
-| ❌ | N/A | `MeasuredParameters` | Variables/parameters measured in the granule |
-| ❌ | N/A | `Platforms` | Specific platforms used for the granule |
-| ❌ | N/A | `Projects` | Projects or campaigns associated with the granule |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `access_urls` | `RelatedUrls` | ✅ | Actionable data access URLs (Note: Access requires Earthdata Login authentication) |
+| ✅ | `additional_attributes` | `AdditionalAttributes` | ✅ | Provider-specific attributes (e.g., tile coords, quality flags) — array of {name, values[]} |
+| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | ✅ | [West, South, East, North] Minimum Bounding Rectangle (MBR). Note: For swath data or irregular polygons, this bounding box fully encloses the data but may contain empty space at the corners. |
+| ✅ | `cloud_cover` | `CloudCover` | | Cloud cover percentage |
+| ✅ | `collection_concept_id` | `CollectionReference.ShortName/Version` | | Parent collection concept ID |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR granule concept ID |
+| ✅ | `data_format` | `DataFormat` | ✅ | File format (e.g., NetCDF-4, GeoTIFF) |
+| ✅ | `day_night_flag` | `DataGranule.DayNightFlag` | | DAY, NIGHT, BOTH, or UNSPECIFIED |
+| ✅ | `granule_ur` | `GranuleUR` | | Granule UR |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the granule record |
+| ✅ | `orbit_info` | `SpatialExtent.OrbitCalculatedSpatialDomains` | ✅ | Orbit calculated spatial domains — array of {orbit_number, equator_crossing_longitude, equator_crossing_date_time} |
+| ✅ | `producer_granule_id` | `DataGranule.ProducerGranuleId` | | Producer granule ID |
+| ✅ | `production_date` | `DataGranule.ProductionDateTime` | ✅ | Date the granule was generated (ProductionDateTime) |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the granule |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the granule metadata |
+| ✅ | `size_mb` | `DataGranule.ArchiveAndDistributionInformation` | ✅ | Size of the data granule in MB |
+| ✅ | `time_end` | `TemporalExtent.RangeDateTime.EndingDateTime` | ✅ | Granule temporal end |
+| ✅ | `time_start` | `TemporalExtent.RangeDateTime.BeginningDateTime` | ✅ | Granule temporal start |
+| ❌ | N/A | `AccessConstraints` | | Access constraints and authorization requirements |
+| ❌ | N/A | `InputGranules` | | Provenance information about source granules |
+| ❌ | N/A | `MeasuredParameters` | | Variables/parameters measured in the granule |
+| ❌ | N/A | `Platforms` | | Specific platforms used for the granule |
+| ❌ | N/A | `Projects` | | Projects or campaigns associated with the granule |
 
 ---
 
@@ -139,30 +139,30 @@ Discovers scientific variables and measurements associated with a collection, or
 | ❌ | N/A | `provider` | Filter by provider ID |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `concept_id` | `meta.concept-id` | CMR variable concept ID |
-| ✅ | `name` | `Name` | The short name of the variable |
-| ✅ | `long_name` | `LongName` | The long name of the variable |
-| ✅ | `definition` | `Definition` | The definition of the variable |
-| ✅ | `data_type` | `DataType` | The data type of the variable |
-| ✅ | `units` | `Units` | The units of the variable |
-| ✅ | `scale` | `Scale` | The scale factor for the variable data |
-| ✅ | `offset` | `Offset` | The offset for the variable data |
-| ✅ | `fill_values` | `FillValues` | Fill values used for missing or invalid data |
-| ✅ | `valid_ranges` | `ValidRanges` | Valid data ranges for the variable |
-| ✅ | `dimensions` | `Dimensions` | Dimensions associated with the variable |
-| ✅ | `standard_name` | `StandardName` | The CF Standard Name of the variable |
-| ✅ | `science_keywords` | `ScienceKeywords` | GCMD Science Keywords hierarchy |
-| ✅ | `variable_type` | `VariableType` | Type of variable (e.g., SCIENCE_VARIABLE, COORDINATE) |
-| ✅ | `variable_sub_type` | `VariableSubType` | Sub-type of variable |
-| ✅ | `sets` | `Sets` | Logical groupings for the variable |
-| ✅ | `measurement_identifiers` | `MeasurementIdentifiers` | Measurement context and provenance |
-| ✅ | `sampling_identifiers` | `SamplingIdentifiers` | Sampling method context |
-| ✅ | `related_urls` | `RelatedUrls` | URLs specific to the variable |
-| ❌ | N/A | `AdditionalIdentifiers` | Additional identifiers for the variable |
-| ❌ | N/A | `IndexRanges` | Array index ranges for the variable |
-| ❌ | N/A | `InstanceInformation` | Variable instance information |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `concept_id` | `meta.concept-id` | | CMR variable concept ID |
+| ✅ | `name` | `Name` | | The short name of the variable |
+| ✅ | `long_name` | `LongName` | | The long name of the variable |
+| ✅ | `definition` | `Definition` | | The definition of the variable |
+| ✅ | `data_type` | `DataType` | | The data type of the variable |
+| ✅ | `units` | `Units` | | The units of the variable |
+| ✅ | `scale` | `Scale` | | The scale factor for the variable data |
+| ✅ | `offset` | `Offset` | | The offset for the variable data |
+| ✅ | `fill_values` | `FillValues` | | Fill values used for missing or invalid data |
+| ✅ | `valid_ranges` | `ValidRanges` | | Valid data ranges for the variable |
+| ✅ | `dimensions` | `Dimensions` | | Dimensions associated with the variable |
+| ✅ | `standard_name` | `StandardName` | | The CF Standard Name of the variable |
+| ✅ | `science_keywords` | `ScienceKeywords` | | GCMD Science Keywords hierarchy |
+| ✅ | `variable_type` | `VariableType` | | Type of variable (e.g., SCIENCE_VARIABLE, COORDINATE) |
+| ✅ | `variable_sub_type` | `VariableSubType` | | Sub-type of variable |
+| ✅ | `sets` | `Sets` | | Logical groupings for the variable |
+| ✅ | `measurement_identifiers` | `MeasurementIdentifiers` | | Measurement context and provenance |
+| ✅ | `sampling_identifiers` | `SamplingIdentifiers` | | Sampling method context |
+| ✅ | `related_urls` | `RelatedUrls` | ✅ | URLs specific to the variable |
+| ❌ | N/A | `AdditionalIdentifiers` | | Additional identifiers for the variable |
+| ❌ | N/A | `IndexRanges` | | Array index ranges for the variable |
+| ❌ | N/A | `InstanceInformation` | | Variable instance information |
 
 ---
 
@@ -180,34 +180,34 @@ Finds web portals and downloadable software associated with a collection, return
 | ❌ | N/A | `provider` | Filter by provider ID |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `access_constraints` | `AccessConstraints` | Constraints for accessing the tool |
-| ✅ | `concept_id` | `meta.concept-id` | CMR tool concept ID |
-| ✅ | `description` | `Description` | A brief description of the tool |
-| ✅ | `doi` | `DOI` | Digital Object Identifier of the tool |
-| ✅ | `long_name` | `LongName` | The long name of the tool |
-| ✅ | `name` | `Name` | The name of the tool |
-| ✅ | `native_id` | `meta.native-id` | The native ID of the tool record |
-| ✅ | `organizations` | `Organizations` | Organizations responsible for the tool |
-| ✅ | `potential_action` | `PotentialAction` | Smart handoff definition for parameterized deep links |
-| ✅ | `provider_id` | `meta.provider-id` | The provider ID of the tool |
-| ✅ | `quality` | `Quality` | Quality information about the tool |
-| ✅ | `related_urls` | `RelatedUrls` | Documentation, guides, or other related links |
-| ✅ | `revision_id` | `meta.revision-id` | The revision ID of the tool metadata |
-| ✅ | `supported_browsers` | `SupportedBrowsers` | Browsers and versions supported by the tool |
-| ✅ | `supported_input_formats` | `SupportedInputFormats` | List of input format names supported by the tool |
-| ✅ | `supported_operating_systems` | `SupportedOperatingSystems` | Operating systems and versions supported by the tool |
-| ✅ | `supported_output_formats` | `SupportedOutputFormats` | List of output format names supported by the tool |
-| ✅ | `supported_software_languages` | `SupportedSoftwareLanguages` | Programming languages and versions supported by the tool |
-| ✅ | `tool_keywords` | `ToolKeywords` | Earth science keywords representative of the tool |
-| ✅ | `type` | `Type` | The type of the tool (e.g., Downloadable Tool, Web User Interface, Web Portal, Model) |
-| ✅ | `url` | `URL` | Primary URL for accessing the tool |
-| ✅ | `use_constraints` | `UseConstraints` | Restrictions or limitations on using the tool |
-| ✅ | `version` | `Version` | The edition or version of the tool |
-| ❌ | N/A | `AncillaryKeywords` | Additional keywords for the tool |
-| ❌ | N/A | `ContactGroups/ContactPersons` | Point of contact information |
-| ❌ | N/A | `LastUpdatedDate` | When the tool metadata was last updated |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `access_constraints` | `AccessConstraints` | | Constraints for accessing the tool |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR tool concept ID |
+| ✅ | `description` | `Description` | | A brief description of the tool |
+| ✅ | `doi` | `DOI` | | Digital Object Identifier of the tool |
+| ✅ | `long_name` | `LongName` | | The long name of the tool |
+| ✅ | `name` | `Name` | | The name of the tool |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the tool record |
+| ✅ | `organizations` | `Organizations` | | Organizations responsible for the tool |
+| ✅ | `potential_action` | `PotentialAction` | | Smart handoff definition for parameterized deep links |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the tool |
+| ✅ | `quality` | `Quality` | | Quality information about the tool |
+| ✅ | `related_urls` | `RelatedUrls` | ✅ | Documentation, guides, or other related links |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the tool metadata |
+| ✅ | `supported_browsers` | `SupportedBrowsers` | | Browsers and versions supported by the tool |
+| ✅ | `supported_input_formats` | `SupportedInputFormats` | | List of input format names supported by the tool |
+| ✅ | `supported_operating_systems` | `SupportedOperatingSystems` | | Operating systems and versions supported by the tool |
+| ✅ | `supported_output_formats` | `SupportedOutputFormats` | | List of output format names supported by the tool |
+| ✅ | `supported_software_languages` | `SupportedSoftwareLanguages` | | Programming languages and versions supported by the tool |
+| ✅ | `tool_keywords` | `ToolKeywords` | | Earth science keywords representative of the tool |
+| ✅ | `type` | `Type` | | The type of the tool (e.g., Downloadable Tool, Web User Interface, Web Portal, Model) |
+| ✅ | `url` | `URL` | | Primary URL for accessing the tool |
+| ✅ | `use_constraints` | `UseConstraints` | | Restrictions or limitations on using the tool |
+| ✅ | `version` | `Version` | | The edition or version of the tool |
+| ❌ | N/A | `AncillaryKeywords` | | Additional keywords for the tool |
+| ❌ | N/A | `ContactGroups/ContactPersons` | | Point of contact information |
+| ❌ | N/A | `LastUpdatedDate` | | When the tool metadata was last updated |
 
 ---
 
@@ -226,28 +226,28 @@ Discovers data access endpoints and visualization layers associated with a colle
 | ❌ | N/A | `provider` | Filter by provider ID |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `access_constraints` | `AccessConstraints` | Authentication or authorization requirements |
-| ✅ | `concept_id` | `meta.concept-id` | CMR service concept ID |
-| ✅ | `description` | `Description` | A brief description of the service |
-| ✅ | `long_name` | `LongName` | The long name of the service |
-| ✅ | `name` | `Name` | The name of the service |
-| ✅ | `native_id` | `meta.native-id` | The native ID of the service record |
-| ✅ | `operation_metadata` | `OperationMetadata` | Operation names and distributed computing platform |
-| ✅ | `provider_id` | `meta.provider-id` | The provider ID of the service |
-| ✅ | `related_urls` | `RelatedUrls` | Documentation, guides, or other related links |
-| ✅ | `revision_id` | `meta.revision-id` | The revision ID of the service metadata |
-| ✅ | `service_keywords` | `ServiceKeywords` | Controlled vocabulary for service capability |
-| ✅ | `service_options` | `ServiceOptions` | Subset types, supported projections, output formats |
-| ✅ | `service_organizations` | `ServiceOrganizations` | Organizations that run the service endpoint |
-| ✅ | `type` | `Type` | The type of the service |
-| ✅ | `url` | `URL` | Primary endpoint URL information |
-| ✅ | `use_constraints` | `UseConstraints` | Legal restrictions or usage limits |
-| ✅ | `version` | `Version` | The edition or version of the service |
-| ❌ | N/A | `AncillaryKeywords` | Additional keywords for the service |
-| ❌ | N/A | `ContactGroups/ContactPersons` | Point of contact information |
-| ❌ | N/A | `ServiceQuality` | Information about service quality |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `access_constraints` | `AccessConstraints` | | Authentication or authorization requirements |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR service concept ID |
+| ✅ | `description` | `Description` | | A brief description of the service |
+| ✅ | `long_name` | `LongName` | | The long name of the service |
+| ✅ | `name` | `Name` | | The name of the service |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the service record |
+| ✅ | `operation_metadata` | `OperationMetadata` | | Operation names and distributed computing platform |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the service |
+| ✅ | `related_urls` | `RelatedUrls` | ✅ | Documentation, guides, or other related links |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the service metadata |
+| ✅ | `service_keywords` | `ServiceKeywords` | | Controlled vocabulary for service capability |
+| ✅ | `service_options` | `ServiceOptions` | | Subset types, supported projections, output formats |
+| ✅ | `service_organizations` | `ServiceOrganizations` | ✅ | Organizations that run the service endpoint |
+| ✅ | `type` | `Type` | | The type of the service |
+| ✅ | `url` | `URL` | | Primary endpoint URL information |
+| ✅ | `use_constraints` | `UseConstraints` | | Legal restrictions or usage limits |
+| ✅ | `version` | `Version` | | The edition or version of the service |
+| ❌ | N/A | `AncillaryKeywords` | | Additional keywords for the service |
+| ❌ | N/A | `ContactGroups/ContactPersons` | | Point of contact information |
+| ❌ | N/A | `ServiceQuality` | | Information about service quality |
 
 ---
 
@@ -263,9 +263,9 @@ Discovers official Earthdata scientific vocabulary terms to translate colloquial
 | ✅ | `scheme` | `keyword_scheme` | Optional. A single KMS scheme to narrow the search (e.g., 'sciencekeywords', 'platforms', 'instruments', 'projects', 'providers', 'locations'). If omitted, searches across all schemes globally. A complete list of valid scheme names can be fetched from https://cmr.earthdata.nasa.gov/kms/concept_schemes |
 
 #### Output Fields
-| Status | MCP Response Field | UMM JSON Path | Description |
-|---|---|---|---|
-| ✅ | `uuid` | `uuid` | The unique UUID of the KMS concept |
-| ✅ | `prefLabel` | `prefLabel` | The preferred label of the KMS concept |
-| ✅ | `scheme` | `scheme` | The scheme the concept belongs to |
-| ✅ | `definition` | `definition` | The primary definition of the concept, if available |
+| Status | MCP Response Field | UMM JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `uuid` | `uuid` | | The unique UUID of the KMS concept |
+| ✅ | `prefLabel` | `prefLabel` | | The preferred label of the KMS concept |
+| ✅ | `scheme` | `scheme` | | The scheme the concept belongs to |
+| ✅ | `definition` | `definition` | | The primary definition of the concept, if available |
