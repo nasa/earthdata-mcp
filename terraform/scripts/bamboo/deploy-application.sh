@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Bamboo task: Deploy application stack (Lambdas, SQS, SNS subscription)
+# Bamboo task: Deploy application stack
 #
 # This is the main deployment task that runs on every deploy.
 # Expects earthdata-mcp-deployed-package.tgz artifact from build plan.
@@ -74,8 +74,6 @@ export TF_VAR_load_balancer_name="${bamboo_LOAD_BALANCER_NAME}"
 [ -n "$bamboo_GEOCODE_INDEX_REGION" ] && export TF_VAR_geocode_index_region="$bamboo_GEOCODE_INDEX_REGION"
 [ -n "$bamboo_GEOCODE_INDEX_PORT" ] && export TF_VAR_geocode_index_port="$bamboo_GEOCODE_INDEX_PORT"
 [ -n "$bamboo_SIMPLIFY_GEOM_MAX_POINT" ] && export TF_VAR_simplify_geom_max_point="$bamboo_SIMPLIFY_GEOM_MAX_POINT"
-[ -n "$bamboo_EMBEDDING_LAMBDA_CONCURRENCY" ] && export TF_VAR_embedding_lambda_concurrency="$bamboo_EMBEDDING_LAMBDA_CONCURRENCY"
-[ -n "$bamboo_ENRICHMENT_LAMBDA_CONCURRENCY" ] && export TF_VAR_enrichment_lambda_concurrency="$bamboo_ENRICHMENT_LAMBDA_CONCURRENCY"
 
 # Store Langfuse secret in SSM SecureString if provided
 if [ -n "$bamboo_LANGFUSE_SECRET_KEY" ]; then
@@ -107,17 +105,13 @@ terraform init -input=false -no-color -reconfigure \
 echo ""
 echo "Creating ECR repositories..."
 terraform apply -no-color -auto-approve \
-  -target=aws_ecr_repository.ingest_lambda \
-  -target=aws_ecr_repository.embedding_lambda \
-  -target=aws_ecr_repository.bootstrap_lambda \
-  -target=aws_ecr_repository.enrichment_lambda \
   -target=aws_ecr_repository.mcp_server
 
 # Step 2: Build and push Docker images
 echo ""
 echo "Building and pushing Docker images..."
 cd ..
-for dockerfile in IngestLambdaDockerfile EmbeddingLambdaDockerfile EnrichmentLambdaDockerfile BootstrapLambdaDockerfile McpServerDockerfile; do
+for dockerfile in McpServerDockerfile; do
     echo ""
     echo ">>> Building $dockerfile"
     ./"$SCRIPTS_DIR"/docker-build.sh "$dockerfile" "$ENVIRONMENT" "$IMAGE_TAG"

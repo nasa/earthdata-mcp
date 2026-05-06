@@ -1,5 +1,6 @@
 """Simplified tool loader."""
 
+import asyncio
 import importlib
 import inspect
 import json
@@ -112,7 +113,7 @@ def create_simple_tool(
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
             try:
-                result = func(*args, **kwargs)
+                result = await asyncio.to_thread(func, *args, **kwargs)
                 return result
             finally:
                 flush_langfuse()

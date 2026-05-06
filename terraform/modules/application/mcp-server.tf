@@ -89,7 +89,6 @@ resource "aws_iam_role_policy" "mcp_task" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          var.database_secret_arn,
           aws_secretsmanager_secret.redis.arn
         ]
       },
@@ -234,12 +233,7 @@ resource "aws_ecs_task_definition" "mcp" {
           value = var.environment_name
         },
         {
-          name  = "DATABASE_SECRET_ID"
-          value = var.database_secret_arn
-        },
-        {
           name  = "DB_HOST"
-          value = var.database_proxy_endpoint
         },
         {
           name  = "CMR_URL"

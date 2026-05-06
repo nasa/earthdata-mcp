@@ -8,15 +8,7 @@ REGION=${4:-us-east-1}
 
 echo "DOCKERFILE: $DOCKERFILE, ENVIRONMENT: $ENVIRONMENT, TAG: $TAG, REGION: $REGION"
 
-if [[ "$DOCKERFILE" == "IngestLambdaDockerfile" ]]; then
-    IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-ingest"
-elif [[ "$DOCKERFILE" == "EmbeddingLambdaDockerfile" ]]; then
-    IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-embedding"
-elif [[ "$DOCKERFILE" == "BootstrapLambdaDockerfile" ]]; then
-    IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-bootstrap"
-elif [[ "$DOCKERFILE" == "EnrichmentLambdaDockerfile" ]]; then
-    IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-enrichment"
-elif [[ "$DOCKERFILE" == "McpServerDockerfile" ]]; then
+if [[ "$DOCKERFILE" == "McpServerDockerfile" ]]; then
     IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-server"
 elif [[ "$DOCKERFILE" == "MigrationLambdaDockerfile" ]]; then
     IMAGE_NAME="$ENVIRONMENT-earthdata-mcp-migration"

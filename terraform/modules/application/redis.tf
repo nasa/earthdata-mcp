@@ -49,15 +49,7 @@ resource "aws_security_group" "redis" {
 }
 
 # Ingress rules as standalone resources so each service manages its own access
-resource "aws_security_group_rule" "redis_from_embedding" {
-  type                     = "ingress"
-  from_port                = 6379
-  to_port                  = 6379
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.embedding_lambda.id
-  security_group_id        = aws_security_group.redis.id
-  description              = "Redis from embedding lambda"
-}
+
 
 resource "aws_security_group_rule" "redis_from_mcp" {
   type                     = "ingress"

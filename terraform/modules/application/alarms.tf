@@ -8,351 +8,76 @@
 
 # Alarm: Ingest DLQ has messages
 # Triggers when CMR events fail to process after 3 retries
-resource "aws_cloudwatch_metric_alarm" "ingest_dlq" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-ingest-dlq"
-  alarm_description   = "Messages in ingest DLQ - CMR events failed to process"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "ApproximateNumberOfMessagesVisible"
-  namespace           = "AWS/SQS"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    QueueName = aws_sqs_queue.ingest_dlq.name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Embedding DLQ has messages
 # Triggers when embedding generation fails after 3 retries
-resource "aws_cloudwatch_metric_alarm" "embedding_dlq" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-embedding-dlq"
-  alarm_description   = "Messages in embedding DLQ - embedding generation failed"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "ApproximateNumberOfMessagesVisible"
-  namespace           = "AWS/SQS"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    QueueName = aws_sqs_queue.embedding_dlq.name
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # Queue Backlog Alarms
 # =============================================================================
 
 # Alarm: Ingest queue backlog growing
-resource "aws_cloudwatch_metric_alarm" "ingest_backlog" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-ingest-backlog"
-  alarm_description   = "Ingest queue backlog exceeds threshold"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "ApproximateNumberOfMessagesVisible"
-  namespace           = "AWS/SQS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 1000
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    QueueName = aws_sqs_queue.ingest.name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Embedding queue backlog growing
-resource "aws_cloudwatch_metric_alarm" "embedding_backlog" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-embedding-backlog"
-  alarm_description   = "Embedding queue backlog exceeds threshold"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "ApproximateNumberOfMessagesVisible"
-  namespace           = "AWS/SQS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 5000
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    QueueName = aws_sqs_queue.embedding.name
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # Step Function Alarms
 # =============================================================================
 
 # Alarm: Enrichment Step Function execution failures
-resource "aws_cloudwatch_metric_alarm" "enrichment_sfn_failures" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-enrichment-sfn-failures"
-  alarm_description   = "Enrichment Step Function executions are failing"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "ExecutionsFailed"
-  namespace           = "AWS/States"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    StateMachineArn = aws_sfn_state_machine.enrichment.arn
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Enrichment Step Function execution throttles
-resource "aws_cloudwatch_metric_alarm" "enrichment_sfn_throttles" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-enrichment-sfn-throttles"
-  alarm_description   = "Enrichment Step Function executions are being throttled"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "ExecutionThrottled"
-  namespace           = "AWS/States"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 50
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    StateMachineArn = aws_sfn_state_machine.enrichment.arn
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # Lambda Error Alarms
 # =============================================================================
 
 # Alarm: Ingest Lambda errors
-resource "aws_cloudwatch_metric_alarm" "ingest_lambda_errors" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-ingest-errors"
-  alarm_description   = "Ingest Lambda invocation errors detected"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.ingest.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Embedding Lambda errors
-resource "aws_cloudwatch_metric_alarm" "embedding_lambda_errors" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-embedding-errors"
-  alarm_description   = "Embedding Lambda invocation errors detected"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.embedding.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Bootstrap Lambda errors
-resource "aws_cloudwatch_metric_alarm" "bootstrap_lambda_errors" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-bootstrap-errors"
-  alarm_description   = "Bootstrap Lambda invocation errors detected"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.bootstrap.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Enrichment Lambda errors
-resource "aws_cloudwatch_metric_alarm" "enrichment_lambda_errors" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-enrichment-errors"
-  alarm_description   = "Enrichment Lambda invocation errors detected"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 5
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.enrichment.function_name
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # Lambda Throttling Alarms
 # =============================================================================
 
 # Alarm: Ingest Lambda throttled
-resource "aws_cloudwatch_metric_alarm" "ingest_lambda_throttles" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-ingest-throttles"
-  alarm_description   = "Ingest Lambda is being throttled"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.ingest.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Enrichment Lambda throttled
 # Expected during bootstrap when Step Function fan-out exceeds the
 # concurrency limit. SFN retries handle this gracefully, but sustained
 # throttling indicates enrichment_lambda_concurrency is too low.
-resource "aws_cloudwatch_metric_alarm" "enrichment_lambda_throttles" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-enrichment-throttles"
-  alarm_description   = "Enrichment Lambda is being throttled"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.enrichment.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Embedding Lambda throttled
-resource "aws_cloudwatch_metric_alarm" "embedding_lambda_throttles" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-embedding-throttles"
-  alarm_description   = "Embedding Lambda is being throttled"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.embedding.function_name
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # Lambda Duration Alarms (approaching timeout)
 # =============================================================================
 
 # Alarm: Ingest Lambda duration approaching timeout
-resource "aws_cloudwatch_metric_alarm" "ingest_lambda_duration" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-ingest-duration"
-  alarm_description   = "Ingest Lambda duration approaching timeout (>80%)"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Average"
-  # Alert when average duration exceeds 80% of timeout
-  threshold           = var.ingest_lambda_timeout * 1000 * 0.8
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.ingest.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Embedding Lambda duration approaching timeout
-resource "aws_cloudwatch_metric_alarm" "embedding_lambda_duration" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-embedding-duration"
-  alarm_description   = "Embedding Lambda duration approaching timeout (>80%)"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Average"
-  # Alert when average duration exceeds 80% of timeout
-  threshold           = var.embedding_lambda_timeout * 1000 * 0.8
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.embedding.function_name
-  }
-
-  tags = var.tags
-}
 
 # Alarm: Enrichment Lambda duration approaching timeout
-resource "aws_cloudwatch_metric_alarm" "enrichment_lambda_duration" {
-  alarm_name          = "${var.environment_name}-earthdata-mcp-enrichment-duration"
-  alarm_description   = "Enrichment Lambda duration approaching timeout (>80%)"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Average"
-  # Alert when average duration exceeds 80% of 300s timeout
-  threshold           = 240000
-  treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    FunctionName = aws_lambda_function.enrichment.function_name
-  }
-
-  tags = var.tags
-}
 
 # =============================================================================
 # MCP Server Alarms (ECS Fargate)
