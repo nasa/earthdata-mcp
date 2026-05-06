@@ -251,6 +251,48 @@ def test_get_citations_cursor_advances_page(mock_search_cmr: MagicMock) -> None:
     assert call2.kwargs["search_after"] == "tok-xyz"
 
 
+def test_get_citations_fields_filter(mock_search_cmr: MagicMock) -> None:
+    """Test that fields filtering removes non-requested keys while keeping concept_id."""
+    tool = _load_tool()
+
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
+
+    res = tool.get_citations(identifier="10.1234/test", fields=["name"])
+    assert res["status"] == "success"
+    item = res["citations"][0]
+    assert "concept_id" in item
+    assert "name" in item
+    assert "identifier" not in item
+    assert "abstract" not in item
+
+
+def test_get_citations_provider_filter(mock_search_cmr: MagicMock) -> None:
+    """Test that provider is passed to the Phase 2 citation search."""
+    tool = _load_tool()
+
+    mock_search_cmr.side_effect = [
+        iter([_collection_page(citation_ids=["CIT1-PROV"])]),
+        iter([_citation_page()]),
+    ]
+
+    tool.get_citations(collection_concept_id="C123-PROV", provider="ESDIS")
+
+    call2 = mock_search_cmr.call_args_list[1]
+    assert call2.kwargs["search_params"].get("provider") == "ESDIS"
+
+
+def test_get_citations_provider_identifier_flow(mock_search_cmr: MagicMock) -> None:
+    """Test that provider is passed through in the direct identifier flow."""
+    tool = _load_tool()
+
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
+
+    tool.get_citations(identifier="10.1234/test", provider="ESDIS")
+
+    call = mock_search_cmr.call_args_list[0]
+    assert call.kwargs["search_params"].get("provider") == "ESDIS"
+
+
 def test_get_citations_invalid_cursor(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
     """Test that an invalid cursor returns an error."""
     tool = _load_tool()

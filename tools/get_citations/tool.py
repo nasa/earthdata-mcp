@@ -4,7 +4,15 @@ import logging
 
 from langfuse import observe
 
-from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
+from models.pagination import (
+    MANDATORY_FIELDS_DEFAULT,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    apply_field_filter,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_citations import GetCitationsInput, GetCitationsOutput
 from util.cmr.client import CMRError, search_cmr
@@ -18,8 +26,10 @@ logger = logging.getLogger(__name__)
 def get_citations(  # pylint: disable=too-many-return-statements
     collection_concept_id: str | None = None,
     identifier: str | None = None,
+    provider: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
     """Search CMR citations by parent collection ID or specific citation identifier (DOI).
 
@@ -39,6 +49,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
         metadata={
             "collection_concept_id": collection_concept_id,
             "identifier": identifier,
+            "provider": provider,
         },
     )
 
@@ -46,8 +57,10 @@ def get_citations(  # pylint: disable=too-many-return-statements
         params = GetCitationsInput(
             collection_concept_id=collection_concept_id,
             identifier=identifier,
+            provider=provider,
             limit=limit,
             cursor=cursor,
+            fields=fields,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_citations input validation failed: %s", exc)
@@ -128,6 +141,9 @@ def get_citations(  # pylint: disable=too-many-return-statements
     if params.identifier:
         search_params["identifier"] = params.identifier
 
+    if params.provider:
+        search_params["provider"] = params.provider
+
     try:
         citation_page = next(
             search_cmr(
@@ -170,9 +186,14 @@ def get_citations(  # pylint: disable=too-many-return-statements
         len(citation_ids) if params.collection_concept_id else citation_page.total_hits
     )
 
-    return GetCitationsOutput(
+    response_dict = GetCitationsOutput(
         status=SearchStatus.SUCCESS,
         citations=citations,
         total_hits=real_total_hits,
         next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        apply_field_filter(response_dict["citations"], params.fields, MANDATORY_FIELDS_DEFAULT)
+
+    return response_dict

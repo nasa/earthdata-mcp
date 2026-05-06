@@ -5,7 +5,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from models.pagination import CursorParam, LimitParam
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -58,8 +58,16 @@ class GetCitationsInput(BaseModel):
         ),
     ]
 
+    provider: str | None = Field(
+        None,
+        description=(
+            "Optional. Filter results to citations from a specific CMR provider "
+            "(e.g., 'ESDIS'). Can be combined with collection_concept_id or identifier."
+        ),
+    )
     limit: LimitParam = 10
     cursor: CursorParam = None
+    fields: FieldsParam = None
 
     @model_validator(mode="after")
     def check_exactly_one_identifier(self) -> "GetCitationsInput":
