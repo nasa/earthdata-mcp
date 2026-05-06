@@ -866,3 +866,82 @@ class TestSearchCmrService:
         assert pages[0].total_hits == 1
         assert pages[0].took_ms == 7
         assert pages[0].items[0]["umm"]["Type"] == "OPeNDAP"
+
+
+class TestExtractCmrErrorDetail:
+    """Tests for _extract_cmr_error_detail."""
+
+    def test_json_parsing_failure(self):
+        """Test exception when json parsing fails."""
+        from util.cmr.client import _extract_cmr_error_detail
+
+        class MockRespNoJson:
+            """Mock class."""
+
+            @property
+            def text(self):
+                """Mock method."""
+                return "Bad Gateway"
+
+            def json(self):
+                """Mock method."""
+                raise ValueError("Not JSON")
+
+        assert _extract_cmr_error_detail(MockRespNoJson()) == "Bad Gateway"
+
+    def test_payload_dict_no_errors_or_message(self):
+        """Test fallback to text when payload has no errors/message."""
+        from util.cmr.client import _extract_cmr_error_detail
+
+        class MockRespDict:
+            """Mock class."""
+
+            @property
+            def text(self):
+                """Mock method."""
+                return "Some text"
+
+            def json(self):
+                """Mock method."""
+                return {"other": "value"}
+
+        assert _extract_cmr_error_detail(MockRespDict()) == "Some text"
+
+    def test_payload_dict_with_message(self):
+        """Test extraction of message key."""
+        from util.cmr.client import _extract_cmr_error_detail
+
+        class MockRespMessage:
+            """Mock class."""
+
+            def json(self):
+                """Mock method."""
+                return {"message": "A message error"}
+
+        assert _extract_cmr_error_detail(MockRespMessage()) == "A message error"
+
+    def test_payload_dict_with_error(self):
+        """Test extraction of error key."""
+        from util.cmr.client import _extract_cmr_error_detail
+
+        class MockRespError:
+            """Mock class."""
+
+            def json(self):
+                """Mock method."""
+                return {"error": "An error key"}
+
+        assert _extract_cmr_error_detail(MockRespError()) == "An error key"
+
+    def test_no_text_returns_none(self):
+        """Test fallback to None when no text present."""
+        from util.cmr.client import _extract_cmr_error_detail
+
+        class MockRespNoText:
+            """Mock class."""
+
+            def json(self):
+                """Mock method."""
+                raise ValueError("Not JSON")
+
+        assert _extract_cmr_error_detail(MockRespNoText()) is None

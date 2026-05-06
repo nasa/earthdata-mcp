@@ -237,3 +237,141 @@ class TestCheckSpatialDisambiguation:
 
         # 250m < 1km < 0.25deg (~27km)
         assert resolutions == ["250 m", "1 km", "0.25 deg"]
+
+
+class TestExtractSpatialExtent:
+    """Tests for extract_spatial_extent function."""
+
+    def test_extract_spatial_extent(self):
+        """Test extracting spatial extent geometry."""
+        from util.spatial import extract_spatial_extent
+
+        # Test missing SpatialExtent
+        assert extract_spatial_extent({}) == (None, False)
+
+        # Test Point
+        metadata = {
+            "SpatialExtent": {
+                "HorizontalSpatialDomain": {
+                    "Geometry": {"Points": [{"Longitude": 10, "Latitude": 20}]}
+                }
+            }
+        }
+        res = extract_spatial_extent(metadata)
+        assert res == (None, False)
+
+        # Test BoundingRectangle
+        metadata2 = {
+            "SpatialExtent": {
+                "HorizontalSpatialDomain": {
+                    "Geometry": {
+                        "BoundingRectangles": [
+                            {
+                                "WestBoundingCoordinate": -10,
+                                "EastBoundingCoordinate": 10,
+                                "SouthBoundingCoordinate": -20,
+                                "NorthBoundingCoordinate": 20,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        res2 = extract_spatial_extent(metadata2)
+        assert "POLYGON" in res2[0]
+        assert res2[1] is False
+
+        # Test Global BoundingRectangle
+        metadata_global = {
+            "SpatialExtent": {
+                "HorizontalSpatialDomain": {
+                    "Geometry": {
+                        "BoundingRectangles": [
+                            {
+                                "WestBoundingCoordinate": -180,
+                                "EastBoundingCoordinate": 180,
+                                "SouthBoundingCoordinate": -90,
+                                "NorthBoundingCoordinate": 90,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        res_global = extract_spatial_extent(metadata_global)
+        assert "POLYGON" in res_global[0]
+        assert res_global[1] is True
+
+
+class TestSpatialResolutionSortKey:
+    """Tests for _spatial_resolution_sort_key function."""
+
+    def test_spatial_resolution_sort_key(self):
+        """Test sort key logic."""
+        from util.spatial import _spatial_resolution_sort_key
+
+        assert _spatial_resolution_sort_key("invalid") == float("inf")
+        assert _spatial_resolution_sort_key("not_a_number km") == float("inf")
+        assert _spatial_resolution_sort_key("1 km") == 1000.0
+        assert _spatial_resolution_sort_key("250 m") == 250.0
+        assert _spatial_resolution_sort_key("0.25 deg") == 27830.0
+
+
+class TestParseSpatialResolutionFromTitle:
+    """Tests for parse_spatial_resolution_from_title function."""
+
+    def test_parse_spatial_resolution_from_title(self):
+        """Test parsing resolution from title."""
+        from util.spatial import parse_spatial_resolution_from_title
+
+        assert parse_spatial_resolution_from_title("Product 1km") == {
+            "XDimension": 1.0,
+            "YDimension": 1.0,
+            "Unit": "Kilometers",
+        }
+        assert parse_spatial_resolution_from_title("Product 250m") == {
+            "XDimension": 250.0,
+            "YDimension": 250.0,
+            "Unit": "Meters",
+        }
+        assert parse_spatial_resolution_from_title("Product 0.25 deg") == {
+            "XDimension": 0.25,
+            "YDimension": 0.25,
+            "Unit": "Decimal Degrees",
+        }
+        assert parse_spatial_resolution_from_title("Product 0.25deg") == {
+            "XDimension": 0.25,
+            "YDimension": 0.25,
+            "Unit": "Decimal Degrees",
+        }
+        assert parse_spatial_resolution_from_title("Product 2000m") is None
+        assert parse_spatial_resolution_from_title("Product something") is None
+
+    def test_extract_gpolygon(self):
+        """Test extraction of GPolygons."""
+        from util.spatial import extract_spatial_extent
+
+        metadata = {
+            "SpatialExtent": {
+                "HorizontalSpatialDomain": {
+                    "Geometry": {
+                        "GPolygons": [
+                            {
+                                "Boundary": {
+                                    "Points": [
+                                        {"Longitude": 0, "Latitude": 0},
+                                        {"Longitude": 10, "Latitude": 0},
+                                        {"Longitude": 10, "Latitude": 10},
+                                        {"Longitude": 0, "Latitude": 10},
+                                        {"Longitude": 0, "Latitude": 0},
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        res = extract_spatial_extent(metadata)
+        assert "POLYGON((0 0, 10 0" in res[0]
+        assert res[1] is False

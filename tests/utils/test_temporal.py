@@ -230,3 +230,120 @@ class TestCheckTemporalDisambiguation:
         _, resolutions = check_temporal_disambiguation(collections)
 
         assert resolutions == ["Hour", "Day", "Month"]
+
+
+class TestParseTemporalResolutionFromTitle:
+    """Tests for parse_temporal_resolution_from_title function."""
+
+    def test_parse_temporal_resolution_from_title(self):
+        """Test parsing temporal from title."""
+        from util.temporal import parse_temporal_resolution_from_title
+
+        assert parse_temporal_resolution_from_title("Product Daily") == {"Value": 1, "Unit": "Day"}
+        assert parse_temporal_resolution_from_title("Product hourly") == {
+            "Value": 1,
+            "Unit": "Hour",
+        }
+        assert parse_temporal_resolution_from_title("Product 3 Hourly") == {
+            "Value": 3,
+            "Unit": "Hour",
+        }
+        assert parse_temporal_resolution_from_title("Product 5-Day") == {"Value": 5, "Unit": "Day"}
+        assert parse_temporal_resolution_from_title("Product something") is None
+
+
+class TestTemporalResolutionSortKey:
+    """Tests for _resolution_sort_key function."""
+
+    def test_resolution_sort_key(self):
+        """Test sort key for temporal resolution."""
+        from util.temporal import _resolution_sort_key
+
+        assert _resolution_sort_key("invalid") == 0
+        assert _resolution_sort_key("not_a_number hours") == 0
+        assert _resolution_sort_key("Day") == 24.0
+        assert _resolution_sort_key("2-Hour") == 2.0
+
+
+class TestExtractTemporalExtent:
+    """Tests for extract_temporal_extent function."""
+
+    def test_parse_iso_datetime_error(self):
+        """Test ValueError in parse_iso_datetime."""
+        from util.temporal import parse_iso_datetime
+
+        assert parse_iso_datetime("not a date") is None
+
+    def test_extract_temporal_extent(self):
+        """Test extracting temporal extent."""
+        from util.temporal import extract_temporal_extent
+
+        assert extract_temporal_extent({}) == (None, None, False)
+
+        metadata = {
+            "TemporalExtents": [
+                {
+                    "RangeDateTimes": [
+                        {
+                            "BeginningDateTime": "2020-01-01T00:00:00Z",
+                            "EndingDateTime": "2021-01-01T00:00:00Z",
+                        }
+                    ]
+                }
+            ]
+        }
+        res = extract_temporal_extent(metadata)
+        assert res[0].year == 2020
+        assert res[1].year == 2021
+        assert res[2] is False
+
+        metadata2 = {"TemporalExtents": [{"SingleDateTimes": ["2020-01-01T00:00:00Z"]}]}
+        res2 = extract_temporal_extent(metadata2)
+        assert res2[0].year == 2020
+        assert res2[1].year == 2020
+        assert res2[2] is False
+
+        metadata3 = {
+            "TemporalExtents": [{"RangeDateTimes": [{"BeginningDateTime": "2020-01-01T00:00:00Z"}]}]
+        }
+        res3 = extract_temporal_extent(metadata3)
+        assert res3[0].year == 2020
+        assert res3[1] is None
+        assert res3[2] is True
+
+        metadata4 = {
+            "TemporalExtents": [
+                {
+                    "EndsAtPresentFlag": True,
+                    "RangeDateTimes": [
+                        {
+                            "BeginningDateTime": "2020-01-01T00:00:00Z",
+                            "EndingDateTime": "2021-01-01T00:00:00Z",
+                        },
+                        {
+                            "BeginningDateTime": "2019-01-01T00:00:00Z",
+                            "EndingDateTime": "2022-01-01T00:00:00Z",
+                        },
+                    ],
+                }
+            ]
+        }
+        res4 = extract_temporal_extent(metadata4)
+        assert res4[0].year == 2019
+        assert res4[1].year == 2022
+        assert res4[2] is True
+
+        metadata5 = {"TemporalExtents": [{}]}
+        assert extract_temporal_resolution(metadata5) is None
+
+    def test_missing_unit_resolution(self):
+        """Test when temporal resolution is present but lacks a unit."""
+        umm = {"TemporalExtents": [{"TemporalResolution": {"Value": "1"}}]}
+        assert extract_temporal_resolution(umm) is None
+
+    def test_varies_constant_resolution(self):
+        """Test varies or constant temporal resolution."""
+        umm = {"TemporalExtents": [{"TemporalResolution": {"Unit": "Constant"}}]}
+        res = extract_temporal_resolution(umm)
+        assert res.unit == "Constant"
+        assert res.value == 0
