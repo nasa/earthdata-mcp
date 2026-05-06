@@ -10,13 +10,13 @@ from models.pagination import (
     FieldsParam,
     LimitParam,
     apply_field_filter,
-    decode_cursor,
     encode_cursor,
+    resolve_cursor,
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_variables import GetVariablesInput, GetVariablesOutput
 from util.cmr.client import CMRError, search_cmr
-from util.cmr.search_tools import normalize_variable_item
+from util.cmr.search_tools import fetch_association_ids, normalize_variable_item
 from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
@@ -32,17 +32,6 @@ def get_variables(
 ) -> dict:
     # pylint: disable=too-many-return-statements
     """Search CMR variables by parent collection ID or keyword.
-
-    When using the `keyword` argument, CMR searches across the following fields:
-    - Variable Name and Long Name (e.g., "sea_surface_temperature" or "Sea Surface Temperature")
-    - GCMD Science Keywords (e.g., broad categories like "Oceans" down to specific terms)
-    - Variable Set Names (logical groupings of variables within a dataset)
-    - Collection Concept IDs (the parent collection this variable belongs to)
-    - Variable Concept ID (the unique CMR identifier for the variable)
-    - Data Format (e.g., "NetCDF-4", "HDF5")
-
-    This means you can discover variables using specific CF standard names, broad scientific
-    categories, data formats, or by searching a parent collection's ID to find its variables.
 
     The returned items use snake_cased keys mapping to UMM-V, including:
     - concept_id: CMR variable concept ID
@@ -64,6 +53,12 @@ def get_variables(
     - measurement_identifiers: Measurement context
     - sampling_identifiers: Sampling method context
     - related_urls: Specific URLs
+
+    Pagination: use limit (default 10, max 50) and cursor to page through results.
+    Pass the next_cursor from a previous response as cursor to advance to the next page.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
     """
     trace_update(
         tags=["cmr", "variables"],
@@ -90,15 +85,13 @@ def get_variables(
         ).model_dump()
 
     search_after = None
+    search_params = None  # sentinel: None means "must build via Phase 1"
+
     if params.cursor:
         try:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "cmr":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            search_after = parsed.get("value")
+            cursor_value = resolve_cursor(params.cursor, "cmr")
+            search_after = cursor_value.get("token")
+            search_params = cursor_value.get("params", {})
         except ValueError as exc:
             return GetVariablesOutput(
                 status=SearchStatus.ERROR,
@@ -108,57 +101,49 @@ def get_variables(
 
     variable_ids: list[str] = []
 
-    # Phase 1: Find linked variables. CMR collections only list the IDs of their associated
-    # variables, not the full details. We first fetch the collection to get this list of variable IDs.
-    if params.collection_concept_id:
-        try:
-            collection_page = next(
-                search_cmr(
-                    concept_type="collection",
-                    search_params={"concept_id": params.collection_concept_id},
-                    page_size=1,
-                ),
-                None,
-            )
-        except (CMRError, ValueError, TypeError) as exc:
-            logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
-            return GetVariablesOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message=str(exc),
-            ).model_dump()
-        except Exception as exc:  # pylint: disable=broad-exception-caught
-            logger.exception(
-                "Unexpected error during collection lookup for %s: %s",
-                params.collection_concept_id,
-                exc,
-            )
-            return GetVariablesOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message="An unexpected internal error occurred during collection lookup.",
-            ).model_dump()
+    if search_params is None:
+        # Phase 1: If collection_concept_id provided, fetch the collection to discover associations.
+        if params.collection_concept_id:
+            try:
+                found_ids = fetch_association_ids(params.collection_concept_id, "variables")
+            except (CMRError, ValueError, TypeError) as exc:
+                logger.warning(
+                    "Collection lookup failed for %s: %s", params.collection_concept_id, exc
+                )
+                return GetVariablesOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message=str(exc),
+                ).model_dump()
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "Unexpected error during collection lookup for %s: %s",
+                    params.collection_concept_id,
+                    exc,
+                )
+                return GetVariablesOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message="An unexpected internal error occurred during collection lookup.",
+                ).model_dump()
 
-        if not collection_page or not collection_page.items:
-            return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+            if found_ids is None:
+                return GetVariablesOutput(
+                    status=SearchStatus.NO_RESULTS, next_cursor=None
+                ).model_dump()
+            variable_ids = found_ids
+            if not variable_ids and not params.keyword:
+                return GetVariablesOutput(
+                    status=SearchStatus.NO_RESULTS, next_cursor=None
+                ).model_dump()
 
-        variable_ids = (
-            collection_page.items[0].get("meta", {}).get("associations", {}).get("variables", [])
-        )
+        # Phase 2 params: build from Phase 1 results or direct keyword.
+        search_params = {}
+        if variable_ids:
+            search_params["concept_id[]"] = variable_ids
 
-        # If the requested collection has no associated variables, the intersection
-        # with any keyword is inherently empty. Return immediately.
-        if not variable_ids and params.collection_concept_id:
-            return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
-
-    # Phase 2: Fetch the actual variable details. If both a collection ID and a keyword are
-    # provided, CMR will only return variables that belong to that collection AND match the keyword.
-    search_params = {}
-    if variable_ids:
-        search_params["concept_id[]"] = variable_ids
-
-    if params.keyword:
-        search_params["keyword"] = params.keyword
+        if params.keyword:
+            search_params["keyword"] = params.keyword
 
     try:
         variable_page = next(
@@ -195,27 +180,17 @@ def get_variables(
         return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     variables = [normalize_variable_item(item) for item in variable_page.items]
+    cursor_payload = {"token": variable_page.search_after, "params": search_params}
     next_cursor = (
-        encode_cursor("cmr", variable_page.search_after)
+        encode_cursor("cmr", cursor_payload)
         if variable_page.search_after and len(variable_page.items) == params.limit
         else None
     )
-
-    if params.collection_concept_id and params.keyword:
-        # Compute count as intersection of collection-associated IDs and keyword results
-        real_total_hits = len(
-            [
-                item
-                for item in variable_page.items
-                if item.get("meta", {}).get("concept-id") in variable_ids
-            ]
-        )
-    elif params.collection_concept_id and variable_ids:
-        # Just collection filter: the total is all associated variables
-        real_total_hits = len(variable_ids)
-    else:
-        # Just keyword filter: rely on the search hit count
-        real_total_hits = variable_page.total_hits
+    real_total_hits = (
+        len(variable_ids)
+        if (params.collection_concept_id and variable_ids)
+        else variable_page.total_hits
+    )
 
     response_dict = GetVariablesOutput(
         status=SearchStatus.SUCCESS,

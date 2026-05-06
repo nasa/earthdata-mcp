@@ -3,12 +3,19 @@
 import importlib
 from unittest.mock import patch
 
+import util.cmr.search_tools as _search_tools_mod
 from models.pagination import decode_cursor, encode_cursor
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
 def _load_tool():
     return importlib.import_module("tools.get_services.tool")
+
+
+def _patch_search_cmr(monkeypatch, tool, fake_fn):
+    """Patch search_cmr in both the tool module and search_tools (used by fetch_association_ids)."""
+    monkeypatch.setattr(tool, "search_cmr", fake_fn)
+    monkeypatch.setattr(_search_tools_mod, "search_cmr", fake_fn)
 
 
 def _collection_page(service_ids=None):
@@ -49,9 +56,9 @@ class TestGetServicesSuccess:
     def test_returns_success_status(self, monkeypatch):
         """Should return status='success' when the collection has associated services."""
         tool = _load_tool()
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(_collection_page(["S1-PROV"]), _service_page()),
         )
 
@@ -71,9 +78,9 @@ class TestGetServicesSuccess:
                 "AccessConstraints": {"Description": "Requires Login"},
             },
         }
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(_collection_page(["S1-PROV"]), _service_page(items=[raw_item])),
         )
 
@@ -95,9 +102,9 @@ class TestGetServicesSuccess:
                 "UseConstraints": "Public Domain",
             },
         }
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(_collection_page(["S2-PROV"]), _service_page(items=[raw_item])),
         )
 
@@ -110,9 +117,9 @@ class TestGetServicesSuccess:
     def test_total_hits_reflects_service_page(self, monkeypatch):
         """total_hits should come from the service search page."""
         tool = _load_tool()
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(
                 _collection_page(["S1-PROV", "S2-PROV"]),
                 _service_page(total_hits=2),
@@ -136,7 +143,7 @@ class TestGetServicesSuccess:
             else:
                 yield _service_page()
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         tool.get_services(collection_concept_id="C1-PROV")
 
@@ -157,7 +164,7 @@ class TestGetServicesNoResults:
         def fake_search_cmr(**kwargs):
             yield empty_page
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C99999-MISSING")
 
@@ -171,7 +178,7 @@ class TestGetServicesNoResults:
         def fake_search_cmr(**kwargs):
             yield _collection_page(service_ids=[])
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -188,7 +195,7 @@ class TestGetServicesNoResults:
         def fake_search_cmr(**kwargs):
             yield page
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -203,7 +210,7 @@ class TestGetServicesNoResults:
                 yield _collection_page(["S1-PROV"])
             # service call yields nothing → next() returns None
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -219,9 +226,9 @@ class TestGetServicesErrors:
 
         def fake_search_cmr(**kwargs):
             raise CMRError("Collection lookup failed")
-            yield  # pragma: no cover  # noqa: unreachable
+            yield  # pragma: no cover
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -237,9 +244,9 @@ class TestGetServicesErrors:
                 yield _collection_page(["S1-PROV"])
             else:
                 raise CMRError("Service fetch failed")
-                yield  # pragma: no cover  # noqa: unreachable
+                yield  # pragma: no cover
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -264,7 +271,7 @@ class TestGetServicesErrors:
             raise RuntimeError("Unexpected collection boom")
             yield
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -285,7 +292,7 @@ class TestGetServicesErrors:
                 raise RuntimeError("Unexpected service boom")
                 yield
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(collection_concept_id="C1-PROV")
 
@@ -324,7 +331,7 @@ class TestGetServicesNewParams:
             captured[kwargs["concept_type"]] = kwargs
             yield _service_page()
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(keyword="OPeNDAP")
 
@@ -341,7 +348,7 @@ class TestGetServicesNewParams:
             captured[kwargs["concept_type"]] = kwargs
             yield _service_page()
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         output = tool.get_services(type="OPeNDAP")
 
@@ -365,9 +372,9 @@ class TestGetServicesNewParams:
         ]
         service_pg = _service_page(items=items, total_hits=3, search_after="tok-abc", page_size=2)
 
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(_collection_page(["S0-PROV", "S1-PROV", "S2-PROV"]), service_pg),
         )
 
@@ -378,25 +385,24 @@ class TestGetServicesNewParams:
         assert output["next_cursor"] is not None
         parsed = decode_cursor(output["next_cursor"])
         assert parsed["backend"] == "cmr"
-        assert parsed["value"] == "tok-abc"
+        assert isinstance(parsed["value"], dict)
+        assert parsed["value"]["token"] == "tok-abc"
 
     def test_get_services_pagination_second_page(self, monkeypatch):
-        """Passing a cursor should forward search_after to Phase 2 search_cmr."""
+        """A cursor skips Phase 1 and forwards search_after to Phase 2 search_cmr."""
         tool = _load_tool()
         captured = {}
 
         def fake_search_cmr(**kwargs):
             captured[kwargs["concept_type"]] = kwargs
-            if kwargs["concept_type"] == "collection":
-                yield _collection_page(["S1-PROV"])
-            else:
-                yield _service_page()
+            yield _service_page()
 
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        cursor = encode_cursor("cmr", "tok-abc")
+        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["S1-PROV"]}})
         tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
 
+        assert "collection" not in captured
         assert captured["service"]["search_after"] == "tok-abc"
 
     def test_get_services_invalid_cursor(self, monkeypatch):
@@ -431,9 +437,9 @@ class TestGetServicesNewParams:
                 "ServiceOrganizations": [{"Roles": ["SERVICE PROVIDER"], "ShortName": "PO.DAAC"}],
             },
         }
-        monkeypatch.setattr(
+        _patch_search_cmr(
+            monkeypatch,
             tool,
-            "search_cmr",
             _make_two_phase_mock(_collection_page(["S1-PROV"]), _service_page(items=[raw_item])),
         )
 
@@ -444,3 +450,46 @@ class TestGetServicesNewParams:
         assert svc["service_organizations"] == [
             {"roles": ["SERVICE PROVIDER"], "short_name": "PO.DAAC"}
         ]
+
+    def test_get_services_old_format_cursor_returns_error(self, monkeypatch):
+        """An old-format (scalar string) cursor must return a clean error."""
+        tool = _load_tool()
+
+        old_cursor = encode_cursor("cmr", "some-legacy-token")
+        output = tool.get_services(collection_concept_id="C1-PROV", cursor=old_cursor)
+
+        assert output["status"] == "error"
+        assert output["next_cursor"] is None
+        assert "outdated" in output["error_message"].lower()
+
+    def test_get_services_cursor_ignores_changed_params(self, monkeypatch):
+        """When cursor is present, stored params are used and incoming params ignored."""
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            yield _service_page()
+
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
+
+        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
+        tool.get_services(keyword="changed", cursor=cursor)
+
+        assert captured["service"]["search_params"].get("keyword") == "original"
+
+    def test_get_services_phase1_skipped_on_page2(self, monkeypatch):
+        """Page 2 with cursor must not perform the Phase 1 collection lookup."""
+        tool = _load_tool()
+        call_count = [0]
+
+        def fake_search_cmr(**kwargs):
+            call_count[0] += 1
+            yield _service_page()
+
+        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
+
+        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["S1-PROV"]}})
+        tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
+
+        assert call_count[0] == 1

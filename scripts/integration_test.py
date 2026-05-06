@@ -40,6 +40,13 @@ def encode_cursor(backend: str, value: Any) -> str:
     return base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
 
 
+def decode_cursor(cursor: str) -> dict:
+    padding = 4 - len(cursor) % 4
+    if padding != 4:
+        cursor += "=" * padding
+    return json.loads(base64.urlsafe_b64decode(cursor))
+
+
 # ── Result types ───────────────────────────────────────────────────────────────
 
 
@@ -133,6 +140,49 @@ async def suite_get_collections(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    # Cursor format: value must be a dict with token + params (self-describing)
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # Old-format scalar cursor returns error with 'outdated'
+    r_old = await call(
+        session,
+        "get_collections",
+        keyword="sea surface temperature",
+        cursor=encode_cursor("cmr", "some-legacy-token"),
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
+    # Self-describing cursor: changed keyword on page 2 must be ignored
+    if r.get("next_cursor"):
+        r2a = await call(
+            session,
+            "get_collections",
+            keyword="sea surface temperature",
+            limit=3,
+            cursor=r["next_cursor"],
+        )
+        r2b = await call(
+            session, "get_collections", keyword="vegetation", limit=3, cursor=r["next_cursor"]
+        )
+        ids_a = {c["concept_id"] for c in r2a.get("collections", [])}
+        ids_b = {c["concept_id"] for c in r2b.get("collections", [])}
+        s.check(
+            "self-describing cursor: changed keyword ignored on page 2",
+            bool(ids_a) and ids_a == ids_b,
+            f"a={ids_a}, b={ids_b}",
+        )
+
     # Cross-backend cursor rejected
     r_bad = await call(
         session,
@@ -153,7 +203,9 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         limit=2,
         fields=["entry_title"],
     )
-    if rf["status"] == "success" and rf.get("collections"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("collections"):
         item = rf["collections"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested entry_title returned", "entry_title" in item)
@@ -179,7 +231,9 @@ async def suite_get_collections(session: ClientSession) -> Suite:
 
     # New response fields
     rn = await call(session, "get_collections", keyword="sea surface temperature", limit=1)
-    if rn["status"] == "success" and rn.get("collections"):
+    if s.check(
+        "new response fields call succeeded", rn["status"] == "success", rn.get("error_message", "")
+    ) and rn.get("collections"):
         c = rn["collections"][0]
         for fname in (
             "science_keywords",
@@ -224,6 +278,26 @@ async def suite_get_granules(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    # Cursor format: value must be a dict with token + params
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # Old-format scalar cursor returns error with 'outdated'
+    r_old = await call(
+        session, "get_granules", **base_args, cursor=encode_cursor("cmr", "some-legacy-token")
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
     # Cross-backend cursor rejected
     r_bad = await call(session, "get_granules", **base_args, cursor=encode_cursor("kms", 5))
     s.check(
@@ -233,7 +307,9 @@ async def suite_get_granules(session: ClientSession) -> Suite:
 
     # Fields filtering
     rf = await call(session, "get_granules", **base_args, limit=2, fields=["granule_ur"])
-    if rf["status"] == "success" and rf.get("granules"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("granules"):
         item = rf["granules"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested granule_ur returned", "granule_ur" in item)
@@ -301,6 +377,43 @@ async def suite_get_keywords(session: ClientSession) -> Suite:
             f"page1={r.get('total_hits')}, page2={r2.get('total_hits')}",
         )
 
+    # KMS cursor format: value must be a dict with offset/query/scheme
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "KMS cursor value is dict (self-describing)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("KMS cursor has 'offset' key", isinstance(cv, dict) and "offset" in cv)
+        s.check("KMS cursor has 'query' key", isinstance(cv, dict) and "query" in cv)
+        s.check("KMS cursor has 'scheme' key", isinstance(cv, dict) and "scheme" in cv)
+
+    # Old-format scalar KMS cursor returns error with 'outdated'
+    r_old = await call(
+        session, "get_keywords", query="temperature", cursor=encode_cursor("kms", 20)
+    )
+    s.check(
+        "old-format KMS cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
+    # Self-describing cursor: changed query on page 2 must be ignored
+    if r.get("next_cursor"):
+        r2a = await call(
+            session, "get_keywords", query="temperature", limit=3, cursor=r["next_cursor"]
+        )
+        r2b = await call(
+            session, "get_keywords", query="precipitation", limit=3, cursor=r["next_cursor"]
+        )
+        labels_a = {kw["prefLabel"] for kw in r2a.get("keywords", [])}
+        labels_b = {kw["prefLabel"] for kw in r2b.get("keywords", [])}
+        s.check(
+            "self-describing cursor: changed KMS query ignored on page 2",
+            bool(labels_a) and labels_a == labels_b,
+            f"a={labels_a}, b={labels_b}",
+        )
+
     # Cross-backend cursor rejected (keywords uses "kms"; send a "cmr" cursor)
     r_bad = await call(
         session, "get_keywords", query="temperature", cursor=encode_cursor("cmr", "tok-xyz")
@@ -349,6 +462,44 @@ async def suite_get_citations(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    # Cursor format: value must be dict with token + params
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # total_hits consistent on page 2 (Phase 1 skipped should not zero out total_hits)
+    if r.get("next_cursor"):
+        r2 = await call(
+            session,
+            "get_citations",
+            collection_concept_id=COLLECTION_WITH_CITATIONS,
+            limit=5,
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "total_hits on page 2 matches page 1 (not zeroed by Phase 1 skip)",
+            r2.get("total_hits", 0) == r.get("total_hits", 0),
+            f"page1={r.get('total_hits')}, page2={r2.get('total_hits')}",
+        )
+
+    # Old-format scalar cursor returns 'outdated' error
+    r_old = await call(
+        session,
+        "get_citations",
+        collection_concept_id=COLLECTION_WITH_CITATIONS,
+        cursor=encode_cursor("cmr", "some-legacy-token"),
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
     # Cross-backend cursor rejected
     r_bad = await call(
         session,
@@ -369,7 +520,9 @@ async def suite_get_citations(session: ClientSession) -> Suite:
         limit=3,
         fields=["name"],
     )
-    if rf["status"] == "success" and rf.get("citations"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("citations"):
         item = rf["citations"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested name returned", "name" in item)
@@ -389,7 +542,9 @@ async def suite_get_citations(session: ClientSession) -> Suite:
         rp["status"] != "error",
         f"error: {rp.get('error_message')}",
     )
-    if rp["status"] == "success":
+    if s.check(
+        "provider filter call succeeded", rp["status"] == "success", rp.get("error_message", "")
+    ):
         s.check("provider filter returns citations", len(rp.get("citations", [])) > 0)
 
     # Identifier flow
@@ -435,6 +590,26 @@ async def suite_get_services(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    # Cursor format: value must be dict with token + params
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # Old-format scalar cursor returns 'outdated' error
+    r_old = await call(
+        session, "get_services", keyword="OPeNDAP", cursor=encode_cursor("cmr", "some-legacy-token")
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
     # Cross-backend cursor rejected
     r_bad = await call(session, "get_services", keyword="OPeNDAP", cursor=encode_cursor("kms", 5))
     s.check(
@@ -456,7 +631,9 @@ async def suite_get_services(session: ClientSession) -> Suite:
 
     # Fields filtering
     rf = await call(session, "get_services", keyword="OPeNDAP", limit=3, fields=["name", "url"])
-    if rf["status"] == "success" and rf.get("services"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("services"):
         item = rf["services"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested name returned", "name" in item)
@@ -507,6 +684,28 @@ async def suite_get_tools(session: ClientSession) -> Suite:
     else:
         s.check("next_cursor present or result set small", r_broad.get("total_hits", 0) <= 3)
 
+    # Cursor format: value must be dict with token + params
+    if s.check(
+        "next_cursor present for cursor format test", r_broad.get("next_cursor") is not None
+    ):
+        parsed = decode_cursor(r_broad["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # Old-format scalar cursor returns 'outdated' error
+    r_old = await call(
+        session, "get_tools", keyword="Giovanni", cursor=encode_cursor("cmr", "some-legacy-token")
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
     # Cross-backend cursor rejected
     r_bad = await call(session, "get_tools", keyword="Giovanni", cursor=encode_cursor("kms", 5))
     s.check(
@@ -520,7 +719,9 @@ async def suite_get_tools(session: ClientSession) -> Suite:
 
     # Fields filtering (new in Phase 4 cleanup)
     rf = await call(session, "get_tools", keyword="Giovanni", limit=3, fields=["name"])
-    if rf["status"] == "success" and rf.get("tools"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("tools"):
         item = rf["tools"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested name returned", "name" in item)
@@ -568,6 +769,29 @@ async def suite_get_variables(session: ClientSession) -> Suite:
             f"total_hits={r.get('total_hits')} but no cursor",
         )
 
+    # Cursor format: value must be dict with token + params
+    if r.get("next_cursor"):
+        parsed = decode_cursor(r["next_cursor"])
+        cv = parsed.get("value")
+        s.check(
+            "cursor value is dict (self-describing format)", isinstance(cv, dict), f"got {type(cv)}"
+        )
+        s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
+        s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
+
+    # Old-format scalar cursor returns 'outdated' error
+    r_old = await call(
+        session,
+        "get_variables",
+        keyword="sea_surface_temperature",
+        cursor=encode_cursor("cmr", "some-legacy-token"),
+    )
+    s.check(
+        "old-format cursor returns 'outdated' error",
+        r_old["status"] == "error" and "outdated" in r_old.get("error_message", "").lower(),
+        r_old.get("error_message", ""),
+    )
+
     # Cross-backend cursor rejected
     r_bad = await call(
         session, "get_variables", keyword="sea_surface_temperature", cursor=encode_cursor("kms", 5)
@@ -581,7 +805,9 @@ async def suite_get_variables(session: ClientSession) -> Suite:
     rf = await call(
         session, "get_variables", keyword="sea_surface_temperature", limit=3, fields=["long_name"]
     )
-    if rf["status"] == "success" and rf.get("variables"):
+    if s.check(
+        "fields call succeeded", rf["status"] == "success", rf.get("error_message", "")
+    ) and rf.get("variables"):
         item = rf["variables"][0]
         s.check("fields: concept_id always returned", "concept_id" in item)
         s.check("fields: requested long_name returned", "long_name" in item)

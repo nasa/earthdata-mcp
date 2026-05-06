@@ -50,8 +50,11 @@ def _citation_page(
 
 @pytest.fixture
 def mock_search_cmr() -> Generator[MagicMock]:
-    """Mock search_cmr across all test functions."""
-    with patch("tools.get_citations.tool.search_cmr") as mock_cmr:
+    """Mock search_cmr in both the tool module and search_tools (used by fetch_association_ids)."""
+    with (
+        patch("tools.get_citations.tool.search_cmr") as mock_cmr,
+        patch("util.cmr.search_tools.search_cmr", mock_cmr),
+    ):
         yield mock_cmr
 
 
@@ -231,24 +234,23 @@ def test_get_citations_next_cursor_present(mock_search_cmr: MagicMock) -> None:
     assert res["next_cursor"] is not None
     parsed = decode_cursor(res["next_cursor"])
     assert parsed["backend"] == "cmr"
-    assert parsed["value"] == "tok-abc"
+    assert isinstance(parsed["value"], dict)
+    assert parsed["value"]["token"] == "tok-abc"
 
 
 def test_get_citations_cursor_advances_page(mock_search_cmr: MagicMock) -> None:
-    """Test that a valid cursor causes Phase 2 to receive search_after."""
+    """A valid cursor causes Phase 1 to be skipped and Phase 2 to receive search_after."""
     tool = _load_tool()
 
-    cursor = encode_cursor("cmr", "tok-xyz")
+    cursor = encode_cursor("cmr", {"token": "tok-xyz", "params": {"concept_id[]": ["CIT1-PROV"]}})
 
-    mock_search_cmr.side_effect = [
-        iter([_collection_page(citation_ids=["CIT1-PROV"])]),
-        iter([_citation_page()]),
-    ]
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
 
     tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
 
-    call2 = mock_search_cmr.call_args_list[1]
-    assert call2.kwargs["search_after"] == "tok-xyz"
+    assert mock_search_cmr.call_count == 1
+    call1 = mock_search_cmr.call_args_list[0]
+    assert call1.kwargs["search_after"] == "tok-xyz"
 
 
 def test_get_citations_fields_filter(mock_search_cmr: MagicMock) -> None:
@@ -312,3 +314,52 @@ def test_get_citations_cross_backend_cursor(mock_search_cmr: MagicMock) -> None:
     assert res["status"] == SearchStatus.ERROR
     assert "cursor" in res["error_message"].lower()
     assert res["next_cursor"] is None
+
+
+def test_get_citations_old_format_cursor_returns_error(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
+    """An old-format (scalar string) cursor must return a clean error."""
+    tool = _load_tool()
+
+    old_cursor = encode_cursor("cmr", "some-legacy-token")
+    res = tool.get_citations(collection_concept_id="C123-PROV", cursor=old_cursor)
+
+    assert res["status"] == SearchStatus.ERROR
+    assert res["next_cursor"] is None
+    assert "outdated" in res["error_message"].lower()
+
+
+def test_get_citations_cursor_ignores_changed_params(mock_search_cmr: MagicMock) -> None:
+    """When cursor is present, stored params are used and incoming params ignored."""
+    tool = _load_tool()
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
+
+    cursor = encode_cursor(
+        "cmr", {"token": "tok-abc", "params": {"identifier": "10.original/test"}}
+    )
+    tool.get_citations(identifier="10.changed/test", cursor=cursor)
+
+    call1 = mock_search_cmr.call_args_list[0]
+    assert call1.kwargs["search_params"].get("identifier") == "10.original/test"
+
+
+def test_get_citations_phase1_skipped_on_page2(mock_search_cmr: MagicMock) -> None:
+    """Page 2 with cursor must not perform the Phase 1 collection lookup."""
+    tool = _load_tool()
+    mock_search_cmr.side_effect = [iter([_citation_page()])]
+
+    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["CIT1-PROV"]}})
+    tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
+
+    assert mock_search_cmr.call_count == 1
+    assert mock_search_cmr.call_args_list[0].kwargs["concept_type"] == "citation"
+
+
+def test_get_citations_total_hits_on_page2(mock_search_cmr: MagicMock) -> None:
+    """total_hits on page 2 must come from the citation page, not len(citation_ids)."""
+    tool = _load_tool()
+    mock_search_cmr.side_effect = [iter([_citation_page(total_hits=42)])]
+
+    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["CIT1-PROV"]}})
+    res = tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
+
+    assert res["total_hits"] == 42

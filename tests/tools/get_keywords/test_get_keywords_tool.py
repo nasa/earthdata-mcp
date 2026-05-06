@@ -182,7 +182,9 @@ def test_get_keywords_pagination_first_page(mock_search_kms_pattern: MagicMock) 
     assert result["next_cursor"] is not None
     parsed = decode_cursor(result["next_cursor"])
     assert parsed["backend"] == "kms"
-    assert parsed["value"] == 10
+    assert isinstance(parsed["value"], dict)
+    assert parsed["value"]["offset"] == 10
+    assert parsed["value"]["query"] == "KEYWORD"
 
 
 def test_get_keywords_pagination_second_page(mock_search_kms_pattern: MagicMock) -> None:
@@ -191,7 +193,7 @@ def test_get_keywords_pagination_second_page(mock_search_kms_pattern: MagicMock)
     all_concepts = [_make_concept(i) for i in range(15)]
     mock_search_kms_pattern.return_value = all_concepts
 
-    cursor = encode_cursor("kms", 10)
+    cursor = encode_cursor("kms", {"offset": 10, "query": "KEYWORD", "scheme": None})
     result = tool.get_keywords(query="KEYWORD", limit=10, cursor=cursor)
 
     assert result["status"] == SearchStatus.SUCCESS
@@ -208,7 +210,7 @@ def test_get_keywords_pagination_exact_multiple(mock_search_kms_pattern: MagicMo
     all_concepts = [_make_concept(i) for i in range(10)]
     mock_search_kms_pattern.return_value = all_concepts
 
-    cursor = encode_cursor("kms", 10)
+    cursor = encode_cursor("kms", {"offset": 10, "query": "KEYWORD", "scheme": None})
     result = tool.get_keywords(query="KEYWORD", limit=10, cursor=cursor)
 
     assert result["status"] == SearchStatus.SUCCESS
@@ -242,6 +244,31 @@ def test_get_keywords_cross_backend_cursor(mock_search_kms_pattern: MagicMock) -
     assert result["total_hits"] == 0
     assert result["next_cursor"] is None
     assert "cursor" in result["error_message"].lower()
+
+
+def test_get_keywords_old_format_cursor_returns_error(mock_search_kms_pattern: MagicMock) -> None:
+    """An old-format (scalar int) cursor must return a clean error."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = [_make_concept(0)]
+
+    old_cursor = encode_cursor("kms", 10)
+    result = tool.get_keywords(query="KEYWORD", cursor=old_cursor)
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["total_hits"] == 0
+    assert result["next_cursor"] is None
+    assert "cursor" in result["error_message"].lower()
+
+
+def test_get_keywords_cursor_ignores_changed_params(mock_search_kms_pattern: MagicMock) -> None:
+    """When cursor is present, search uses stored query/scheme, not incoming params."""
+    tool = _load_tool()
+    mock_search_kms_pattern.return_value = [_make_concept(0)]
+
+    cursor = encode_cursor("kms", {"offset": 10, "query": "ORIGINAL", "scheme": "sciencekeywords"})
+    tool.get_keywords(query="CHANGED", scheme=None, limit=10, cursor=cursor)
+
+    mock_search_kms_pattern.assert_called_once_with("ORIGINAL", "sciencekeywords")
 
 
 def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:

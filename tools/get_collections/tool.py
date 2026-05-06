@@ -10,8 +10,8 @@ from models.pagination import (
     FieldsParam,
     LimitParam,
     apply_field_filter,
-    decode_cursor,
     encode_cursor,
+    resolve_cursor,
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_collections import (
@@ -76,7 +76,9 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     Pagination: use limit (default 10, max 50) and cursor to page through results.
     Pass the next_cursor from a previous response as cursor to advance to the next page.
     Use fields to restrict which keys are returned per item and reduce response size.
-    Cursors are tool-specific and cannot be reused across different tools.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
     """
     metadata = {}
     if keyword:
@@ -122,39 +124,41 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
         )
 
         search_after = None
+        files = None
+        method = "GET"
         if params.cursor:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "cmr":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            search_after = parsed.get("value")
+            cursor_value = resolve_cursor(params.cursor, "cmr")
+            search_after = cursor_value.get("token")
+            search_params = cursor_value.get("params", {})
+            spatial_wkt = cursor_value.get("spatial")
+            if spatial_wkt:
+                files = build_spatial_files(spatial_wkt)
+                method = "POST"
+        else:
+            search_params: dict[str, object] = {}
+            if params.keyword:
+                search_params["keyword"] = params.keyword
+            if params.concept_id:
+                search_params["concept_id"] = params.concept_id
+            if params.short_name:
+                search_params["short_name"] = params.short_name
+            if params.provider:
+                search_params["provider"] = params.provider
+            if params.platform:
+                search_params["platform[]"] = params.platform
+            if params.instrument:
+                search_params["instrument[]"] = params.instrument
+            if params.processing_level_id:
+                search_params["processing_level_id[]"] = params.processing_level_id
+            if params.has_granules is not None:
+                search_params["has_granules"] = params.has_granules
 
-        search_params: dict[str, object] = {}
-        if params.keyword:
-            search_params["keyword"] = params.keyword
-        if params.concept_id:
-            search_params["concept_id"] = params.concept_id
-        if params.short_name:
-            search_params["short_name"] = params.short_name
-        if params.provider:
-            search_params["provider"] = params.provider
-        if params.platform:
-            search_params["platform[]"] = params.platform
-        if params.instrument:
-            search_params["instrument[]"] = params.instrument
-        if params.processing_level_id:
-            search_params["processing_level_id[]"] = params.processing_level_id
-        if params.has_granules is not None:
-            search_params["has_granules"] = params.has_granules
+            temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+            if temporal:
+                search_params["temporal"] = temporal
 
-        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
-        if temporal:
-            search_params["temporal"] = temporal
-
-        files = build_spatial_files(params.spatial_wkt_geometry)
-        method = "POST" if files else "GET"
+            files = build_spatial_files(params.spatial_wkt_geometry)
+            method = "POST" if files else "GET"
         page = next(
             search_cmr(
                 concept_type="collection",
@@ -184,8 +188,13 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
 
     collections = [normalize_collection_item(item) for item in page.items]
     status = SearchStatus.SUCCESS if collections else SearchStatus.NO_RESULTS
+    cursor_payload = {"token": page.search_after, "params": search_params}
+    if files:
+        cursor_payload["spatial"] = (
+            params.spatial_wkt_geometry if not params.cursor else cursor_value.get("spatial")
+        )
     next_cursor = (
-        encode_cursor("cmr", page.search_after)
+        encode_cursor("cmr", cursor_payload)
         if page.search_after and len(page.items) == params.limit
         else None
     )

@@ -3,6 +3,7 @@
 import importlib
 from unittest.mock import patch
 
+import util.cmr.search_tools as _search_tools_mod
 from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
@@ -10,6 +11,12 @@ from util.cmr.client import CMRError, CMRSearchResponse
 
 def _load_tool():
     return importlib.import_module("tools.get_variables.tool")
+
+
+def _patch_search_cmr(monkeypatch, tool, fake_fn):
+    """Patch search_cmr in both the tool module and search_tools (used by fetch_association_ids)."""
+    monkeypatch.setattr(tool, "search_cmr", fake_fn)
+    monkeypatch.setattr(_search_tools_mod, "search_cmr", fake_fn)
 
 
 def test_get_variables_input_validation_missing_args(monkeypatch):
@@ -53,7 +60,7 @@ def test_get_variables_success_keyword(monkeypatch):
         captured.append(kwargs)
         yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(keyword="SST")
 
@@ -115,7 +122,7 @@ def test_get_variables_success_collection_concept_id(monkeypatch):
         else:
             yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -242,7 +249,7 @@ def test_get_variables_no_results(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(keyword="NonExistentVariable")
 
@@ -258,7 +265,7 @@ def test_get_variables_cmr_error(monkeypatch):
         raise CMRError("CMR API is down")
         yield
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(keyword="SST")
 
@@ -274,7 +281,7 @@ def test_get_variables_returns_error_on_unexpected_failure(monkeypatch):
         raise RuntimeError("unexpected failure")
         yield  # pragma: no cover
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(keyword="SST")
 
@@ -291,7 +298,7 @@ def test_get_variables_calls_trace_update(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     with patch.object(tool, "trace_update") as mock_trace_update:
         tool.get_variables(keyword="SST")
@@ -307,7 +314,7 @@ def test_get_variables_collection_cmr_error(monkeypatch):
         raise CMRError("Collection search failed")
         yield
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -323,7 +330,7 @@ def test_get_variables_collection_unexpected_error(monkeypatch):
         raise RuntimeError("Boom")
         yield
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -346,7 +353,7 @@ def test_get_variables_collection_empty_items(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -369,7 +376,7 @@ def test_get_variables_collection_no_variable_associations(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -405,7 +412,7 @@ def test_get_variables_variable_search_empty_items(monkeypatch):
         else:
             yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV")
 
@@ -449,15 +456,17 @@ def test_get_variables_pagination_first_page(monkeypatch):
         else:
             yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV", limit=2)
 
     assert result["status"] == SearchStatus.SUCCESS
     assert len(result["variables"]) == 2
     assert result["next_cursor"] is not None
-    assert decode_cursor(result["next_cursor"])["backend"] == "cmr"
-    assert decode_cursor(result["next_cursor"])["value"] == "tok-v1"
+    parsed = decode_cursor(result["next_cursor"])
+    assert parsed["backend"] == "cmr"
+    assert isinstance(parsed["value"], dict)
+    assert parsed["value"]["token"] == "tok-v1"
     assert result["total_hits"] == 3
 
 
@@ -499,14 +508,17 @@ def test_get_variables_pagination_second_page(monkeypatch):
         else:
             yield var_page_last
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-    cursor = encode_cursor("cmr", "tok-v1")
+    cursor = encode_cursor(
+        "cmr", {"token": "tok-v1", "params": {"concept_id[]": ["V1-PROV", "V2-PROV", "V3-PROV"]}}
+    )
     result = tool.get_variables(collection_concept_id="C99999-PROV", cursor=cursor, limit=2)
 
     assert result["status"] == SearchStatus.SUCCESS
     assert result["next_cursor"] is None
-    assert captured[1]["search_after"] == "tok-v1"
+    assert len(captured) == 1
+    assert captured[0]["search_after"] == "tok-v1"
 
 
 def test_get_variables_invalid_cursor(monkeypatch):
@@ -552,7 +564,7 @@ def test_get_variables_fields_filter(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
     result = tool.get_variables(keyword="SST", fields=["name"])
 
     assert result["status"] == SearchStatus.SUCCESS
@@ -561,3 +573,41 @@ def test_get_variables_fields_filter(monkeypatch):
     assert "name" in item
     assert "long_name" not in item
     assert "units" not in item
+
+
+def test_get_variables_old_format_cursor_returns_error(monkeypatch):
+    """An old-format (scalar string) cursor must return a clean error."""
+    tool = _load_tool()
+
+    old_cursor = encode_cursor("cmr", "some-legacy-token")
+    result = tool.get_variables(keyword="SST", cursor=old_cursor)
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["next_cursor"] is None
+    assert "outdated" in result["error_message"].lower()
+
+
+def test_get_variables_cursor_ignores_changed_params(monkeypatch):
+    """When cursor is present, stored params are used and incoming keyword ignored."""
+    tool = _load_tool()
+
+    var_page = CMRSearchResponse(
+        items=[{"meta": {"concept-id": "V1-PROV"}, "umm": {"Name": "SST"}}],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=10,
+    )
+    captured = []
+
+    def fake_search_cmr(**kwargs):
+        captured.append(kwargs)
+        yield var_page
+
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
+
+    cursor = encode_cursor("cmr", {"token": "tok-v1", "params": {"keyword": "original"}})
+    tool.get_variables(keyword="changed", cursor=cursor)
+
+    assert len(captured) == 1
+    assert captured[0]["search_params"].get("keyword") == "original"

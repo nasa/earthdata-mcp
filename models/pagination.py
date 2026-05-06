@@ -26,7 +26,9 @@ CursorParam = Annotated[
         description=(
             "Pagination token for the next page of results. "
             "Pass the exact next_cursor string returned by the previous tool call. "
-            "Do not modify, reconstruct, or reuse cursors across different tools."
+            "Cursors are query-scoped: they lock in the original search parameters "
+            "and cannot be reused across different tools or different queries. "
+            "If you need to change any search parameter, start a new search without a cursor."
         ),
     ),
 ]
@@ -69,6 +71,24 @@ def decode_cursor(cursor: str) -> dict[str, Any]:
         return json.loads(payload)
     except Exception as e:
         raise ValueError(f"Invalid pagination cursor: {e}") from e
+
+
+def resolve_cursor(cursor: str, backend: str) -> dict[str, Any]:
+    """Decode and validate a pagination cursor, returning the inner value dict.
+
+    Raises ValueError with standard user-facing messages on backend mismatch or
+    outdated scalar format. Callers extract token/params/offset/etc. from the result.
+    """
+    parsed = decode_cursor(cursor)
+    if parsed.get("backend") != backend:
+        raise ValueError(
+            "Cursor is not valid for this tool. Cursors cannot be reused across "
+            "different tools. Start a new search without a cursor parameter."
+        )
+    cursor_value = parsed.get("value")
+    if not isinstance(cursor_value, dict):
+        raise ValueError("Cursor format is outdated. Please start a new search without a cursor.")
+    return cursor_value
 
 
 def apply_field_filter(

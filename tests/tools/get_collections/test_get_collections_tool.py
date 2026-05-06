@@ -323,7 +323,7 @@ def test_get_collections_cursor_passes_search_after(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    cursor = encode_cursor("cmr", "some-search-after-token")
+    cursor = encode_cursor("cmr", {"token": "some-search-after-token", "params": {}})
     tool.get_collections(cursor=cursor)
 
     assert captured.get("search_after") == "some-search-after-token"
@@ -553,3 +553,38 @@ def test_get_collections_new_response_fields_present(monkeypatch):
     assert item["data_centers"][0]["short_name"] == "PODAAC"
     assert "archive_and_distribution_information" in item
     assert item["archive_and_distribution_information"][0]["format"] == "NetCDF-4"
+
+
+def test_get_collections_old_format_cursor_returns_error(monkeypatch):
+    """An old-format (scalar value) cursor must return a clean error."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    old_cursor = encode_cursor("cmr", "some-legacy-token")
+    output = tool.get_collections(cursor=old_cursor)
+
+    assert output["status"] == "error"
+    assert "outdated" in output["error_message"].lower()
+
+
+def test_get_collections_cursor_ignores_changed_params(monkeypatch):
+    """When a cursor is present, incoming search params must be ignored in favor of cursor params."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    captured = {}
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
+    tool.get_collections(keyword="changed", cursor=cursor)
+
+    assert captured["search_params"].get("keyword") == "original"

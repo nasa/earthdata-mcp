@@ -4,29 +4,42 @@ import logging
 
 from langfuse import observe
 
-from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
+from models.pagination import (
+    MANDATORY_FIELDS_DEFAULT,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    apply_field_filter,
+    encode_cursor,
+    resolve_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_services import (
-    CollectionConceptIdParam,
     GetServicesInput,
     GetServicesOutput,
 )
 from util.cmr.client import CMRError, search_cmr
-from util.cmr.search_tools import normalize_service_item
+from util.cmr.search_tools import fetch_association_ids, normalize_service_item
 from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
 
 
 @observe(name="get_services")
-def get_services(  # pylint: disable=too-many-return-statements
-    collection_concept_id: CollectionConceptIdParam,
+def get_services(  # pylint: disable=too-many-return-statements,redefined-builtin
+    collection_concept_id: str | None = None,
     keyword: str | None = None,
     type: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
-    """Search CMR services for a single parent collection, returning all associated normalized results.
+    """Search CMR services by collection association, keyword, or type.
+
+    Supports pagination via limit/cursor and field filtering via fields.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
 
     The returned items use snake_cased keys that map directly to the UMM-S schema, including:
     - concept_id: CMR service concept ID
@@ -42,7 +55,9 @@ def get_services(  # pylint: disable=too-many-return-statements
     - related_urls: Documentation, guides, or other related links
     - access_constraints: Authentication or authorization requirements
     - use_constraints: Legal restrictions or usage limits
+    - service_keywords: Controlled vocabulary for service capability
     - service_options: Subset types, supported projections, output formats
+    - service_organizations: Organizations that run the service endpoint
     - operation_metadata: Operation names and distributed computing platform
     """
     trace_update(
@@ -61,6 +76,7 @@ def get_services(  # pylint: disable=too-many-return-statements
             type=type,
             limit=limit,
             cursor=cursor,
+            fields=fields,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_services input validation failed: %s", exc)
@@ -72,15 +88,12 @@ def get_services(  # pylint: disable=too-many-return-statements
 
     # Decode cursor before Phase 1.
     search_after = None
-    if params.cursor:
+    search_params = None  # sentinel: None means "must build via Phase 1"
+    if cursor:
         try:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "cmr":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            search_after = parsed.get("value")
+            cursor_value = resolve_cursor(cursor, "cmr")
+            search_after = cursor_value.get("token")
+            search_params = cursor_value.get("params", {})
         except ValueError as exc:
             return GetServicesOutput(
                 status=SearchStatus.ERROR, next_cursor=None, error_message=str(exc)
@@ -88,50 +101,49 @@ def get_services(  # pylint: disable=too-many-return-statements
 
     service_ids: list[str] = []
 
-    # Phase 1: Find linked services. CMR collections only list the IDs of their associated
-    # services, not the full details. We first fetch the collection to get this list of IDs.
-    try:
-        collection_page = next(
-            search_cmr(
-                concept_type="collection",
-                search_params={"concept_id": params.collection_concept_id},
-                page_size=1,
-            ),
-            None,
-        )
-    except (CMRError, ValueError, TypeError) as exc:
-        logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
-        return GetServicesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
-        logger.exception(
-            "Unexpected error during collection lookup for %s",
-            params.collection_concept_id,
-        )
-        return GetServicesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message="An unexpected internal error occurred during collection lookup.",
-        ).model_dump()
+    if search_params is None:
+        # Phase 1: fetch the collection record to discover its direct service associations.
+        if params.collection_concept_id:
+            try:
+                found_ids = fetch_association_ids(params.collection_concept_id, "services")
+            except (CMRError, ValueError, TypeError) as exc:
+                logger.warning(
+                    "Collection lookup failed for %s: %s", params.collection_concept_id, exc
+                )
+                return GetServicesOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message=str(exc),
+                ).model_dump()
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "Unexpected error during collection lookup for %s",
+                    params.collection_concept_id,
+                )
+                return GetServicesOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message="An unexpected internal error occurred during collection lookup.",
+                ).model_dump()
 
-    if not collection_page or not collection_page.items:
-        return GetServicesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+            if found_ids is None:
+                return GetServicesOutput(
+                    status=SearchStatus.NO_RESULTS, next_cursor=None
+                ).model_dump()
+            service_ids = found_ids
+            if not service_ids and not params.keyword and not params.type:
+                return GetServicesOutput(
+                    status=SearchStatus.NO_RESULTS, next_cursor=None
+                ).model_dump()
 
-    service_ids = (
-        collection_page.items[0].get("meta", {}).get("associations", {}).get("services", [])
-    )
-    if not service_ids:
-        return GetServicesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
-
-    # Phase 2: Fetch the actual service details using the IDs we found.
-    search_params = {"concept_id[]": service_ids}
-    if params.keyword:
-        search_params["keyword"] = params.keyword
-    if params.type:
-        search_params["type"] = params.type
+        # Phase 2 params: build from Phase 1 results or direct keyword/type.
+        search_params = {}
+        if service_ids:
+            search_params["concept_id[]"] = service_ids
+        if params.keyword:
+            search_params["keyword"] = params.keyword
+        if params.type:
+            search_params["type"] = params.type
 
     try:
         service_page = next(
@@ -162,19 +174,26 @@ def get_services(  # pylint: disable=too-many-return-statements
             error_message="An unexpected internal error occurred during service fetch.",
         ).model_dump()
 
-    if service_page is None or not service_page.items:
+    if service_page is None:
         return GetServicesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
-    services = [normalize_service_item(item) for item in service_page.items]
+    cursor_payload = {"token": service_page.search_after, "params": search_params}
     next_cursor = (
-        encode_cursor("cmr", service_page.search_after)
+        encode_cursor("cmr", cursor_payload)
         if service_page.search_after and len(service_page.items) == params.limit
         else None
     )
 
-    return GetServicesOutput(
-        status=SearchStatus.SUCCESS,
+    services = [normalize_service_item(item) for item in service_page.items]
+    status = SearchStatus.SUCCESS if services else SearchStatus.NO_RESULTS
+    response_dict = GetServicesOutput(
+        status=status,
         services=services,
         total_hits=service_page.total_hits,
         next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        apply_field_filter(response_dict["services"], params.fields, MANDATORY_FIELDS_DEFAULT)
+
+    return response_dict

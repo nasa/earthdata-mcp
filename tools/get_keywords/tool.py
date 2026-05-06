@@ -10,8 +10,8 @@ from models.pagination import (
     FieldsParam,
     LimitParam,
     apply_field_filter,
-    decode_cursor,
     encode_cursor,
+    resolve_cursor,
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_keywords import GetKeywordsInput, GetKeywordsOutput, KeywordResult
@@ -40,6 +40,9 @@ def get_keywords(
     Pagination: KMS returns all matching concepts in one response; slicing is
     performed in-memory. total_hits always reflects the full result count.
     Pass the returned next_cursor into cursor to advance to the next page.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
     """
     trace_update(
         tags=["kms", "keywords"],
@@ -68,15 +71,14 @@ def get_keywords(
         ).model_dump()
 
     offset = 0
+    query = params.query
+    scheme = params.scheme
     if params.cursor:
         try:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "kms":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            offset = parsed.get("value", 0)
+            cursor_value = resolve_cursor(params.cursor, "kms")
+            offset = cursor_value.get("offset", 0)
+            query = cursor_value.get("query", params.query)
+            scheme = cursor_value.get("scheme")
         except ValueError as exc:
             return GetKeywordsOutput(
                 status=SearchStatus.ERROR,
@@ -87,7 +89,7 @@ def get_keywords(
             ).model_dump()
 
     try:
-        raw_concepts = search_kms_pattern(params.query, params.scheme)
+        raw_concepts = search_kms_pattern(query, scheme)
     except requests.RequestException as exc:
         logger.error("Failed to fetch KMS keywords: %s", exc)
         return GetKeywordsOutput(
@@ -119,7 +121,9 @@ def get_keywords(
     total_hits = len(raw_concepts)
     page_concepts = raw_concepts[offset : offset + params.limit]
     next_cursor = (
-        encode_cursor("kms", offset + params.limit) if offset + params.limit < total_hits else None
+        encode_cursor("kms", {"offset": offset + params.limit, "query": query, "scheme": scheme})
+        if offset + params.limit < total_hits
+        else None
     )
 
     keywords = []

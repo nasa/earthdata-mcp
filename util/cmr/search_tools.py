@@ -11,6 +11,7 @@ from shapely import wkt as shapely_wkt
 from shapely.errors import GEOSException
 from shapely.geometry import mapping
 
+from util.cmr.client import search_cmr
 from util.temporal import extract_temporal_extent, parse_iso_datetime
 
 logger = logging.getLogger(__name__)
@@ -680,3 +681,28 @@ def normalize_variable_item(item: dict[str, Any]) -> dict[str, Any]:
         "sampling_identifiers": umm.get("SamplingIdentifiers"),
         "related_urls": umm.get("RelatedURLs"),
     }
+
+
+def fetch_association_ids(
+    collection_concept_id: str,
+    association_key: str,
+) -> list[str] | None:
+    """Look up association IDs for a collection concept.
+
+    Returns:
+        list[str]: association IDs (may be empty if the collection has none)
+        None: collection was not found in CMR
+
+    Raises CMRError, ValueError, TypeError on API/client failure; re-raises unexpected exceptions.
+    """
+    collection_page = next(
+        search_cmr(
+            concept_type="collection",
+            search_params={"concept_id": collection_concept_id},
+            page_size=1,
+        ),
+        None,
+    )
+    if not collection_page or not collection_page.items:
+        return None
+    return collection_page.items[0].get("meta", {}).get("associations", {}).get(association_key, [])

@@ -357,7 +357,9 @@ def test_get_granules_cursor_passes_search_after(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    cursor = encode_cursor("cmr", "some-granule-token")
+    cursor = encode_cursor(
+        "cmr", {"token": "some-granule-token", "params": {"collection_concept_id": "C1-PROV"}}
+    )
     tool.get_granules(collection_concept_id="C1-PROV", cursor=cursor)
 
     assert captured.get("search_after") == "some-granule-token"
@@ -537,3 +539,46 @@ def test_get_granules_new_response_fields_present(monkeypatch):
     assert item["orbit_info"][0]["orbit_number"] == 12345
     assert "additional_attributes" in item
     assert item["additional_attributes"][0]["name"] == "TILE_ID"
+
+
+def test_get_granules_old_format_cursor_returns_error(monkeypatch):
+    """An old-format (scalar value) cursor must return a clean error."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+
+    old_cursor = encode_cursor("cmr", "some-legacy-token")
+    output = tool.get_granules(collection_concept_id="C1-PROV", cursor=old_cursor)
+
+    assert output["status"] == "error"
+    assert "outdated" in output["error_message"].lower()
+
+
+def test_get_granules_cursor_ignores_changed_params(monkeypatch):
+    """When a cursor is present, incoming search params must be ignored in favor of cursor params."""
+    from models.pagination import encode_cursor
+
+    tool = _load_tool()
+    captured = {}
+    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+
+    def fake_search_cmr(**kwargs):
+        captured.update(kwargs)
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    cursor = encode_cursor(
+        "cmr",
+        {
+            "token": "tok-abc",
+            "params": {"collection_concept_id": "C1-PROV", "temporal": "2024-01-01,2024-01-31"},
+        },
+    )
+    tool.get_granules(
+        collection_concept_id="C1-PROV", temporal_start_date="2025-01-01T00:00:00Z", cursor=cursor
+    )
+
+    assert captured["search_params"].get("temporal") == "2024-01-01,2024-01-31"

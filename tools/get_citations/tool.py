@@ -10,13 +10,13 @@ from models.pagination import (
     FieldsParam,
     LimitParam,
     apply_field_filter,
-    decode_cursor,
     encode_cursor,
+    resolve_cursor,
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_citations import GetCitationsInput, GetCitationsOutput
 from util.cmr.client import CMRError, search_cmr
-from util.cmr.search_tools import normalize_citation_item
+from util.cmr.search_tools import fetch_association_ids, normalize_citation_item
 from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,12 @@ def get_citations(  # pylint: disable=too-many-return-statements
     - abstract: A brief abstract or description
     - citation_metadata: Rich nested metadata including Author, Year, Publisher, etc.
     - related_identifiers: List of related works or data (e.g. Cites, Refers)
+
+    Pagination: use limit (default 10, max 50) and cursor to page through results.
+    Pass the next_cursor from a previous response as cursor to advance to the next page.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
     """
     trace_update(
         tags=["cmr", "citations"],
@@ -70,19 +76,14 @@ def get_citations(  # pylint: disable=too-many-return-statements
             error_message=str(exc),
         ).model_dump()
 
-    # Note: We only allow either a collection ID (to find all papers for a dataset) OR an
-    # identifier (to look up a specific paper), but never both.
-
     search_after = None
+    search_params = None  # sentinel: None means "must build via Phase 1"
+
     if params.cursor:
         try:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "cmr":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            search_after = parsed.get("value")
+            cursor_value = resolve_cursor(params.cursor, "cmr")
+            search_after = cursor_value.get("token")
+            search_params = cursor_value.get("params", {})
         except ValueError as exc:
             return GetCitationsOutput(
                 status=SearchStatus.ERROR,
@@ -92,57 +93,47 @@ def get_citations(  # pylint: disable=too-many-return-statements
 
     citation_ids: list[str] = []
 
-    # Phase 1: Find linked citations. CMR collections only list the IDs of their associated
-    # citations, not the full details. We first fetch the collection to get this list of IDs.
-    if params.collection_concept_id:
-        try:
-            collection_page = next(
-                search_cmr(
-                    concept_type="collection",
-                    search_params={"concept_id": params.collection_concept_id},
-                    page_size=1,
-                ),
-                None,
-            )
-        except (CMRError, ValueError, TypeError) as exc:
-            logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
-            return GetCitationsOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message=str(exc),
-            ).model_dump()
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception(
-                "Unexpected error during collection lookup for %s",
-                params.collection_concept_id,
-            )
-            return GetCitationsOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message="An unexpected internal error occurred during collection lookup.",
-            ).model_dump()
+    if search_params is None:
+        # Phase 1: If collection_concept_id provided, fetch the collection to discover associations.
+        if params.collection_concept_id:
+            try:
+                found_ids = fetch_association_ids(params.collection_concept_id, "citations")
+            except (CMRError, ValueError, TypeError) as exc:
+                logger.warning(
+                    "Collection lookup failed for %s: %s", params.collection_concept_id, exc
+                )
+                return GetCitationsOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message=str(exc),
+                ).model_dump()
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "Unexpected error during collection lookup for %s",
+                    params.collection_concept_id,
+                )
+                return GetCitationsOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message="An unexpected internal error occurred during collection lookup.",
+                ).model_dump()
 
-        if not collection_page or not collection_page.items:
-            return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+            if not found_ids:
+                return GetCitationsOutput(
+                    status=SearchStatus.NO_RESULTS, next_cursor=None
+                ).model_dump()
+            citation_ids = found_ids
 
-        citation_ids = (
-            collection_page.items[0].get("meta", {}).get("associations", {}).get("citations", [])
-        )
+        # Phase 2 params: build from Phase 1 results or direct identifier.
+        search_params = {}
+        if citation_ids:
+            search_params["concept_id[]"] = citation_ids
 
-        # If no citations found on the collection, return immediately
-        if not citation_ids:
-            return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+        if params.identifier:
+            search_params["identifier"] = params.identifier
 
-    # Phase 2: Fetch the actual citation details using the IDs we found (or the direct identifier provided).
-    search_params = {}
-    if citation_ids:
-        search_params["concept_id[]"] = citation_ids
-
-    if params.identifier:
-        search_params["identifier"] = params.identifier
-
-    if params.provider:
-        search_params["provider"] = params.provider
+        if params.provider:
+            search_params["provider"] = params.provider
 
     try:
         citation_page = next(
@@ -177,14 +168,16 @@ def get_citations(  # pylint: disable=too-many-return-statements
         return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     citations = [normalize_citation_item(item) for item in citation_page.items]
+    cursor_payload = {"token": citation_page.search_after, "params": search_params}
     next_cursor = (
-        encode_cursor("cmr", citation_page.search_after)
+        encode_cursor("cmr", cursor_payload)
         if citation_page.search_after and len(citation_page.items) == params.limit
         else None
     )
-    real_total_hits = (
-        len(citation_ids) if params.collection_concept_id else citation_page.total_hits
-    )
+    if search_after is None and params.collection_concept_id:
+        real_total_hits = len(citation_ids) if citation_ids else citation_page.total_hits
+    else:
+        real_total_hits = citation_page.total_hits
 
     response_dict = GetCitationsOutput(
         status=SearchStatus.SUCCESS,

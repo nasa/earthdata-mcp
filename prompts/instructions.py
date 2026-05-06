@@ -119,7 +119,14 @@ Keep `limit` small (default 10, max 50). Only raise it if you are aggregating re
 `get_collections`, `get_granules`, and `get_services` accept a `fields` list to return only the keys you need (e.g., `fields=["concept_id", "entry_title", "abstract"]`). `concept_id` is always included regardless. Use this whenever you do not need the full record.
 
 **Cursors:**
-Never construct or modify a cursor. Pass the exact `next_cursor` string from a previous response as the `cursor` parameter for the next call. Cursors are tool-specific and cannot be reused across tools — passing a cursor from one tool to another will return a clean error.
+Never construct or modify a cursor. Pass the exact `next_cursor` string from a previous
+response as the `cursor` parameter for the next call. Cursors are **query-scoped**: they
+lock in the original search parameters. If you pass a cursor alongside different search
+parameters (e.g., a different keyword or changed temporal range), the server will use the
+original query from the cursor and ignore your new parameters — your parameter changes will
+have no effect until you start a new search without a cursor. Cursors are also tool-specific
+and cannot be reused across tools — passing a cursor from one tool to another will return a
+clean error.
 
 **When to paginate vs. when to refine:**
 If `total_hits` far exceeds `limit` and the tool supports filtering parameters (keyword, temporal, spatial, platform, instrument), refine your query first rather than paginating through hundreds of pages.

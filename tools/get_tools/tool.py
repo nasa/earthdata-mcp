@@ -10,8 +10,8 @@ from models.pagination import (
     FieldsParam,
     LimitParam,
     apply_field_filter,
-    decode_cursor,
     encode_cursor,
+    resolve_cursor,
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_tools import (
@@ -19,7 +19,7 @@ from models.tools.get_tools import (
     GetToolsOutput,
 )
 from util.cmr.client import CMRError, search_cmr
-from util.cmr.search_tools import normalize_tool_item
+from util.cmr.search_tools import fetch_association_ids, normalize_tool_item
 from util.langfuse import trace_update
 
 logger = logging.getLogger(__name__)
@@ -33,25 +33,17 @@ def get_tools(  # pylint: disable=too-many-return-statements
     cursor: CursorParam = None,
     fields: FieldsParam = None,
 ) -> dict:
-    """Search CMR tools for a single parent collection, returning all associated normalized results.
+    """Search CMR tools by parent collection, keyword, or type.
 
-    The returned items use snake_cased keys that map directly to the UMM-T schema, including:
-    - concept_id: CMR tool concept ID
-    - native_id: The native ID of the tool record
-    - revision_id: The revision ID of the tool metadata
-    - provider_id: The provider ID of the tool
-    - name: The name of the tool
-    - long_name: The long name of the tool
-    - type: The type of the tool (e.g. "Downloadable Tool")
-    - version: The edition or version of the tool
-    - description: A brief description of the tool
-    - url: Primary endpoint URL information
-    - related_urls: Documentation, guides, or other related links
-    - access_constraints: Authentication or authorization requirements
-    - use_constraints: Legal restrictions or usage limits
-    - tool_keywords: Science or functional keywords describing the tool
-    - organizations: Organizations associated with the tool
-    - potential_action: Potential actions that can be performed with the tool
+    When collection_concept_id is provided, performs a two-phase lookup: fetches the
+    collection's tool association IDs, then retrieves the full UMM-T records for those IDs.
+    When keyword or type is provided without collection_concept_id, queries CMR tools directly.
+
+    Pagination: use limit (default 10, max 50) and cursor to page through results.
+    Pass the next_cursor from a previous response as cursor to advance to the next page.
+    Cursors are query-scoped: they lock in the original search parameters and cannot be reused
+    across different tools or different queries. To change search parameters, start a new search
+    without a cursor.
     """
     trace_update(
         tags=["cmr", "tools"],
@@ -78,15 +70,13 @@ def get_tools(  # pylint: disable=too-many-return-statements
         ).model_dump()
 
     search_after = None
+    search_params = None  # sentinel: None means "must build via Phase 1"
+
     if params.cursor:
         try:
-            parsed = decode_cursor(params.cursor)
-            if parsed.get("backend") != "cmr":
-                raise ValueError(
-                    "Cursor is not valid for this tool. Cursors cannot be reused across "
-                    "different tools. Start a new search without a cursor parameter."
-                )
-            search_after = parsed.get("value")
+            cursor_value = resolve_cursor(params.cursor, "cmr")
+            search_after = cursor_value.get("token")
+            search_params = cursor_value.get("params", {})
         except ValueError as exc:
             return GetToolsOutput(
                 status=SearchStatus.ERROR,
@@ -96,49 +86,43 @@ def get_tools(  # pylint: disable=too-many-return-statements
 
     tool_ids: list[str] = []
 
-    # Phase 1: Find linked tools. CMR collections only list the IDs of their associated
-    # tools, not the full details. We first fetch the collection to get this list of IDs.
-    if params.collection_concept_id:
-        try:
-            collection_page = next(
-                search_cmr(
-                    concept_type="collection",
-                    search_params={"concept_id": params.collection_concept_id},
-                    page_size=1,
-                ),
-                None,
-            )
-        except (CMRError, ValueError, TypeError) as exc:
-            logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
-            return GetToolsOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message=str(exc),
-            ).model_dump()
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception(
-                "Unexpected error during collection lookup for %s",
-                params.collection_concept_id,
-            )
-            return GetToolsOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message="An unexpected internal error occurred during collection lookup.",
-            ).model_dump()
+    if search_params is None:
+        # Phase 1: fetch the collection record to discover its direct tool associations.
+        if params.collection_concept_id:
+            try:
+                found_ids = fetch_association_ids(params.collection_concept_id, "tools")
+            except (CMRError, ValueError, TypeError) as exc:
+                logger.warning(
+                    "Collection lookup failed for %s: %s", params.collection_concept_id, exc
+                )
+                return GetToolsOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message=str(exc),
+                ).model_dump()
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "Unexpected error during collection lookup for %s",
+                    params.collection_concept_id,
+                )
+                return GetToolsOutput(
+                    status=SearchStatus.ERROR,
+                    next_cursor=None,
+                    error_message="An unexpected internal error occurred during collection lookup.",
+                ).model_dump()
 
-        if not collection_page or not collection_page.items:
-            return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+            if found_ids is None:
+                return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+            tool_ids = found_ids
+            if not tool_ids and not params.keyword:
+                return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
-        tool_ids = collection_page.items[0].get("meta", {}).get("associations", {}).get("tools", [])
-        if not tool_ids and not params.keyword:
-            return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
-
-    # Phase 2: Fetch the actual tool details using the IDs we found.
-    search_params = {}
-    if tool_ids:
-        search_params["concept_id[]"] = tool_ids
-    if params.keyword:
-        search_params["keyword"] = params.keyword
+        # Phase 2 params: build from Phase 1 results or direct keyword search.
+        search_params = {}
+        if tool_ids:
+            search_params["concept_id[]"] = tool_ids
+        if params.keyword:
+            search_params["keyword"] = params.keyword
 
     try:
         tool_page = next(
@@ -165,17 +149,19 @@ def get_tools(  # pylint: disable=too-many-return-statements
             error_message="An unexpected internal error occurred during tool fetch.",
         ).model_dump()
 
-    if tool_page is None or not tool_page.items:
+    if tool_page is None:
         return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     tools = [normalize_tool_item(item) for item in tool_page.items]
+    status = SearchStatus.SUCCESS if tools else SearchStatus.NO_RESULTS
+    cursor_payload = {"token": tool_page.search_after, "params": search_params}
     next_cursor = (
-        encode_cursor("cmr", tool_page.search_after)
+        encode_cursor("cmr", cursor_payload)
         if tool_page.search_after and len(tool_page.items) == params.limit
         else None
     )
     response_dict = GetToolsOutput(
-        status=SearchStatus.SUCCESS,
+        status=status,
         tools=tools,
         total_hits=tool_page.total_hits,
         next_cursor=next_cursor,
