@@ -72,7 +72,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
 
     # Note: We only allow either a collection ID (to find all papers for a dataset) OR an
     # identifier (to look up a specific paper), but never both.
-    
+
     search_after = None
     if params.cursor:
         try:

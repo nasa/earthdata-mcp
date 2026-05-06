@@ -15,7 +15,6 @@ from models.pagination import (
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_tools import (
-    CollectionConceptIdParam,
     GetToolsInput,
     GetToolsOutput,
 )
@@ -28,9 +27,8 @@ logger = logging.getLogger(__name__)
 
 @observe(name="get_tools")
 def get_tools(  # pylint: disable=too-many-return-statements
-    collection_concept_id: CollectionConceptIdParam,
+    collection_concept_id: str | None = None,
     keyword: str | None = None,
-    type: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
     fields: FieldsParam = None,
@@ -60,7 +58,6 @@ def get_tools(  # pylint: disable=too-many-return-statements
         metadata={
             "collection_concept_id": collection_concept_id,
             "keyword": keyword,
-            "type": type,
         },
     )
 
@@ -68,7 +65,6 @@ def get_tools(  # pylint: disable=too-many-return-statements
         params = GetToolsInput(
             collection_concept_id=collection_concept_id,
             keyword=keyword,
-            type=type,
             limit=limit,
             cursor=cursor,
             fields=fields,
@@ -102,48 +98,47 @@ def get_tools(  # pylint: disable=too-many-return-statements
 
     # Phase 1: Find linked tools. CMR collections only list the IDs of their associated
     # tools, not the full details. We first fetch the collection to get this list of IDs.
-    try:
-        collection_page = next(
-            search_cmr(
-                concept_type="collection",
-                search_params={"concept_id": params.collection_concept_id},
-                page_size=1,
-            ),
-            None,
-        )
-    except (CMRError, ValueError, TypeError) as exc:
-        logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
-        return GetToolsOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
-        logger.exception(
-            "Unexpected error during collection lookup for %s",
-            params.collection_concept_id,
-        )
-        return GetToolsOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message="An unexpected internal error occurred during collection lookup.",
-        ).model_dump()
+    if params.collection_concept_id:
+        try:
+            collection_page = next(
+                search_cmr(
+                    concept_type="collection",
+                    search_params={"concept_id": params.collection_concept_id},
+                    page_size=1,
+                ),
+                None,
+            )
+        except (CMRError, ValueError, TypeError) as exc:
+            logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
+            return GetToolsOutput(
+                status=SearchStatus.ERROR,
+                next_cursor=None,
+                error_message=str(exc),
+            ).model_dump()
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception(
+                "Unexpected error during collection lookup for %s",
+                params.collection_concept_id,
+            )
+            return GetToolsOutput(
+                status=SearchStatus.ERROR,
+                next_cursor=None,
+                error_message="An unexpected internal error occurred during collection lookup.",
+            ).model_dump()
 
-    if not collection_page or not collection_page.items:
-        return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+        if not collection_page or not collection_page.items:
+            return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
-    tool_ids = (
-        collection_page.items[0].get("meta", {}).get("associations", {}).get("tools", [])
-    )
-    if not tool_ids:
-        return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
+        tool_ids = collection_page.items[0].get("meta", {}).get("associations", {}).get("tools", [])
+        if not tool_ids and not params.keyword:
+            return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     # Phase 2: Fetch the actual tool details using the IDs we found.
-    search_params = {"concept_id[]": tool_ids}
+    search_params = {}
+    if tool_ids:
+        search_params["concept_id[]"] = tool_ids
     if params.keyword:
         search_params["keyword"] = params.keyword
-    if params.type:
-        search_params["type"] = params.type
 
     try:
         tool_page = next(

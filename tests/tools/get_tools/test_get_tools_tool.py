@@ -262,7 +262,7 @@ class TestGetToolsPagination:
         tool = _load_tool()
         output = tool.get_tools()
         assert output["status"] == "error"
-        assert "at least one" in output["error_message"].lower()
+        assert "collection_concept_id or keyword" in output["error_message"]
 
     def test_keyword_only(self, monkeypatch):
         tool = _load_tool()
@@ -277,19 +277,6 @@ class TestGetToolsPagination:
         assert output["status"] == "success"
         assert "collection" not in captured
         assert captured["tool"]["search_params"] == {"keyword": "Giovanni"}
-
-    def test_type_only(self, monkeypatch):
-        tool = _load_tool()
-        captured = {}
-
-        def fake_search_cmr(**kwargs):
-            captured[kwargs["concept_type"]] = kwargs
-            yield _tool_page()
-
-        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
-        output = tool.get_tools(type="Downloadable Tool")
-        assert output["status"] == "success"
-        assert captured["tool"]["search_params"] == {"type": "Downloadable Tool"}
 
     def test_first_page_has_next_cursor(self, monkeypatch):
         tool = _load_tool()

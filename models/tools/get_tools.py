@@ -80,27 +80,15 @@ class GetToolsInput(BaseModel):
         str | None,
         Field(None, description="Free-text keyword to discover tools without a collection ID."),
     ]
-    type: Annotated[
-        str | None,
-        Field(
-            None,
-            description=(
-                "UMM-T Type to filter by (e.g., 'Downloadable Tool', "
-                "'Web User Interface', 'Model', 'Notebook')."
-            ),
-        ),
-    ]
     limit: LimitParam = 10
     cursor: CursorParam = None
     fields: FieldsParam = None
 
     @model_validator(mode="after")
     def check_at_least_one(self) -> "GetToolsInput":
-        """Require at least one of collection_concept_id, keyword, or type."""
-        if not self.collection_concept_id and not self.keyword and not self.type:
-            raise ValueError(
-                "Must provide at least one of: collection_concept_id, keyword, or type."
-            )
+        """Require at least one of collection_concept_id or keyword."""
+        if not self.collection_concept_id and not self.keyword:
+            raise ValueError("Must provide at least one of: collection_concept_id or keyword.")
         if self.collection_concept_id and not re.match(
             r"^C\d+-[A-Za-z0-9_]+$", self.collection_concept_id
         ):
