@@ -4,9 +4,9 @@ import importlib
 from unittest.mock import patch
 
 import util.cmr.search_tools as _search_tools_mod
-from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
+from util.pagination import decode_cursor, encode_cursor
 
 
 def _load_tool():

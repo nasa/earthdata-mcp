@@ -345,7 +345,7 @@ def test_get_granules_returns_no_cursor_on_last_page(monkeypatch):
 
 def test_get_granules_cursor_passes_search_after(monkeypatch):
     """A valid CMR cursor must decode and pass search_after to the backend."""
-    from models.pagination import encode_cursor
+    from util.pagination import encode_cursor
 
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
@@ -396,7 +396,7 @@ def test_get_granules_returns_error_on_invalid_cursor(monkeypatch):
 
 def test_get_granules_returns_error_on_cross_backend_cursor(monkeypatch):
     """A KMS cursor passed to get_granules must produce a clean error response."""
-    from models.pagination import encode_cursor
+    from util.pagination import encode_cursor
 
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
@@ -543,7 +543,7 @@ def test_get_granules_new_response_fields_present(monkeypatch):
 
 def test_get_granules_old_format_cursor_returns_error(monkeypatch):
     """An old-format (scalar value) cursor must return a clean error."""
-    from models.pagination import encode_cursor
+    from util.pagination import encode_cursor
 
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
@@ -558,7 +558,7 @@ def test_get_granules_old_format_cursor_returns_error(monkeypatch):
 
 def test_get_granules_cursor_ignores_changed_params(monkeypatch):
     """When a cursor is present, incoming search params must be ignored in favor of cursor params."""
-    from models.pagination import encode_cursor
+    from util.pagination import encode_cursor
 
     tool = _load_tool()
     captured = {}

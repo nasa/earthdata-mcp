@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
+from util.pagination import decode_cursor, encode_cursor
 
 
 def _load_tool() -> types.ModuleType:
