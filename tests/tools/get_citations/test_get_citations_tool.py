@@ -363,3 +363,46 @@ def test_get_citations_total_hits_on_page2(mock_search_cmr: MagicMock) -> None:
     res = tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
 
     assert res["total_hits"] == 42
+
+
+def test_get_citations_validation_error():
+    """Test validation error for get_citations."""
+    from tools.get_citations.tool import get_citations
+
+    res = get_citations(
+        collection_concept_id="C123", limit=100
+    )  # limit=100 triggers validation error
+    assert res["status"] == "error"
+
+
+def test_get_citations_model_validation_errors():
+    """Test model validation errors for get_citations."""
+    from tools.get_citations.tool import get_citations
+
+    # Test exactly one of identifier/concept_id error
+    res1 = get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
+    assert res1["status"] == "error"
+    assert "exactly one" in res1["error_message"]
+
+    # Test invalid concept id
+    res2 = get_citations(collection_concept_id="INVALID")
+    assert res2["status"] == "error"
+    assert "Invalid collection concept ID format" in res2["error_message"]
+
+
+def test_get_citations_validation_error2():
+    """Test another validation error for get_citations."""
+    from tools.get_citations.tool import get_citations
+
+    res = get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
+    assert res["status"] == "error"
+
+
+def test_get_citations_validation_error_empty():
+    """Test empty string validation error for get_citations."""
+    from tools.get_citations.tool import get_citations
+
+    res = get_citations(collection_concept_id="")
+    assert res["status"] == "error"
+    res2 = get_citations(identifier="")
+    assert res2["status"] == "error"

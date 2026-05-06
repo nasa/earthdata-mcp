@@ -67,7 +67,7 @@ class GetCitationsInput(BaseModel):
     )
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
     @model_validator(mode="after")
     def check_exactly_one_identifier(self) -> "GetCitationsInput":

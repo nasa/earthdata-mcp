@@ -7,7 +7,6 @@ from langfuse import observe
 
 from models.pagination import (
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -27,7 +26,7 @@ def get_keywords(
     scheme: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     """Search NASA's Keyword Management System (KMS) for vocabulary terms.
 
@@ -56,7 +55,7 @@ def get_keywords(
             scheme=scheme,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_keywords input validation failed: %s", exc)

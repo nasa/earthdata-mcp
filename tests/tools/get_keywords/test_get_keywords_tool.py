@@ -284,3 +284,18 @@ def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:
     assert "prefLabel" in item
     assert "scheme" not in item
     assert "definition" not in item
+
+
+def test_get_keywords_validation_error():
+    from tools.get_keywords.tool import get_keywords
+
+    # Pass an invalid field configuration to trigger ValueError/TypeError in GetKeywordsInput
+    res = get_keywords(query="")  # min_length is 1, triggers validation error
+    assert res["status"] == "error"
+
+
+def test_get_keywords_validation_error2():
+    from tools.get_keywords.tool import get_keywords
+
+    res = get_keywords(query="", limit=100)
+    assert res["status"] == "error"

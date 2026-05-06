@@ -2,7 +2,7 @@
     "name": "get_tools",
     "module": "tool",
     "description": "Search NASA CMR tools for a specific parent collection and return all associated normalized UMM-T records.\n\nKey fields in each returned item:\n- concept_id: CMR tool concept ID\n- native_id: native ID of the tool record\n- revision_id: revision ID of the tool metadata\n- provider_id: provider ID of the tool\n- name: tool name\n- type: tool type (e.g., Downloadable Tool, Web User Interface, Web Portal, Model)\n- version: tool version string\n- description: human-readable tool description\n- url: Primary URL for directly accessing the tool\n- supported_input_formats: file formats the tool can read (e.g., HDF5, NETCDF-4, GeoTIFF)\n- supported_output_formats: file formats the tool can produce\n- supported_operating_systems: OS compatibility (name and version)\n- supported_browsers: browser compatibility (name and version)\n- supported_software_languages: programming language compatibility\n- tool_keywords: Earth science keyword taxonomy for the tool\n- organizations: providers, developers, or publishers of the tool\n- potential_action: smart handoff definition for parameterized deep links (e.g., 'Open in Giovanni')\n\nKey parameters:\n- collection_concept_id: required parent collection concept ID\n\nIteration & Refinement:\n- All tools associated with the collection are fetched in a single request. Paging is not supported.\n\nNote: A collection may be associated with multiple tools of different types. Check type to distinguish between downloadable tools, web user interfaces, and web portals.",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "tags": [
         "nasa",
         "earthdata",

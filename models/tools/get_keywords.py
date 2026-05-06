@@ -48,7 +48,7 @@ class GetKeywordsInput(BaseModel):
     ]
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
 
 class GetKeywordsOutput(BaseCmrSearchOutput):

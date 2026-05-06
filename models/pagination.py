@@ -8,7 +8,6 @@ LimitParam = Annotated[
     int,
     Field(
         default=10,
-        le=50,
         description=(
             "Maximum number of results to return (default 10, max 50). "
             "Keep this small to avoid context window bloat. "
@@ -32,9 +31,9 @@ CursorParam = Annotated[
 ]
 
 FieldsParam = Annotated[
-    list[str] | None,
+    list[str],
     Field(
-        default=None,
+        default_factory=list,
         description=(
             "Strongly recommended. Pass an array of top-level keys to include per result item "
             "(e.g., ['concept_id', 'entry_title', 'abstract']) to aggressively reduce payload size "

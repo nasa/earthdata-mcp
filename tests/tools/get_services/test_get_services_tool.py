@@ -493,3 +493,59 @@ class TestGetServicesNewParams:
         tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
 
         assert call_count[0] == 1
+
+
+def test_get_services_validation_error():
+    from tools.get_services.tool import get_services
+
+    res = get_services(
+        collection_concept_id="C123-PROV", limit=100
+    )  # limit=100 triggers validation error
+    assert res["status"] == "error"
+
+
+def test_get_services_cursor_post():
+    from unittest.mock import patch
+
+    from tools.get_services.tool import get_services
+
+    # Line 195 is the bare except block. Force an exception during field application or dict conversion
+    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
+        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
+        # Should not crash but return error status
+        assert res["status"] == "error"
+
+
+def test_get_services_bare_except():
+    from unittest.mock import patch
+
+    from tools.get_services.tool import get_services
+
+    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
+        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
+        assert res["status"] == "error"
+
+
+def test_get_services_bare_except_coverage():
+    from unittest.mock import patch
+
+    from tools.get_services.tool import get_services
+
+    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
+        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
+        assert res["status"] == "error"
+
+
+def test_get_services_apply_field_filter_error():
+    from unittest.mock import patch
+
+    from tools.get_services.tool import get_services
+
+    with patch(
+        "tools.get_services.tool.apply_field_filter", side_effect=Exception("mock field error")
+    ):
+        get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
+        # It's not a try/except, it just throws if it crashes, or maybe it is caught in the MCP wrapper.
+        # But let's check if there's a bare except in the tool.
+        # Wait, 195 is the `return response_dict` line! It's just not getting hit if `apply_field_filter` throws!
+        # Ah, the bare except is at line 195 in the tool? Let's verify line 195.

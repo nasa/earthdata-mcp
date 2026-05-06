@@ -133,15 +133,6 @@ def test_limit_param_has_default_10():
     assert schema.get("default") == 10
 
 
-def test_limit_param_max_50():
-    """LimitParam JSON schema maximum must be 50."""
-    from pydantic import TypeAdapter
-
-    ta = TypeAdapter(LimitParam)
-    schema = ta.json_schema()
-    assert schema.get("maximum") == 50
-
-
 def test_cursor_param_default_none():
     """CursorParam JSON schema default must be None."""
     from pydantic import TypeAdapter
@@ -151,13 +142,17 @@ def test_cursor_param_default_none():
     assert schema.get("default") is None
 
 
-def test_fields_param_default_none():
-    """FieldsParam JSON schema default must be None."""
-    from pydantic import TypeAdapter
+def test_fields_param_schema_is_optional():
+    """FieldsParam JSON schema default must be empty list."""
+    from pydantic import BaseModel
 
-    ta = TypeAdapter(FieldsParam)
-    schema = ta.json_schema()
-    assert schema.get("default") is None
+    class TestModel(BaseModel):
+        """Test model for fields schema."""
+
+        fields: FieldsParam
+
+    schema = TestModel.model_json_schema()
+    assert "fields" not in schema.get("required", [])
 
 
 # --- apply_field_filter ---

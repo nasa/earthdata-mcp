@@ -7,7 +7,6 @@ from langfuse import observe
 from models.pagination import (
     MANDATORY_FIELDS_GRANULES,
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -48,7 +47,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     sort_key: SortKeyParam = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     """Search CMR granules for a single parent collection, returning paginated results.
 
@@ -109,7 +108,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
             sort_key=sort_key,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
 
         search_after = None

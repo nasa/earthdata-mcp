@@ -1,6 +1,6 @@
 {
   "name": "get_citations",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Discover citation records directly associated with a collection, or look up a citation by identifier (e.g. DOI). Use this tool to evaluate citation relevance for a collection.\n\nKey fields in each returned item:\n- concept_id: CMR citation concept ID\n- name: The title or name of the citation\n- identifier: The primary DOI or identifier\n- abstract: Abstract text\n- citation_metadata: Nested metadata including Year, Publisher, and Author list",
   "entry_function": "get_citations",
   "module": "tool",

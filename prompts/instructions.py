@@ -120,7 +120,9 @@ Keep `limit` small (default 10, max 50). Only raise it if you are aggregating re
 
 **Cursors:**
 Never construct or modify a cursor. Pass the exact `next_cursor` string from a previous
-response as the `cursor` parameter for the next call. Cursors are **query-scoped**: they
+response as the `cursor` parameter for the next call. Do not display the raw `next_cursor`
+string to the user — if there are more results, simply tell the user you can fetch the
+next page if they ask. Cursors are **query-scoped**: they
 lock in the original search parameters. If you pass a cursor alongside different search
 parameters (e.g., a different keyword or changed temporal range), the server will use the
 original query from the cursor and ignore your new parameters — your parameter changes will

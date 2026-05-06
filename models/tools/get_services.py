@@ -55,7 +55,7 @@ class GetServicesInput(BaseModel):
     type: str | None = None
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
     @model_validator(mode="after")
     def validate_inputs(self) -> "GetServicesInput":

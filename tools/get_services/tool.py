@@ -7,7 +7,6 @@ from langfuse import observe
 from models.pagination import (
     MANDATORY_FIELDS_DEFAULT,
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -30,7 +29,7 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
     type: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     """Search CMR services by collection association, keyword, or type.
 
@@ -74,7 +73,7 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
             type=type,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_services input validation failed: %s", exc)

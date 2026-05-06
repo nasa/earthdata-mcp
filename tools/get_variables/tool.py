@@ -7,7 +7,6 @@ from langfuse import observe
 from models.pagination import (
     MANDATORY_FIELDS_DEFAULT,
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -26,7 +25,7 @@ def get_variables(
     keyword: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     # pylint: disable=too-many-return-statements
     """Search CMR variables by parent collection ID or keyword.
@@ -72,7 +71,7 @@ def get_variables(
             keyword=keyword,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_variables input validation failed: %s", exc)

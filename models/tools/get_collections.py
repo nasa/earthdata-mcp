@@ -110,32 +110,35 @@ SpatialWktGeometryParam = Annotated[
 
 
 PlatformParam = Annotated[
-    list[str] | None,
+    list[str],
     Field(
+        default_factory=list,
         description=(
             "Platform short names to filter by (e.g., ['Terra', 'Aqua']). "
             "Most common scientific filter after temporal/spatial."
-        )
+        ),
     ),
 ]
 
 InstrumentParam = Annotated[
-    list[str] | None,
+    list[str],
     Field(
+        default_factory=list,
         description=(
             "Instrument short names to filter by (e.g., ['MODIS', 'VIIRS']). "
             "More precise than keyword for instrument filtering."
-        )
+        ),
     ),
 ]
 
 ProcessingLevelIdParam = Annotated[
-    list[str] | None,
+    list[str],
     Field(
+        default_factory=list,
         description=(
             "Processing level IDs to filter by (e.g., ['3', '3A']). "
             "Essential for choosing between L2 swath and L3 gridded products."
-        )
+        ),
     ),
 ]
 
@@ -208,13 +211,13 @@ class GetCollectionsInput(BaseModel):
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
     spatial_wkt_geometry: SpatialWktGeometryParam = None
-    platform: PlatformParam = None
-    instrument: InstrumentParam = None
-    processing_level_id: ProcessingLevelIdParam = None
+    platform: PlatformParam
+    instrument: InstrumentParam
+    processing_level_id: ProcessingLevelIdParam
     has_granules: HasGranulesParam = None
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
 
 class GetCollectionsOutput(BaseCmrSearchOutput):

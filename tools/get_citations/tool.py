@@ -7,7 +7,6 @@ from langfuse import observe
 from models.pagination import (
     MANDATORY_FIELDS_DEFAULT,
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -27,7 +26,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
     provider: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     """Search CMR citations by parent collection ID or specific citation identifier (DOI).
 
@@ -64,7 +63,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
             provider=provider,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_citations input validation failed: %s", exc)

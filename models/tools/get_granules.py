@@ -162,7 +162,7 @@ class GetGranulesInput(BaseModel):
     sort_key: SortKeyParam = None
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
 
 class GetGranulesOutput(BaseCmrSearchOutput):

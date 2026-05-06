@@ -7,7 +7,6 @@ from langfuse import observe
 from models.pagination import (
     MANDATORY_FIELDS_COLLECTIONS,
     CursorParam,
-    FieldsParam,
     LimitParam,
 )
 from models.tools.cmr_search import SearchStatus
@@ -16,10 +15,7 @@ from models.tools.get_collections import (
     GetCollectionsInput,
     GetCollectionsOutput,
     HasGranulesParam,
-    InstrumentParam,
     KeywordParam,
-    PlatformParam,
-    ProcessingLevelIdParam,
     ProviderParam,
     ShortNameParam,
     SpatialWktGeometryParam,
@@ -47,13 +43,13 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
     spatial_wkt_geometry: SpatialWktGeometryParam = None,
-    platform: PlatformParam = None,
-    instrument: InstrumentParam = None,
-    processing_level_id: ProcessingLevelIdParam = None,
+    platform: list[str] | None = None,
+    instrument: list[str] | None = None,
+    processing_level_id: list[str] | None = None,
     has_granules: HasGranulesParam = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
-    fields: FieldsParam = None,
+    fields: list[str] | None = None,
 ) -> dict:
     """Search CMR collections and return normalized results with pagination.
 
@@ -112,13 +108,13 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
             temporal_start_date=temporal_start_date,
             temporal_end_date=temporal_end_date,
             spatial_wkt_geometry=spatial_wkt_geometry,
-            platform=platform,
-            instrument=instrument,
-            processing_level_id=processing_level_id,
+            platform=platform or [],
+            instrument=instrument or [],
+            processing_level_id=processing_level_id or [],
             has_granules=has_granules,
             limit=limit,
             cursor=cursor,
-            fields=fields,
+            fields=fields or [],
         )
 
         search_after = None

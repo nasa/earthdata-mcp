@@ -433,8 +433,8 @@ def test_get_granules_fields_filtering_keeps_mandatory_fields(monkeypatch):
     assert "provider_id" not in item
 
 
-def test_get_granules_fields_none_returns_all_fields(monkeypatch):
-    """When fields is None, all normalized fields must be present."""
+def test_get_granules_fields_empty_returns_all_fields(monkeypatch):
+    """When fields is empty, all normalized fields must be present."""
     tool = _load_tool()
     page = CMRSearchResponse(
         items=[_make_granule_item()],
@@ -445,7 +445,7 @@ def test_get_granules_fields_none_returns_all_fields(monkeypatch):
     )
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
-    output = tool.get_granules(collection_concept_id="C1-PROV", fields=None)
+    output = tool.get_granules(collection_concept_id="C1-PROV", fields=[])
 
     item = output["granules"][0]
     assert "provider_id" in item
@@ -582,3 +582,36 @@ def test_get_granules_cursor_ignores_changed_params(monkeypatch):
     )
 
     assert captured["search_params"].get("temporal") == "2024-01-01,2024-01-31"
+
+
+def test_get_granules_validation_error():
+    from tools.get_granules.tool import get_granules
+
+    res = get_granules(
+        collection_concept_id="C123-PROV", limit=100
+    )  # limit=100 triggers validation error
+    assert res["status"] == "error"
+
+
+def test_get_granules_wkt_error():
+    from tools.get_granules.tool import get_granules
+
+    res = get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="INVALID WKT")
+    assert res["status"] == "error"
+    assert "Invalid WKT" in res["error_message"]
+
+
+def test_get_granules_cursor_post():
+    from unittest.mock import patch
+
+    from tools.get_granules.tool import get_granules
+    from util.pagination import encode_cursor
+
+    # Cursor that uses spatial, should trigger POST branch lines 124-125
+    c = encode_cursor(
+        "cmr",
+        {"token": "x", "spatial": "POINT(0 0)", "params": {"collection_concept_id": "C1-PROV"}},
+    )
+    with patch("tools.get_granules.tool.search_cmr") as mock_search:
+        get_granules(collection_concept_id="C1-PROV", cursor=c)
+        mock_search.assert_called_once()

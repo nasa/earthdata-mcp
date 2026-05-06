@@ -397,8 +397,8 @@ def test_get_collections_fields_filtering_keeps_mandatory_fields(monkeypatch):
     assert "short_name" not in item
 
 
-def test_get_collections_fields_none_returns_all_fields(monkeypatch):
-    """When fields is None, all normalized fields must be present."""
+def test_get_collections_fields_empty_returns_all_fields(monkeypatch):
+    """When fields is empty, all normalized fields must be present."""
     tool = _load_tool()
     page = CMRSearchResponse(
         items=[_make_collection_item()],
@@ -409,7 +409,7 @@ def test_get_collections_fields_none_returns_all_fields(monkeypatch):
     )
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
-    output = tool.get_collections(fields=None)
+    output = tool.get_collections(fields=[])
 
     item = output["collections"][0]
     assert "abstract" in item
@@ -588,3 +588,32 @@ def test_get_collections_cursor_ignores_changed_params(monkeypatch):
     tool.get_collections(keyword="changed", cursor=cursor)
 
     assert captured["search_params"].get("keyword") == "original"
+
+
+def test_get_collections_validation_error():
+    from tools.get_collections.tool import get_collections
+
+    # Pass an invalid field configuration to trigger ValueError/TypeError in GetCollectionsInput
+    res = get_collections(keyword="", limit=100)  # limit=100 triggers validation error
+    assert res["status"] == "error"
+
+
+def test_get_collections_wkt_error():
+    from tools.get_collections.tool import get_collections
+
+    res = get_collections(spatial_wkt_geometry="INVALID WKT")
+    assert res["status"] == "error"
+    assert "Invalid WKT" in res["error_message"]
+
+
+def test_get_collections_cursor_post():
+    from unittest.mock import patch
+
+    from tools.get_collections.tool import get_collections
+    from util.pagination import encode_cursor
+
+    # Cursor that uses spatial, should trigger POST branch lines 133-134
+    c = encode_cursor("cmr", {"token": "x", "spatial": "POINT(0 0)", "params": {}})
+    with patch("tools.get_collections.tool.search_cmr") as mock_search:
+        get_collections(cursor=c)
+        mock_search.assert_called_once()

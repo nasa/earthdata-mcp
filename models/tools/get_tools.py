@@ -82,7 +82,7 @@ class GetToolsInput(BaseModel):
     ]
     limit: LimitParam = 10
     cursor: CursorParam = None
-    fields: FieldsParam = None
+    fields: FieldsParam
 
     @model_validator(mode="after")
     def check_at_least_one(self) -> "GetToolsInput":
