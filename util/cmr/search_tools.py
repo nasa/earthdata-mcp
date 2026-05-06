@@ -363,7 +363,13 @@ def normalize_service_item(item: dict[str, Any]) -> dict[str, Any]:
         "related_urls": umm.get("RelatedURLs"),
         "access_constraints": umm.get("AccessConstraints"),
         "use_constraints": umm.get("UseConstraints"),
+        "service_keywords": umm.get("ServiceKeywords"),
         "service_options": umm.get("ServiceOptions"),
+        "service_organizations": [
+            {"roles": org.get("Roles", []), "short_name": org.get("ShortName")}
+            for org in (umm.get("ServiceOrganizations") or [])
+            if isinstance(org, dict)
+        ],
         "operation_metadata": umm.get("OperationMetadata"),
     }
 

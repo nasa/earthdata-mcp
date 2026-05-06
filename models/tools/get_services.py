@@ -1,21 +1,12 @@
 """Input and output models for the get_services MCP tool."""
 
 import re
-from typing import Annotated, Any
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
-
-CollectionConceptIdParam = Annotated[
-    str,
-    Field(
-        description=(
-            "Parent collection concept ID (format: C<number>-<PROVIDER>, "
-            "e.g., C2723758340-GES_DISC). Required to scope service search."
-        ),
-    ),
-]
 
 
 class ServiceResult(BaseModel):
@@ -37,8 +28,14 @@ class ServiceResult(BaseModel):
         None, description="Documentation, guides, or other related links"
     )
     revision_id: int | None = Field(None, description="The revision ID of the service metadata")
+    service_keywords: list[dict[str, Any]] | None = Field(
+        None, description="Controlled vocabulary for service capability"
+    )
     service_options: dict[str, Any] | None = Field(
         None, description="Subset types, supported projections, output formats"
+    )
+    service_organizations: list[dict[str, Any]] | None = Field(
+        None, description="Organizations that run the service endpoint"
     )
     type: str | None = Field(None, description="The type of the service")
     url: dict[str, Any] | None = Field(None, description="Primary endpoint URL information")
@@ -53,23 +50,34 @@ class GetServicesInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    collection_concept_id: CollectionConceptIdParam
+    collection_concept_id: str | None = None
+    keyword: str | None = None
+    type: str | None = None
+    limit: LimitParam = 10
+    cursor: CursorParam = None
+    fields: FieldsParam = None
 
-    @field_validator("collection_concept_id")
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        """Validate that the collection concept ID matches the CMR format."""
-        if not re.match(r"^C\d+-[A-Za-z0-9_]+$", v):
+    @model_validator(mode="after")
+    def validate_inputs(self) -> "GetServicesInput":
+        """Validate that at least one search parameter is provided and format is correct."""
+        if self.collection_concept_id is None and self.keyword is None and self.type is None:
+            raise ValueError(
+                "At least one of collection_concept_id, keyword, or type must be provided."
+            )
+        if self.collection_concept_id is not None and not re.match(
+            r"^C\d+-[A-Za-z0-9_]+$", self.collection_concept_id
+        ):
             raise ValueError(
                 "Invalid collection concept ID format. "
                 "Must match C<number>-<PROVIDER> (e.g., C2723758340-GES_DISC)."
             )
-        return v
+        return self
 
 
 class GetServicesOutput(BaseCmrSearchOutput):
     """Output model for get_services."""
 
+    next_cursor: str | None = Field(default=None, description="Pagination token for the next page")
     services: list[ServiceResult] = Field(
         default_factory=list, description="Normalized service results mapped from UMM-S"
     )

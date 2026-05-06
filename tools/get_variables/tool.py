@@ -4,6 +4,7 @@ import logging
 
 from langfuse import observe
 
+from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_variables import GetVariablesInput, GetVariablesOutput
 from util.cmr.client import CMRError, search_cmr
@@ -17,6 +18,8 @@ logger = logging.getLogger(__name__)
 def get_variables(
     collection_concept_id: str | None = None,
     keyword: str | None = None,
+    limit: LimitParam = 10,
+    cursor: CursorParam = None,
 ) -> dict:
     # pylint: disable=too-many-return-statements
     """Search CMR variables by parent collection ID or keyword.
@@ -65,13 +68,33 @@ def get_variables(
         params = GetVariablesInput(
             collection_concept_id=collection_concept_id,
             keyword=keyword,
+            limit=limit,
+            cursor=cursor,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_variables input validation failed: %s", exc)
         return GetVariablesOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message=str(exc),
         ).model_dump()
+
+    search_after = None
+    if params.cursor:
+        try:
+            parsed = decode_cursor(params.cursor)
+            if parsed.get("backend") != "cmr":
+                raise ValueError(
+                    "Cursor is not valid for this tool. Cursors cannot be reused across "
+                    "different tools. Start a new search without a cursor parameter."
+                )
+            search_after = parsed.get("value")
+        except ValueError as exc:
+            return GetVariablesOutput(
+                status=SearchStatus.ERROR,
+                next_cursor=None,
+                error_message=str(exc),
+            ).model_dump()
 
     variable_ids: list[str] = []
 
@@ -91,6 +114,7 @@ def get_variables(
             logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
             return GetVariablesOutput(
                 status=SearchStatus.ERROR,
+                next_cursor=None,
                 error_message=str(exc),
             ).model_dump()
         except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -101,11 +125,12 @@ def get_variables(
             )
             return GetVariablesOutput(
                 status=SearchStatus.ERROR,
+                next_cursor=None,
                 error_message="An unexpected internal error occurred during collection lookup.",
             ).model_dump()
 
         if not collection_page or not collection_page.items:
-            return GetVariablesOutput(status=SearchStatus.NO_RESULTS).model_dump()
+            return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
         variable_ids = (
             collection_page.items[0].get("meta", {}).get("associations", {}).get("variables", [])
@@ -114,25 +139,24 @@ def get_variables(
         # If the requested collection has no associated variables, the intersection
         # with any keyword is inherently empty. Return immediately.
         if not variable_ids and params.collection_concept_id:
-            return GetVariablesOutput(status=SearchStatus.NO_RESULTS).model_dump()
+            return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     # Phase 2: Fetch the actual variable details. If both a collection ID and a keyword are
     # provided, CMR will only return variables that belong to that collection AND match the keyword.
     search_params = {}
     if variable_ids:
-        # Hard limit to 10 variables per the design requirement
-        search_params["concept_id[]"] = variable_ids[:10]
+        search_params["concept_id[]"] = variable_ids
 
     if params.keyword:
         search_params["keyword"] = params.keyword
 
     try:
-        # Search variables endpoint.
         variable_page = next(
             search_cmr(
                 concept_type="variable",
                 search_params=search_params,
-                page_size=10,
+                page_size=params.limit,
+                search_after=search_after,
             ),
             None,
         )
@@ -140,6 +164,7 @@ def get_variables(
         logger.warning("Variable fetch failed for query %s: %s", search_params, exc)
         return GetVariablesOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message=str(exc),
         ).model_dump()
     except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -148,6 +173,7 @@ def get_variables(
         )
         return GetVariablesOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message="An unexpected internal error occurred during variable fetch.",
         ).model_dump()
 
@@ -156,9 +182,14 @@ def get_variables(
             logger.warning(
                 "CMR returned no variables despite collection associations: %s", variable_ids
             )
-        return GetVariablesOutput(status=SearchStatus.NO_RESULTS).model_dump()
+        return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     variables = [normalize_variable_item(item) for item in variable_page.items]
+    next_cursor = (
+        encode_cursor("cmr", variable_page.search_after)
+        if variable_page.search_after and len(variable_page.items) == params.limit
+        else None
+    )
 
     if params.collection_concept_id and params.keyword:
         # Compute count as intersection of collection-associated IDs and keyword results
@@ -180,4 +211,5 @@ def get_variables(
         status=SearchStatus.SUCCESS,
         variables=variables,
         total_hits=real_total_hits,
+        next_cursor=next_cursor,
     ).model_dump()

@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from models.pagination import CursorParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -57,6 +58,9 @@ class GetCitationsInput(BaseModel):
         ),
     ]
 
+    limit: LimitParam = 10
+    cursor: CursorParam = None
+
     @model_validator(mode="after")
     def check_exactly_one_identifier(self) -> "GetCitationsInput":
         """Ensure exactly one of collection_concept_id or identifier is provided."""
@@ -83,6 +87,9 @@ class GetCitationsInput(BaseModel):
 class GetCitationsOutput(BaseCmrSearchOutput):
     """Output model for get_citations."""
 
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page; None when no more results"
+    )
     citations: list[CitationResult] = Field(
         default_factory=list, description="Normalized citation results mapped from UMM-Citations"
     )

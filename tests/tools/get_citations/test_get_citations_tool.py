@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -88,6 +89,7 @@ def test_get_citations_collection_flow_success(mock_search_cmr: MagicMock) -> No
     assert res["status"] == SearchStatus.SUCCESS
     assert res["total_hits"] == 2
     assert len(res["citations"]) == 1
+    assert res["next_cursor"] is None
 
     # Assert collection lookup was correct
     call1 = mock_search_cmr.call_args_list[0]
@@ -207,3 +209,64 @@ def test_get_citations_calls_trace_update(mock_search_cmr: MagicMock) -> None:
         tool.get_citations(identifier="10.1234/test")
 
     assert mock_trace_update.called
+
+
+def test_get_citations_next_cursor_present(mock_search_cmr: MagicMock) -> None:
+    """Test that next_cursor is set when page is full and search_after is present."""
+    tool = _load_tool()
+
+    two_items = [
+        {
+            "meta": {"concept-id": f"CIT{i}-PROV"},
+            "umm": {"Name": f"Cite {i}", "Identifier": f"10./{i}"},
+        }
+        for i in range(2)
+    ]
+    mock_search_cmr.side_effect = [
+        iter([_collection_page(citation_ids=["CIT0-PROV", "CIT1-PROV", "CIT2-PROV"])]),
+        iter([_citation_page(items=two_items, total_hits=3, search_after="tok-abc", page_size=2)]),
+    ]
+
+    res = tool.get_citations(collection_concept_id="C123-PROV", limit=2)
+    assert res["next_cursor"] is not None
+    parsed = decode_cursor(res["next_cursor"])
+    assert parsed["backend"] == "cmr"
+    assert parsed["value"] == "tok-abc"
+
+
+def test_get_citations_cursor_advances_page(mock_search_cmr: MagicMock) -> None:
+    """Test that a valid cursor causes Phase 2 to receive search_after."""
+    tool = _load_tool()
+
+    cursor = encode_cursor("cmr", "tok-xyz")
+
+    mock_search_cmr.side_effect = [
+        iter([_collection_page(citation_ids=["CIT1-PROV"])]),
+        iter([_citation_page()]),
+    ]
+
+    tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
+
+    call2 = mock_search_cmr.call_args_list[1]
+    assert call2.kwargs["search_after"] == "tok-xyz"
+
+
+def test_get_citations_invalid_cursor(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
+    """Test that an invalid cursor returns an error."""
+    tool = _load_tool()
+
+    res = tool.get_citations(collection_concept_id="C123-PROV", cursor="not-valid-base64!!!")
+    assert res["status"] == SearchStatus.ERROR
+    assert "cursor" in res["error_message"].lower()
+    assert res["next_cursor"] is None
+
+
+def test_get_citations_cross_backend_cursor(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
+    """Test that a cursor from a different backend returns an error."""
+    tool = _load_tool()
+
+    cursor = encode_cursor("kms", 10)
+    res = tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
+    assert res["status"] == SearchStatus.ERROR
+    assert "cursor" in res["error_message"].lower()
+    assert res["next_cursor"] is None

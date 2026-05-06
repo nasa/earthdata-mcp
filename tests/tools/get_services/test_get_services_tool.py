@@ -3,6 +3,7 @@
 import importlib
 from unittest.mock import patch
 
+from models.pagination import decode_cursor, encode_cursor
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
@@ -57,6 +58,7 @@ class TestGetServicesSuccess:
         output = tool.get_services(collection_concept_id="C1-PROV")
 
         assert output["status"] == "success"
+        assert output["next_cursor"] is None
 
     def test_services_contains_normalized_items(self, monkeypatch):
         """services should be properly normalized into snake_case fields."""
@@ -139,7 +141,7 @@ class TestGetServicesSuccess:
         tool.get_services(collection_concept_id="C1-PROV")
 
         assert captured["service"]["search_params"]["concept_id[]"] == ["S1-PROV", "S2-PROV"]
-        assert captured["service"]["page_size"] == 2000
+        assert captured["service"]["page_size"] == 10
 
 
 class TestGetServicesNoResults:
@@ -308,3 +310,137 @@ def test_get_services_calls_trace_update(monkeypatch):
         tool.get_services(collection_concept_id="C1-PROV")
 
     assert mock_trace_update.called
+
+
+class TestGetServicesNewParams:
+    """Tests for new keyword, type, pagination, and field params."""
+
+    def test_get_services_keyword_only(self, monkeypatch):
+        """keyword-only call: Phase 1 skipped, search_cmr called once with keyword in search_params."""
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            yield _service_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+        output = tool.get_services(keyword="OPeNDAP")
+
+        assert output["status"] == "success"
+        assert "collection" not in captured
+        assert captured["service"]["search_params"] == {"keyword": "OPeNDAP"}
+
+    def test_get_services_type_only(self, monkeypatch):
+        """type-only call: Phase 1 skipped, search_cmr called with type in search_params."""
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            yield _service_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+        output = tool.get_services(type="OPeNDAP")
+
+        assert output["status"] == "success"
+        assert captured["service"]["search_params"] == {"type": "OPeNDAP"}
+
+    def test_get_services_no_args_error(self, monkeypatch):
+        """Calling with no args should return error with 'at least one' in the message."""
+        tool = _load_tool()
+
+        output = tool.get_services()
+
+        assert output["status"] == "error"
+        assert "at least one" in output["error_message"].lower()
+
+    def test_get_services_pagination_first_page(self, monkeypatch):
+        """limit=2 with 3 service IDs: next_cursor should be set when page has search_after."""
+        tool = _load_tool()
+        items = [
+            {"meta": {"concept-id": f"S{i}-PROV"}, "umm": {"Name": f"Svc{i}"}} for i in range(2)
+        ]
+        service_pg = _service_page(items=items, total_hits=3, search_after="tok-abc", page_size=2)
+
+        monkeypatch.setattr(
+            tool,
+            "search_cmr",
+            _make_two_phase_mock(_collection_page(["S0-PROV", "S1-PROV", "S2-PROV"]), service_pg),
+        )
+
+        output = tool.get_services(collection_concept_id="C1-PROV", limit=2)
+
+        assert output["status"] == "success"
+        assert output["total_hits"] == 3
+        assert output["next_cursor"] is not None
+        parsed = decode_cursor(output["next_cursor"])
+        assert parsed["backend"] == "cmr"
+        assert parsed["value"] == "tok-abc"
+
+    def test_get_services_pagination_second_page(self, monkeypatch):
+        """Passing a cursor should forward search_after to Phase 2 search_cmr."""
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            if kwargs["concept_type"] == "collection":
+                yield _collection_page(["S1-PROV"])
+            else:
+                yield _service_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+        cursor = encode_cursor("cmr", "tok-abc")
+        tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
+
+        assert captured["service"]["search_after"] == "tok-abc"
+
+    def test_get_services_invalid_cursor(self, monkeypatch):
+        """An invalid cursor string should return an error with 'cursor' in the message."""
+        tool = _load_tool()
+
+        output = tool.get_services(collection_concept_id="C1-PROV", cursor="!!!invalid!!!")
+
+        assert output["status"] == "error"
+        assert "cursor" in output["error_message"].lower()
+        assert output["next_cursor"] is None
+
+    def test_get_services_cross_backend_cursor(self, monkeypatch):
+        """A cursor from a different backend should return an error."""
+        tool = _load_tool()
+
+        cursor = encode_cursor("kms", 10)
+        output = tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
+
+        assert output["status"] == "error"
+        assert "cursor" in output["error_message"].lower()
+        assert output["next_cursor"] is None
+
+    def test_get_services_new_fields(self, monkeypatch):
+        """service_keywords and service_organizations should be normalized from UMM-S."""
+        tool = _load_tool()
+        raw_item = {
+            "meta": {"concept-id": "S1-PROV"},
+            "umm": {
+                "Name": "OPeNDAP",
+                "ServiceKeywords": [{"ServiceCategory": "DATA ACCESS"}],
+                "ServiceOrganizations": [{"Roles": ["SERVICE PROVIDER"], "ShortName": "PO.DAAC"}],
+            },
+        }
+        monkeypatch.setattr(
+            tool,
+            "search_cmr",
+            _make_two_phase_mock(_collection_page(["S1-PROV"]), _service_page(items=[raw_item])),
+        )
+
+        output = tool.get_services(collection_concept_id="C1-PROV")
+
+        svc = output["services"][0]
+        assert svc["service_keywords"] == [{"ServiceCategory": "DATA ACCESS"}]
+        assert svc["service_organizations"] == [
+            {"roles": ["SERVICE PROVIDER"], "short_name": "PO.DAAC"}
+        ]

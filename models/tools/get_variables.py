@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from models.pagination import CursorParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -69,6 +70,9 @@ class GetVariablesInput(BaseModel):
         ),
     ]
 
+    limit: LimitParam = 10
+    cursor: CursorParam = None
+
     @model_validator(mode="after")
     def check_at_least_one_identifier(self) -> "GetVariablesInput":
         """Ensure either a collection_concept_id or keyword is provided."""
@@ -80,6 +84,9 @@ class GetVariablesInput(BaseModel):
 class GetVariablesOutput(BaseCmrSearchOutput):
     """Output model for get_variables."""
 
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page; None when no more results"
+    )
     variables: list[VariableResult] = Field(
         default_factory=list, description="Normalized variable results mapped from UMM-V"
     )

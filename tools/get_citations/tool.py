@@ -4,6 +4,7 @@ import logging
 
 from langfuse import observe
 
+from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_citations import GetCitationsInput, GetCitationsOutput
 from util.cmr.client import CMRError, search_cmr
@@ -17,6 +18,8 @@ logger = logging.getLogger(__name__)
 def get_citations(  # pylint: disable=too-many-return-statements
     collection_concept_id: str | None = None,
     identifier: str | None = None,
+    limit: LimitParam = 10,
+    cursor: CursorParam = None,
 ) -> dict:
     """Search CMR citations by parent collection ID or specific citation identifier (DOI).
 
@@ -43,16 +46,37 @@ def get_citations(  # pylint: disable=too-many-return-statements
         params = GetCitationsInput(
             collection_concept_id=collection_concept_id,
             identifier=identifier,
+            limit=limit,
+            cursor=cursor,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_citations input validation failed: %s", exc)
         return GetCitationsOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message=str(exc),
         ).model_dump()
 
     # Note: We only allow either a collection ID (to find all papers for a dataset) OR an
     # identifier (to look up a specific paper), but never both.
+    
+    search_after = None
+    if params.cursor:
+        try:
+            parsed = decode_cursor(params.cursor)
+            if parsed.get("backend") != "cmr":
+                raise ValueError(
+                    "Cursor is not valid for this tool. Cursors cannot be reused across "
+                    "different tools. Start a new search without a cursor parameter."
+                )
+            search_after = parsed.get("value")
+        except ValueError as exc:
+            return GetCitationsOutput(
+                status=SearchStatus.ERROR,
+                next_cursor=None,
+                error_message=str(exc),
+            ).model_dump()
+
     citation_ids: list[str] = []
 
     # Phase 1: Find linked citations. CMR collections only list the IDs of their associated
@@ -71,6 +95,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
             logger.warning("Collection lookup failed for %s: %s", params.collection_concept_id, exc)
             return GetCitationsOutput(
                 status=SearchStatus.ERROR,
+                next_cursor=None,
                 error_message=str(exc),
             ).model_dump()
         except Exception:  # pylint: disable=broad-exception-caught
@@ -80,11 +105,12 @@ def get_citations(  # pylint: disable=too-many-return-statements
             )
             return GetCitationsOutput(
                 status=SearchStatus.ERROR,
+                next_cursor=None,
                 error_message="An unexpected internal error occurred during collection lookup.",
             ).model_dump()
 
         if not collection_page or not collection_page.items:
-            return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
+            return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
         citation_ids = (
             collection_page.items[0].get("meta", {}).get("associations", {}).get("citations", [])
@@ -92,24 +118,23 @@ def get_citations(  # pylint: disable=too-many-return-statements
 
         # If no citations found on the collection, return immediately
         if not citation_ids:
-            return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
+            return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     # Phase 2: Fetch the actual citation details using the IDs we found (or the direct identifier provided).
     search_params = {}
     if citation_ids:
-        # Hard limit to 10 citations per the design requirement
-        search_params["concept_id[]"] = citation_ids[:10]
+        search_params["concept_id[]"] = citation_ids
 
     if params.identifier:
         search_params["identifier"] = params.identifier
 
-    # If we somehow reached here with no search parameters, we have nothing to search for.
     try:
         citation_page = next(
             search_cmr(
                 concept_type="citation",
                 search_params=search_params,
-                page_size=10,
+                page_size=params.limit,
+                search_after=search_after,
             ),
             None,
         )
@@ -117,12 +142,14 @@ def get_citations(  # pylint: disable=too-many-return-statements
         logger.warning("Citation fetch failed for query %s: %s", search_params, exc)
         return GetCitationsOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message=str(exc),
         ).model_dump()
     except Exception:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during citation fetch for query %s", search_params)
         return GetCitationsOutput(
             status=SearchStatus.ERROR,
+            next_cursor=None,
             error_message="An unexpected internal error occurred during citation fetch.",
         ).model_dump()
 
@@ -131,12 +158,14 @@ def get_citations(  # pylint: disable=too-many-return-statements
             logger.warning(
                 "CMR returned no citations despite collection associations: %s", citation_ids
             )
-        return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
+        return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     citations = [normalize_citation_item(item) for item in citation_page.items]
-
-    # If we looked up via collection, the true total is the length of the associations list.
-    # Because we sliced to 10 for the fetch, CMR will only report up to 10 hits.
+    next_cursor = (
+        encode_cursor("cmr", citation_page.search_after)
+        if citation_page.search_after and len(citation_page.items) == params.limit
+        else None
+    )
     real_total_hits = (
         len(citation_ids) if params.collection_concept_id else citation_page.total_hits
     )
@@ -145,4 +174,5 @@ def get_citations(  # pylint: disable=too-many-return-statements
         status=SearchStatus.SUCCESS,
         citations=citations,
         total_hits=real_total_hits,
+        next_cursor=next_cursor,
     ).model_dump()

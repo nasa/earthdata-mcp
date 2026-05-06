@@ -3,6 +3,7 @@
 import importlib
 from unittest.mock import patch
 
+from models.pagination import decode_cursor, encode_cursor
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -59,6 +60,7 @@ def test_get_variables_success_keyword(monkeypatch):
     assert result["status"] == SearchStatus.SUCCESS
     assert result["total_hits"] == 1
     assert len(result["variables"]) == 1
+    assert result["next_cursor"] is None
 
     var = result["variables"][0]
     assert var["concept_id"] == "V12345-PROV"
@@ -409,3 +411,122 @@ def test_get_variables_variable_search_empty_items(monkeypatch):
 
     assert result["status"] == SearchStatus.NO_RESULTS
     assert result["variables"] == []
+
+
+def test_get_variables_pagination_first_page(monkeypatch):
+    """Test get_variables returns next_cursor when there are more results."""
+    tool = _load_tool()
+
+    coll_page = CMRSearchResponse(
+        items=[
+            {
+                "meta": {
+                    "concept-id": "C99999-PROV",
+                    "associations": {"variables": ["V1-PROV", "V2-PROV", "V3-PROV"]},
+                }
+            }
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    var_page = CMRSearchResponse(
+        items=[
+            {"meta": {"concept-id": "V1-PROV"}, "umm": {"Name": "Var1"}},
+            {"meta": {"concept-id": "V2-PROV"}, "umm": {"Name": "Var2"}},
+        ],
+        total_hits=3,
+        took_ms=5,
+        search_after="tok-v1",
+        page_size=2,
+    )
+
+    def fake_search_cmr(**kwargs):
+        if kwargs["concept_type"] == "collection":
+            yield coll_page
+        else:
+            yield var_page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV", limit=2)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert len(result["variables"]) == 2
+    assert result["next_cursor"] is not None
+    assert decode_cursor(result["next_cursor"])["backend"] == "cmr"
+    assert decode_cursor(result["next_cursor"])["value"] == "tok-v1"
+    assert result["total_hits"] == 3
+
+
+def test_get_variables_pagination_second_page(monkeypatch):
+    """Test get_variables uses search_after from decoded cursor on second page."""
+    tool = _load_tool()
+
+    coll_page = CMRSearchResponse(
+        items=[
+            {
+                "meta": {
+                    "concept-id": "C99999-PROV",
+                    "associations": {"variables": ["V1-PROV", "V2-PROV", "V3-PROV"]},
+                }
+            }
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    var_page_last = CMRSearchResponse(
+        items=[
+            {"meta": {"concept-id": "V3-PROV"}, "umm": {"Name": "Var3"}},
+        ],
+        total_hits=3,
+        took_ms=5,
+        search_after=None,
+        page_size=2,
+    )
+
+    captured = []
+
+    def fake_search_cmr(**kwargs):
+        captured.append(kwargs)
+        if kwargs["concept_type"] == "collection":
+            yield coll_page
+        else:
+            yield var_page_last
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    cursor = encode_cursor("cmr", "tok-v1")
+    result = tool.get_variables(collection_concept_id="C99999-PROV", cursor=cursor, limit=2)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["next_cursor"] is None
+    assert captured[1]["search_after"] == "tok-v1"
+
+
+def test_get_variables_invalid_cursor(monkeypatch):
+    """Test get_variables returns error for an invalid cursor."""
+    tool = _load_tool()
+
+    result = tool.get_variables(keyword="SST", cursor="not-valid-base64!!!")
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["next_cursor"] is None
+    assert "cursor" in result["error_message"].lower()
+
+
+def test_get_variables_cross_backend_cursor(monkeypatch):
+    """Test get_variables returns error when cursor is from a different backend."""
+    tool = _load_tool()
+
+    kms_cursor = encode_cursor("kms", 10)
+    result = tool.get_variables(keyword="SST", cursor=kms_cursor)
+
+    assert result["status"] == SearchStatus.ERROR
+    assert result["next_cursor"] is None
+    assert "cursor" in result["error_message"].lower()

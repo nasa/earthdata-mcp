@@ -3,6 +3,7 @@
 import importlib
 from unittest.mock import patch
 
+from models.pagination import decode_cursor, encode_cursor
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
@@ -54,6 +55,7 @@ class TestGetToolsSuccess:
         )
         output = tool.get_tools(collection_concept_id="C1-PROV")
         assert output["status"] == "success"
+        assert output["next_cursor"] is None
 
     def test_tools_contains_normalized_items(self, monkeypatch):
         tool = _load_tool()
@@ -113,7 +115,7 @@ class TestGetToolsSuccess:
         monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
         tool.get_tools(collection_concept_id="C1-PROV")
         assert captured["tool"]["search_params"]["concept_id[]"] == ["TL1-PROV", "TL2-PROV"]
-        assert captured["tool"]["page_size"] == 2000
+        assert captured["tool"]["page_size"] == 10
 
 
 class TestGetToolsNoResults:
@@ -251,3 +253,91 @@ def test_get_tools_calls_trace_update(monkeypatch):
         tool.get_tools(collection_concept_id="C1-PROV")
 
     assert mock_trace_update.called
+
+
+class TestGetToolsPagination:
+    """Tests for pagination, keyword, and type params."""
+
+    def test_no_args_returns_error(self, monkeypatch):
+        tool = _load_tool()
+        output = tool.get_tools()
+        assert output["status"] == "error"
+        assert "at least one" in output["error_message"].lower()
+
+    def test_keyword_only(self, monkeypatch):
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            yield _tool_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        output = tool.get_tools(keyword="Giovanni")
+        assert output["status"] == "success"
+        assert "collection" not in captured
+        assert captured["tool"]["search_params"] == {"keyword": "Giovanni"}
+
+    def test_type_only(self, monkeypatch):
+        tool = _load_tool()
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            yield _tool_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        output = tool.get_tools(type="Downloadable Tool")
+        assert output["status"] == "success"
+        assert captured["tool"]["search_params"] == {"type": "Downloadable Tool"}
+
+    def test_first_page_has_next_cursor(self, monkeypatch):
+        tool = _load_tool()
+        items = [
+            {"meta": {"concept-id": "TL1-PROV"}, "umm": {"Name": "Tool A"}},
+            {"meta": {"concept-id": "TL2-PROV"}, "umm": {"Name": "Tool B"}},
+        ]
+
+        def fake_search_cmr(**kwargs):
+            if kwargs.get("concept_type") == "collection":
+                yield _collection_page(["TL1-PROV", "TL2-PROV", "TL3-PROV"])
+            else:
+                yield _tool_page(items=items, search_after="tok-abc", page_size=2)
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        output = tool.get_tools(collection_concept_id="C1-PROV", limit=2)
+        assert output["next_cursor"] is not None
+        parsed = decode_cursor(output["next_cursor"])
+        assert parsed["backend"] == "cmr"
+        assert parsed["value"] == "tok-abc"
+
+    def test_second_page_passes_search_after(self, monkeypatch):
+        tool = _load_tool()
+        cursor = encode_cursor("cmr", "tok-xyz")
+        captured = {}
+
+        def fake_search_cmr(**kwargs):
+            captured[kwargs["concept_type"]] = kwargs
+            if kwargs.get("concept_type") == "collection":
+                yield _collection_page(["TL1-PROV", "TL2-PROV"])
+            else:
+                yield _tool_page()
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        tool.get_tools(collection_concept_id="C1-PROV", cursor=cursor, limit=2)
+        assert captured["tool"]["search_after"] == "tok-xyz"
+
+    def test_invalid_cursor_returns_error(self, monkeypatch):
+        tool = _load_tool()
+        output = tool.get_tools(collection_concept_id="C1-PROV", cursor="!!!")
+        assert output["status"] == "error"
+        assert "cursor" in output["error_message"].lower()
+        assert output["next_cursor"] is None
+
+    def test_cross_backend_cursor_returns_error(self, monkeypatch):
+        tool = _load_tool()
+        cursor = encode_cursor("kms", 10)
+        output = tool.get_tools(collection_concept_id="C1-PROV", cursor=cursor)
+        assert output["status"] == "error"
+        assert "cursor" in output["error_message"].lower()
+        assert output["next_cursor"] is None

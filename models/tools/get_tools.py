@@ -3,19 +3,10 @@
 import re
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from models.pagination import CursorParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
-
-CollectionConceptIdParam = Annotated[
-    str,
-    Field(
-        description=(
-            "Parent collection concept ID (format: C<number>-<PROVIDER>, "
-            "e.g., C2723758340-GES_DISC). Required to scope tool search."
-        ),
-    ),
-]
 
 
 class ToolResult(BaseModel):
@@ -74,23 +65,57 @@ class GetToolsInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    collection_concept_id: CollectionConceptIdParam
+    collection_concept_id: Annotated[
+        str | None,
+        Field(
+            None,
+            description=(
+                "Parent collection concept ID (format: C<number>-<PROVIDER>, "
+                "e.g., C2723758340-GES_DISC). When provided, searches for tools "
+                "associated with this collection."
+            ),
+        ),
+    ]
+    keyword: Annotated[
+        str | None,
+        Field(None, description="Free-text keyword to discover tools without a collection ID."),
+    ]
+    type: Annotated[
+        str | None,
+        Field(
+            None,
+            description=(
+                "UMM-T Type to filter by (e.g., 'Downloadable Tool', "
+                "'Web User Interface', 'Model', 'Notebook')."
+            ),
+        ),
+    ]
+    limit: LimitParam = 10
+    cursor: CursorParam = None
 
-    @field_validator("collection_concept_id")
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        """Validate that the collection concept ID matches the CMR format."""
-        if not re.match(r"^C\d+-[A-Za-z0-9_]+$", v):
+    @model_validator(mode="after")
+    def check_at_least_one(self) -> "GetToolsInput":
+        """Require at least one of collection_concept_id, keyword, or type."""
+        if not self.collection_concept_id and not self.keyword and not self.type:
+            raise ValueError(
+                "Must provide at least one of: collection_concept_id, keyword, or type."
+            )
+        if self.collection_concept_id and not re.match(
+            r"^C\d+-[A-Za-z0-9_]+$", self.collection_concept_id
+        ):
             raise ValueError(
                 "Invalid collection concept ID format. "
                 "Must match C<number>-<PROVIDER> (e.g., C2723758340-GES_DISC)."
             )
-        return v
+        return self
 
 
 class GetToolsOutput(BaseCmrSearchOutput):
     """Output model for get_tools."""
 
+    next_cursor: str | None = Field(
+        default=None, description="Pagination token for the next page; None when no more results"
+    )
     tools: list[ToolResult] = Field(
         default_factory=list, description="Normalized tool results mapped from UMM-T"
     )
