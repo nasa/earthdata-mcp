@@ -341,3 +341,26 @@ class TestGetToolsPagination:
         assert output["status"] == "error"
         assert "cursor" in output["error_message"].lower()
         assert output["next_cursor"] is None
+
+    def test_fields_filter_returns_only_requested_fields(self, monkeypatch):
+        tool = _load_tool()
+        raw_item = {
+            "meta": {"concept-id": "TL1-PROV"},
+            "umm": {
+                "Name": "Giovanni",
+                "LongName": "Giovanni Online Visualization Tool",
+                "Version": "1.0",
+            },
+        }
+
+        def fake_search_cmr(**kwargs):
+            yield _tool_page(items=[raw_item])
+
+        monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+        output = tool.get_tools(keyword="Giovanni", fields=["name"])
+        assert output["status"] == "success"
+        item = output["tools"][0]
+        assert "concept_id" in item
+        assert "name" in item
+        assert "long_name" not in item
+        assert "version" not in item

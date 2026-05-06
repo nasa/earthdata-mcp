@@ -530,3 +530,34 @@ def test_get_variables_cross_backend_cursor(monkeypatch):
     assert result["status"] == SearchStatus.ERROR
     assert result["next_cursor"] is None
     assert "cursor" in result["error_message"].lower()
+
+
+def test_get_variables_fields_filter(monkeypatch):
+    """Test get_variables returns only requested fields plus mandatory concept_id."""
+    tool = _load_tool()
+
+    var_page = CMRSearchResponse(
+        items=[
+            {
+                "meta": {"concept-id": "V12345-PROV"},
+                "umm": {"Name": "SST", "LongName": "Sea Surface Temperature", "Units": "Kelvin"},
+            }
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=10,
+    )
+
+    def fake_search_cmr(**kwargs):
+        yield var_page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    result = tool.get_variables(keyword="SST", fields=["name"])
+
+    assert result["status"] == SearchStatus.SUCCESS
+    item = result["variables"][0]
+    assert "concept_id" in item
+    assert "name" in item
+    assert "long_name" not in item
+    assert "units" not in item

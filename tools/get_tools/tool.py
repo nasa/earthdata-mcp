@@ -4,7 +4,15 @@ import logging
 
 from langfuse import observe
 
-from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
+from models.pagination import (
+    MANDATORY_FIELDS_DEFAULT,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    apply_field_filter,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_tools import (
     CollectionConceptIdParam,
@@ -25,6 +33,7 @@ def get_tools(  # pylint: disable=too-many-return-statements
     type: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
     """Search CMR tools for a single parent collection, returning all associated normalized results.
 
@@ -62,6 +71,7 @@ def get_tools(  # pylint: disable=too-many-return-statements
             type=type,
             limit=limit,
             cursor=cursor,
+            fields=fields,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_tools input validation failed: %s", exc)
@@ -169,10 +179,14 @@ def get_tools(  # pylint: disable=too-many-return-statements
         if tool_page.search_after and len(tool_page.items) == params.limit
         else None
     )
-
-    return GetToolsOutput(
+    response_dict = GetToolsOutput(
         status=SearchStatus.SUCCESS,
         tools=tools,
         total_hits=tool_page.total_hits,
         next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        apply_field_filter(response_dict["tools"], params.fields, MANDATORY_FIELDS_DEFAULT)
+
+    return response_dict

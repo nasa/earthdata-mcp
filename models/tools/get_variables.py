@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from models.pagination import CursorParam, LimitParam
+from models.pagination import CursorParam, FieldsParam, LimitParam
 from models.tools.cmr_search import BaseCmrSearchOutput
 
 
@@ -72,6 +72,7 @@ class GetVariablesInput(BaseModel):
 
     limit: LimitParam = 10
     cursor: CursorParam = None
+    fields: FieldsParam = None
 
     @model_validator(mode="after")
     def check_at_least_one_identifier(self) -> "GetVariablesInput":

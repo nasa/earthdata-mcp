@@ -4,7 +4,15 @@ import logging
 
 from langfuse import observe
 
-from models.pagination import CursorParam, LimitParam, decode_cursor, encode_cursor
+from models.pagination import (
+    MANDATORY_FIELDS_DEFAULT,
+    CursorParam,
+    FieldsParam,
+    LimitParam,
+    apply_field_filter,
+    decode_cursor,
+    encode_cursor,
+)
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_variables import GetVariablesInput, GetVariablesOutput
 from util.cmr.client import CMRError, search_cmr
@@ -20,6 +28,7 @@ def get_variables(
     keyword: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
+    fields: FieldsParam = None,
 ) -> dict:
     # pylint: disable=too-many-return-statements
     """Search CMR variables by parent collection ID or keyword.
@@ -70,6 +79,7 @@ def get_variables(
             keyword=keyword,
             limit=limit,
             cursor=cursor,
+            fields=fields,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_variables input validation failed: %s", exc)
@@ -207,9 +217,14 @@ def get_variables(
         # Just keyword filter: rely on the search hit count
         real_total_hits = variable_page.total_hits
 
-    return GetVariablesOutput(
+    response_dict = GetVariablesOutput(
         status=SearchStatus.SUCCESS,
         variables=variables,
         total_hits=real_total_hits,
         next_cursor=next_cursor,
     ).model_dump()
+
+    if params.fields:
+        apply_field_filter(response_dict["variables"], params.fields, MANDATORY_FIELDS_DEFAULT)
+
+    return response_dict
