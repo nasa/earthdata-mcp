@@ -40,11 +40,7 @@ variable "cmr_url" {
 }
 
 # Database table names
-variable "embeddings_table" {
-  description = "Name of the embeddings table in PostgreSQL"
-  type        = string
-  default     = "embeddings"
-}
+
 
 variable "associations_table" {
   description = "Name of the associations table in PostgreSQL"
@@ -71,23 +67,11 @@ variable "ingest_lambda_concurrency" {
   default     = 5
 }
 
-variable "embedding_lambda_timeout" {
-  description = "Timeout for embedding lambda in seconds"
-  type        = number
-  default     = 300
-}
 
-variable "embedding_lambda_memory" {
-  description = "Memory for embedding lambda in MB"
-  type        = number
-  default     = 512
-}
 
-variable "embedding_lambda_concurrency" {
-  description = "Reserved concurrent executions for embedding lambda"
-  type        = number
-  default     = 5
-}
+
+
+
 
 variable "enrichment_lambda_concurrency" {
   description = "Reserved concurrent executions for enrichment lambda. Controls Step Function pipeline throughput — each collection requires 7+ sequential Lambda invocations."

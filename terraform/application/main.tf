@@ -79,7 +79,6 @@ module "application" {
 
   # Configuration
   cmr_url            = var.cmr_url
-  embeddings_table   = var.embeddings_table
   associations_table = var.associations_table
 
   # Lambda configuration

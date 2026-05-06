@@ -62,11 +62,7 @@ variable "cmr_url" {
 
 
 
-variable "embeddings_table" {
-  description = "Name of the embeddings table in PostgreSQL"
-  type        = string
-  default     = "embeddings"
-}
+
 
 variable "associations_table" {
   description = "Name of the associations table in PostgreSQL"
@@ -133,11 +129,7 @@ variable "mcp_listener_priority" {
   default     = 200
 }
 
-variable "redis_node_type" {
-  description = "ElastiCache node type for Redis"
-  type        = string
-  default     = "cache.t3.micro"
-}
+
 
 # Geocode Index (OpenSearch)
 variable "geocode_index_host" {
