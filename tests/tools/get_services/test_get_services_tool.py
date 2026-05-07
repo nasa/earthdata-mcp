@@ -399,7 +399,14 @@ class TestGetServicesNewParams:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["S1-PROV"]}})
+        cursor = encode_cursor(
+            "cmr",
+            {
+                "token": "tok-abc",
+                "params": {"concept_id[]": ["S1-PROV"]},
+                "inputs": {"collection_concept_id": "C1-PROV", "keyword": None, "type": None},
+            },
+        )
         tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
 
         assert "collection" not in captured
@@ -462,21 +469,21 @@ class TestGetServicesNewParams:
         assert output["next_cursor"] is None
         assert "outdated" in output["error_message"].lower()
 
-    def test_get_services_cursor_ignores_changed_params(self, monkeypatch):
-        """When cursor is present, stored params are used and incoming params ignored."""
+    def test_get_services_cursor_override(self, monkeypatch):
         tool = _load_tool()
-        captured = {}
+        from util.pagination import encode_cursor
 
-        def fake_search_cmr(**kwargs):
-            captured[kwargs["concept_type"]] = kwargs
-            yield _service_page()
-
-        _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
-
-        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
-        tool.get_services(keyword="changed", cursor=cursor)
-
-        assert captured["service"]["search_params"].get("keyword") == "original"
+        cursor = encode_cursor(
+            "cmr",
+            {
+                "token": "tok-abc",
+                "params": {"keyword": "original"},
+                "inputs": {"keyword": "original"},
+            },
+        )
+        res = tool.get_services(keyword="changed", cursor=cursor)
+        assert res["status"] == "error"
+        assert "query-scoped" in res["error_message"]
 
     def test_get_services_phase1_skipped_on_page2(self, monkeypatch):
         """Page 2 with cursor must not perform the Phase 1 collection lookup."""
@@ -489,7 +496,14 @@ class TestGetServicesNewParams:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["S1-PROV"]}})
+        cursor = encode_cursor(
+            "cmr",
+            {
+                "token": "tok-abc",
+                "params": {"concept_id[]": ["S1-PROV"]},
+                "inputs": {"collection_concept_id": "C1-PROV", "keyword": None, "type": None},
+            },
+        )
         tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
 
         assert call_count[0] == 1

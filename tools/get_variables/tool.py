@@ -81,6 +81,10 @@ def get_variables(
             error_message=str(exc),
         ).model_dump()
 
+    current_inputs = {
+        "collection_concept_id": params.collection_concept_id,
+        "keyword": params.keyword,
+    }
     search_after = None
     search_params = None  # sentinel: None means "must build via Phase 1"
 
@@ -177,7 +181,11 @@ def get_variables(
         return GetVariablesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     variables = [normalize_variable_item(item) for item in variable_page.items]
-    cursor_payload = {"token": variable_page.search_after, "params": search_params}
+    cursor_payload = {
+        "token": variable_page.search_after,
+        "params": search_params,
+        "inputs": current_inputs,
+    }
     next_cursor = (
         encode_cursor("cmr", cursor_payload)
         if variable_page.search_after and len(variable_page.items) == params.limit

@@ -66,6 +66,10 @@ def get_tools(  # pylint: disable=too-many-return-statements
             error_message=str(exc),
         ).model_dump()
 
+    current_inputs = {
+        "collection_concept_id": params.collection_concept_id,
+        "keyword": params.keyword,
+    }
     search_after = None
     search_params = None  # sentinel: None means "must build via Phase 1"
 
@@ -151,7 +155,11 @@ def get_tools(  # pylint: disable=too-many-return-statements
 
     tools = [normalize_tool_item(item) for item in tool_page.items]
     status = SearchStatus.SUCCESS if tools else SearchStatus.NO_RESULTS
-    cursor_payload = {"token": tool_page.search_after, "params": search_params}
+    cursor_payload = {
+        "token": tool_page.search_after,
+        "params": search_params,
+        "inputs": current_inputs,
+    }
     next_cursor = (
         encode_cursor("cmr", cursor_payload)
         if tool_page.search_after and len(tool_page.items) == params.limit
