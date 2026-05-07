@@ -111,35 +111,52 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
             fields=fields or [],
         )
 
+        search_params: dict[str, object] = {"collection_concept_id": params.collection_concept_id}
+
+        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+        if temporal:
+            search_params["temporal"] = temporal
+
+        cloud_cover = format_cloud_cover_range(params.cloud_cover_min, params.cloud_cover_max)
+        if cloud_cover:
+            search_params["cloud_cover"] = cloud_cover
+
+        if params.day_night_flag:
+            search_params["day_night_flag"] = params.day_night_flag
+        if params.sort_key:
+            search_params["sort_key"] = params.sort_key
+
         search_after = None
         files = None
         method = "GET"
         if params.cursor:
             cursor_value = resolve_cursor(params.cursor, "cmr")
             search_after = cursor_value.get("token")
-            search_params = cursor_value.get("params", {})
+            cursor_params = cursor_value.get("params", {})
             spatial_wkt = cursor_value.get("spatial")
+
+            normalized_search = {k: v for k, v in search_params.items() if v}
+            for k, v in normalized_search.items():
+                if isinstance(v, list):
+                    normalized_search[k] = sorted(v)
+
+            normalized_cursor = {k: v for k, v in cursor_params.items() if v}
+            for k, v in normalized_cursor.items():
+                if isinstance(v, list):
+                    normalized_cursor[k] = sorted(v)
+
+            if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
+                return GetGranulesOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
+                    next_cursor=None,
+                ).model_dump()
+
+            search_params = cursor_value.get("params", {})
             if spatial_wkt:
                 files = build_spatial_files(spatial_wkt)
                 method = "POST"
         else:
-            search_params: dict[str, object] = {
-                "collection_concept_id": params.collection_concept_id
-            }
-
-            temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
-            if temporal:
-                search_params["temporal"] = temporal
-
-            cloud_cover = format_cloud_cover_range(params.cloud_cover_min, params.cloud_cover_max)
-            if cloud_cover:
-                search_params["cloud_cover"] = cloud_cover
-
-            if params.day_night_flag:
-                search_params["day_night_flag"] = params.day_night_flag
-            if params.sort_key:
-                search_params["sort_key"] = params.sort_key
-
             files = build_spatial_files(params.spatial_wkt_geometry)
             method = "POST" if files else "GET"
         page = next(

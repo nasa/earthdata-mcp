@@ -76,11 +76,37 @@ def get_citations(  # pylint: disable=too-many-return-statements
     search_after = None
     search_params = None  # sentinel: None means "must build via Phase 1"
 
+    # Build input representation for cursor comparison
+    current_inputs = {
+        "collection_concept_id": params.collection_concept_id,
+        "identifier": params.identifier,
+        "provider": params.provider,
+    }
+
     if params.cursor:
         try:
             cursor_value = resolve_cursor(params.cursor, "cmr")
             search_after = cursor_value.get("token")
             search_params = cursor_value.get("params", {})
+            cursor_inputs = cursor_value.get("inputs", {})
+
+            # Compare inputs instead of search_params to avoid slow Phase 1 on page 2
+            normalized_search = {k: v for k, v in current_inputs.items() if v}
+            for k, v in normalized_search.items():
+                if isinstance(v, list):
+                    normalized_search[k] = sorted(v)
+
+            normalized_cursor = {k: v for k, v in cursor_inputs.items() if v}
+            for k, v in normalized_cursor.items():
+                if isinstance(v, list):
+                    normalized_cursor[k] = sorted(v)
+
+            if normalized_search != normalized_cursor:
+                return GetCitationsOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
+                    next_cursor=None,
+                ).model_dump()
         except ValueError as exc:
             return GetCitationsOutput(
                 status=SearchStatus.ERROR,
@@ -165,7 +191,11 @@ def get_citations(  # pylint: disable=too-many-return-statements
         return GetCitationsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
 
     citations = [normalize_citation_item(item) for item in citation_page.items]
-    cursor_payload = {"token": citation_page.search_after, "params": search_params}
+    cursor_payload = {
+        "token": citation_page.search_after,
+        "params": search_params,
+        "inputs": current_inputs,
+    }
     next_cursor = (
         encode_cursor("cmr", cursor_payload)
         if citation_page.search_after and len(citation_page.items) == params.limit

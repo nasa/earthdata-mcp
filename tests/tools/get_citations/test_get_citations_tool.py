@@ -242,7 +242,14 @@ def test_get_citations_cursor_advances_page(mock_search_cmr: MagicMock) -> None:
     """A valid cursor causes Phase 1 to be skipped and Phase 2 to receive search_after."""
     tool = _load_tool()
 
-    cursor = encode_cursor("cmr", {"token": "tok-xyz", "params": {"concept_id[]": ["CIT1-PROV"]}})
+    cursor = encode_cursor(
+        "cmr",
+        {
+            "token": "tok-xyz",
+            "params": {"concept_id[]": ["CIT1-PROV"]},
+            "inputs": {"collection_concept_id": "C123-PROV"},
+        },
+    )
 
     mock_search_cmr.side_effect = [iter([_citation_page()])]
 
@@ -328,18 +335,21 @@ def test_get_citations_old_format_cursor_returns_error(mock_search_cmr: MagicMoc
     assert "outdated" in res["error_message"].lower()
 
 
-def test_get_citations_cursor_ignores_changed_params(mock_search_cmr: MagicMock) -> None:
-    """When cursor is present, stored params are used and incoming params ignored."""
-    tool = _load_tool()
-    mock_search_cmr.side_effect = [iter([_citation_page()])]
+def test_get_citations_cursor_override():
+    """Ensure changing query parameters on page 2 rejects the cursor."""
+    from tools.get_citations.tool import get_citations
 
     cursor = encode_cursor(
-        "cmr", {"token": "tok-abc", "params": {"identifier": "10.original/test"}}
+        "cmr",
+        {
+            "token": "tok-abc",
+            "params": {"identifier": "10.original/test"},
+            "inputs": {"identifier": "10.original/test"},
+        },
     )
-    tool.get_citations(identifier="10.changed/test", cursor=cursor)
-
-    call1 = mock_search_cmr.call_args_list[0]
-    assert call1.kwargs["search_params"].get("identifier") == "10.original/test"
+    res = get_citations(identifier="10.changed/test", cursor=cursor)
+    assert res["status"] == "error"
+    assert "query-scoped" in res["error_message"]
 
 
 def test_get_citations_phase1_skipped_on_page2(mock_search_cmr: MagicMock) -> None:
@@ -347,7 +357,14 @@ def test_get_citations_phase1_skipped_on_page2(mock_search_cmr: MagicMock) -> No
     tool = _load_tool()
     mock_search_cmr.side_effect = [iter([_citation_page()])]
 
-    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["CIT1-PROV"]}})
+    cursor = encode_cursor(
+        "cmr",
+        {
+            "token": "tok-abc",
+            "params": {"concept_id[]": ["CIT1-PROV"]},
+            "inputs": {"collection_concept_id": "C123-PROV"},
+        },
+    )
     tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
 
     assert mock_search_cmr.call_count == 1
@@ -359,7 +376,14 @@ def test_get_citations_total_hits_on_page2(mock_search_cmr: MagicMock) -> None:
     tool = _load_tool()
     mock_search_cmr.side_effect = [iter([_citation_page(total_hits=42)])]
 
-    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"concept_id[]": ["CIT1-PROV"]}})
+    cursor = encode_cursor(
+        "cmr",
+        {
+            "token": "tok-abc",
+            "params": {"concept_id[]": ["CIT1-PROV"]},
+            "inputs": {"collection_concept_id": "C123-PROV"},
+        },
+    )
     res = tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
 
     assert res["total_hits"] == 42

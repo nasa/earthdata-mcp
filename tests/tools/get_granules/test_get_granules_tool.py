@@ -556,19 +556,9 @@ def test_get_granules_old_format_cursor_returns_error(monkeypatch):
     assert "outdated" in output["error_message"].lower()
 
 
-def test_get_granules_cursor_ignores_changed_params(monkeypatch):
-    """When a cursor is present, incoming search params must be ignored in favor of cursor params."""
+def test_get_granules_cursor_override():
+    from tools.get_granules.tool import get_granules
     from util.pagination import encode_cursor
-
-    tool = _load_tool()
-    captured = {}
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
-
-    def fake_search_cmr(**kwargs):
-        captured.update(kwargs)
-        yield page
-
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
     cursor = encode_cursor(
         "cmr",
@@ -577,11 +567,11 @@ def test_get_granules_cursor_ignores_changed_params(monkeypatch):
             "params": {"collection_concept_id": "C1-PROV", "temporal": "2024-01-01,2024-01-31"},
         },
     )
-    tool.get_granules(
+    res = get_granules(
         collection_concept_id="C1-PROV", temporal_start_date="2025-01-01T00:00:00Z", cursor=cursor
     )
-
-    assert captured["search_params"].get("temporal") == "2024-01-01,2024-01-31"
+    assert res["status"] == "error"
+    assert "query-scoped" in res["error_message"]
 
 
 def test_get_granules_validation_error():
@@ -605,13 +595,16 @@ def test_get_granules_cursor_post():
     from unittest.mock import patch
 
     from tools.get_granules.tool import get_granules
+    from util.cmr.client import CMRSearchResponse
     from util.pagination import encode_cursor
 
-    # Cursor that uses spatial, should trigger POST branch lines 124-125
     c = encode_cursor(
         "cmr",
         {"token": "x", "spatial": "POINT(0 0)", "params": {"collection_concept_id": "C1-PROV"}},
     )
     with patch("tools.get_granules.tool.search_cmr") as mock_search:
-        get_granules(collection_concept_id="C1-PROV", cursor=c)
+        mock_search.return_value = iter(
+            [CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)]
+        )
+        get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="POINT(0 0)", cursor=c)
         mock_search.assert_called_once()
