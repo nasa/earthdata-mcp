@@ -154,15 +154,23 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
 
     platforms: list[str] = []
     instruments: list[str] = []
-    for platform in umm.get("Platforms") or []:
-        platform_name = platform.get("ShortName")
-        if platform_name:
-            platforms.append(platform_name)
+    umm_platforms = umm.get("Platforms")
+    if isinstance(umm_platforms, list):
+        for platform in umm_platforms:
+            if not isinstance(platform, dict):
+                continue
+            platform_name = platform.get("ShortName")
+            if platform_name:
+                platforms.append(platform_name)
 
-        for instrument in platform.get("Instruments") or []:
-            instrument_name = instrument.get("ShortName")
-            if instrument_name:
-                instruments.append(instrument_name)
+            umm_instruments = platform.get("Instruments")
+            if isinstance(umm_instruments, list):
+                for instrument in umm_instruments:
+                    if not isinstance(instrument, dict):
+                        continue
+                    instrument_name = instrument.get("ShortName")
+                    if instrument_name:
+                        instruments.append(instrument_name)
 
     version = umm.get("Version")
 
@@ -180,6 +188,10 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
         for url_item in related_list
         if isinstance(url_item, dict) and url_item.get("URL")
     ]
+
+    science_keywords = umm.get("ScienceKeywords")
+    if not isinstance(science_keywords, list):
+        science_keywords = []
 
     return {
         "concept_id": concept_id,
@@ -204,7 +216,7 @@ def normalize_collection_item(item: dict[str, Any]) -> dict[str, Any]:
         "temporal_resolution": _extract_collection_temporal_resolution(umm),
         "spatial_resolution": _extract_collection_spatial_resolution(umm),
         "related_urls": related_urls,
-        "science_keywords": umm.get("ScienceKeywords") or [],
+        "science_keywords": science_keywords,
         "bounding_box": _extract_granule_bounding_box(umm),
         "data_centers": _extract_collection_data_centers(umm),
         "archive_and_distribution_information": _extract_collection_archive_info(umm),
@@ -258,7 +270,9 @@ def normalize_granule_item(item: dict[str, Any]) -> dict[str, Any]:
 
 def extract_granule_temporal_extent(umm: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
     """Extract temporal bounds from common UMM-G temporal shapes."""
-    temporal_extent = umm.get("TemporalExtent") or {}
+    temporal_extent = umm.get("TemporalExtent")
+    if not isinstance(temporal_extent, dict):
+        temporal_extent = {}
 
     range_date_time = temporal_extent.get("RangeDateTime")
     if isinstance(range_date_time, dict):
@@ -267,10 +281,14 @@ def extract_granule_temporal_extent(umm: dict[str, Any]) -> tuple[datetime | Non
             parse_iso_datetime(range_date_time.get("EndingDateTime", "")),
         )
 
-    range_date_times = temporal_extent.get("RangeDateTimes") or []
+    range_date_times = temporal_extent.get("RangeDateTimes")
+    if not isinstance(range_date_times, list):
+        range_date_times = []
     starts: list[datetime] = []
     ends: list[datetime] = []
     for range_item in range_date_times:
+        if not isinstance(range_item, dict):
+            continue
         if begin := parse_iso_datetime(range_item.get("BeginningDateTime", "")):
             starts.append(begin)
         if end := parse_iso_datetime(range_item.get("EndingDateTime", "")):
@@ -283,7 +301,11 @@ def extract_access_urls(umm: dict[str, Any]) -> list[str]:
     """Extract actionable URLs from OnlineAccessURLs and RelatedUrls."""
     urls: list[str] = []
 
-    for entry in umm.get("OnlineAccessURLs") or []:
+    online_access_urls = umm.get("OnlineAccessURLs")
+    if not isinstance(online_access_urls, list):
+        online_access_urls = []
+
+    for entry in online_access_urls:
         if isinstance(entry, str):
             urls.append(entry)
         elif isinstance(entry, dict):
@@ -291,7 +313,11 @@ def extract_access_urls(umm: dict[str, Any]) -> list[str]:
             if url:
                 urls.append(url)
 
-    for entry in umm.get("RelatedUrls") or []:
+    related_urls = umm.get("RelatedUrls")
+    if not isinstance(related_urls, list):
+        related_urls = []
+
+    for entry in related_urls:
         if not isinstance(entry, dict):
             continue
 

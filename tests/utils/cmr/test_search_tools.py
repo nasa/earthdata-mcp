@@ -344,6 +344,8 @@ def test_normalize_collection_item_invalid_types():
             "DOI": "doi",  # Not dict
             "ScienceKeywords": "invalid",
             "RelatedUrls": "invalid",
+            "Platforms": {"invalid": "dict"},
+            "Projects": "invalid",
         },
     }
     with patch("util.cmr.search_tools.extract_temporal_extent", return_value=(None, None, False)):
@@ -351,6 +353,7 @@ def test_normalize_collection_item_invalid_types():
         assert res["processing_level_id"] is None
         assert res["doi"] is None
         assert res["related_urls"] == []
+        assert res["platforms"] == []
 
 
 def test_normalize_granule_item_invalid_types():
@@ -360,6 +363,7 @@ def test_normalize_granule_item_invalid_types():
         "umm": {
             "DataGranule": "invalid",  # not dict
             "ParentCollection": "invalid",
+            "RelatedUrls": "invalid",
         },
     }
     with (
@@ -369,6 +373,7 @@ def test_normalize_granule_item_invalid_types():
         res = normalize_granule_item(item)
         assert res["day_night_flag"] is None
         assert res["production_date"] is None
+        assert res["access_urls"] == []
 
 
 def test_extract_access_urls_invalid_types():
@@ -574,3 +579,54 @@ def test_extract_collection_spatial_resolution_list():
         }
     }
     assert _extract_collection_spatial_resolution(umm) is None
+
+
+def test_normalize_item_fuzzing():
+    """Test fuzzing list extractions."""
+    item_platforms_dict = {"meta": {"concept-id": "C1"}, "umm": {"Platforms": {"invalid": "dict"}}}
+    with patch("util.cmr.search_tools.extract_temporal_extent", return_value=(None, None, False)):
+        res = normalize_collection_item(item_platforms_dict)
+        assert res["platforms"] == []
+
+    item_instruments_dict = {
+        "meta": {"concept-id": "C1"},
+        "umm": {"Platforms": [{"ShortName": "P1", "Instruments": {"invalid": "dict"}}]},
+    }
+    with patch("util.cmr.search_tools.extract_temporal_extent", return_value=(None, None, False)):
+        res = normalize_collection_item(item_instruments_dict)
+        assert res["instruments"] == []
+
+    item_urls_string = {
+        "meta": {"concept-id": "G1"},
+        "umm": {"OnlineAccessURLs": "string", "DataGranule": {}},
+    }
+    with (
+        patch("util.cmr.search_tools.extract_granule_temporal_extent", return_value=(None, None)),
+        patch("util.cmr.search_tools._extract_granule_archive_info", return_value=(None, None)),
+    ):
+        res = normalize_granule_item(item_urls_string)
+        assert res["access_urls"] == []
+
+    item_related_string = {"meta": {"concept-id": "C1"}, "umm": {"RelatedUrls": "string"}}
+    with patch("util.cmr.search_tools.extract_temporal_extent", return_value=(None, None, False)):
+        res = normalize_collection_item(item_related_string)
+        assert res["related_urls"] == []
+
+    item_science_keywords_string = {
+        "meta": {"concept-id": "C1"},
+        "umm": {"ScienceKeywords": "string"},
+    }
+    with patch("util.cmr.search_tools.extract_temporal_extent", return_value=(None, None, False)):
+        res = normalize_collection_item(item_science_keywords_string)
+        assert res["science_keywords"] == []
+
+    item_range_date_times_string = {
+        "meta": {"concept-id": "G1"},
+        "umm": {"TemporalExtent": {"RangeDateTimes": "string"}, "DataGranule": {}},
+    }
+    with (
+        patch("util.cmr.search_tools.extract_granule_temporal_extent", return_value=(None, None)),
+        patch("util.cmr.search_tools._extract_granule_archive_info", return_value=(None, None)),
+    ):
+        res = normalize_granule_item(item_range_date_times_string)
+        assert res["time_start"] is None
