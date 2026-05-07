@@ -570,31 +570,20 @@ def test_get_collections_old_format_cursor_returns_error(monkeypatch):
     assert "outdated" in output["error_message"].lower()
 
 
-def test_get_collections_cursor_ignores_changed_params(monkeypatch):
-    """When a cursor is present, incoming search params must be ignored in favor of cursor params."""
+def test_get_collections_cursor_override():
+    from tools.get_collections.tool import get_collections
     from util.pagination import encode_cursor
 
-    tool = _load_tool()
-    captured = {}
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
-
-    def fake_search_cmr(**kwargs):
-        captured.update(kwargs)
-        yield page
-
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
-
     cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
-    tool.get_collections(keyword="changed", cursor=cursor)
-
-    assert captured["search_params"].get("keyword") == "original"
+    res = get_collections(keyword="changed", cursor=cursor)
+    assert res["status"] == "error"
+    assert "query-scoped" in res["error_message"]
 
 
 def test_get_collections_validation_error():
     from tools.get_collections.tool import get_collections
 
-    # Pass an invalid field configuration to trigger ValueError/TypeError in GetCollectionsInput
-    res = get_collections(keyword="", limit=100)  # limit=100 triggers validation error
+    res = get_collections(keyword="", limit=100)
     assert res["status"] == "error"
 
 
@@ -612,8 +601,28 @@ def test_get_collections_cursor_post():
     from tools.get_collections.tool import get_collections
     from util.pagination import encode_cursor
 
-    # Cursor that uses spatial, should trigger POST branch lines 133-134
     c = encode_cursor("cmr", {"token": "x", "spatial": "POINT(0 0)", "params": {}})
     with patch("tools.get_collections.tool.search_cmr") as mock_search:
-        get_collections(cursor=c)
+        get_collections(cursor=c, spatial_wkt_geometry="POINT(0 0)")
         mock_search.assert_called_once()
+
+
+def test_get_collections_safe_exception_surfacing(monkeypatch):
+    from tools.get_collections.tool import get_collections
+
+    def fake_search_value_error(*args, **kwargs):
+        raise ValueError("Safe validation error")
+
+    monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_value_error)
+    output = get_collections(keyword="modis")
+    assert output["status"] == "error"
+    assert "Safe validation error" in output["error_message"]
+
+    def fake_search_generic_error(*args, **kwargs):
+        raise Exception("Leaked internal DB secret")
+
+    monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_generic_error)
+    output = get_collections(keyword="modis")
+    assert output["status"] == "error"
+    assert "Leaked internal DB secret" not in output["error_message"]
+    assert "unexpected internal error" in output["error_message"].lower()

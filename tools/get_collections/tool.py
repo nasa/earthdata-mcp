@@ -117,40 +117,61 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
             fields=fields or [],
         )
 
+        search_params: dict[str, object] = {}
+        if params.keyword:
+            search_params["keyword"] = params.keyword
+        if params.concept_id:
+            search_params["concept_id"] = params.concept_id
+        if params.short_name:
+            search_params["short_name"] = params.short_name
+        if params.provider:
+            search_params["provider"] = params.provider
+        if params.platform:
+            search_params["platform[]"] = params.platform
+        if params.instrument:
+            search_params["instrument[]"] = params.instrument
+        if params.processing_level_id:
+            search_params["processing_level_id[]"] = params.processing_level_id
+        if params.has_granules is not None:
+            search_params["has_granules"] = params.has_granules
+
+        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+        if temporal:
+            search_params["temporal"] = temporal
+
         search_after = None
         files = None
         method = "GET"
         if params.cursor:
             cursor_value = resolve_cursor(params.cursor, "cmr")
             search_after = cursor_value.get("token")
-            search_params = cursor_value.get("params", {})
+            cursor_params = cursor_value.get("params", {})
             spatial_wkt = cursor_value.get("spatial")
+
+            normalized_search = {k: v for k, v in search_params.items() if v}
+            for k, v in normalized_search.items():
+                if isinstance(v, list):
+                    normalized_search[k] = sorted(v)
+
+            normalized_cursor = {k: v for k, v in cursor_params.items() if v}
+            for k, v in normalized_cursor.items():
+                if isinstance(v, list):
+                    normalized_cursor[k] = sorted(v)
+
+            if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
+                return GetCollectionsOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
+                    next_cursor=None,
+                ).model_dump()
+
             if spatial_wkt:
                 files = build_spatial_files(spatial_wkt)
                 method = "POST"
+
+            # replace current params with original ones used in the cursor
+            search_params = cursor_value.get("params", {})
         else:
-            search_params: dict[str, object] = {}
-            if params.keyword:
-                search_params["keyword"] = params.keyword
-            if params.concept_id:
-                search_params["concept_id"] = params.concept_id
-            if params.short_name:
-                search_params["short_name"] = params.short_name
-            if params.provider:
-                search_params["provider"] = params.provider
-            if params.platform:
-                search_params["platform[]"] = params.platform
-            if params.instrument:
-                search_params["instrument[]"] = params.instrument
-            if params.processing_level_id:
-                search_params["processing_level_id[]"] = params.processing_level_id
-            if params.has_granules is not None:
-                search_params["has_granules"] = params.has_granules
-
-            temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
-            if temporal:
-                search_params["temporal"] = temporal
-
             files = build_spatial_files(params.spatial_wkt_geometry)
             method = "POST" if files else "GET"
         page = next(
