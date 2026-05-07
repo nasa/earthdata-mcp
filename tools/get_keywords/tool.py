@@ -21,7 +21,7 @@ _MANDATORY_FIELDS = frozenset({"uuid"})
 
 
 @observe(name="get_keywords")
-def get_keywords(
+def get_keywords(  # pylint: disable=too-many-return-statements
     query: str,
     scheme: str | None = None,
     limit: LimitParam = 10,
@@ -94,6 +94,15 @@ def get_keywords(
             total_hits=0,
             next_cursor=None,
             error_message=f"Failed to communicate with KMS API: {exc}",
+            keywords=[],
+        ).model_dump()
+    except (ValueError, TypeError) as exc:
+        logger.warning("KMS keyword fetch failed: %s", exc)
+        return GetKeywordsOutput(
+            status=SearchStatus.ERROR,
+            total_hits=0,
+            next_cursor=None,
+            error_message=str(exc),
             keywords=[],
         ).model_dump()
     except Exception as exc:  # pylint: disable=broad-exception-caught
