@@ -511,7 +511,12 @@ def test_get_variables_pagination_second_page(monkeypatch):
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     cursor = encode_cursor(
-        "cmr", {"token": "tok-v1", "params": {"concept_id[]": ["V1-PROV", "V2-PROV", "V3-PROV"]}}
+        "cmr",
+        {
+            "token": "tok-v1",
+            "params": {"concept_id[]": ["V1-PROV", "V2-PROV", "V3-PROV"]},
+            "inputs": {"collection_concept_id": "C99999-PROV"},
+        },
     )
     result = tool.get_variables(collection_concept_id="C99999-PROV", cursor=cursor, limit=2)
 
@@ -607,7 +612,6 @@ def test_get_variables_cursor_ignores_changed_params(monkeypatch):
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     cursor = encode_cursor("cmr", {"token": "tok-v1", "params": {"keyword": "original"}})
-    tool.get_variables(keyword="changed", cursor=cursor)
-
-    assert len(captured) == 1
-    assert captured[0]["search_params"].get("keyword") == "original"
+    output = tool.get_variables(keyword="changed", cursor=cursor)
+    assert output["status"] == "error"
+    assert "query-scoped" in output["error_message"].lower()

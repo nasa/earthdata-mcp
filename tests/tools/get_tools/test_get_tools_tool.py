@@ -308,7 +308,12 @@ class TestGetToolsPagination:
         """A cursor skips Phase 1 and forwards search_after to Phase 2 search_cmr."""
         tool = _load_tool()
         cursor = encode_cursor(
-            "cmr", {"token": "tok-xyz", "params": {"concept_id[]": ["TL1-PROV", "TL2-PROV"]}}
+            "cmr",
+            {
+                "token": "tok-xyz",
+                "params": {"concept_id[]": ["TL1-PROV", "TL2-PROV"]},
+                "inputs": {"collection_concept_id": "C1-PROV"},
+            },
         )
         captured = {}
 
@@ -368,7 +373,7 @@ class TestGetToolsPagination:
         assert output["next_cursor"] is None
         assert "outdated" in output["error_message"].lower()
 
-    def test_cursor_ignores_changed_params(self, monkeypatch):
+    def test_cursor_rejects_changed_params(self, monkeypatch):
         """When cursor is present, stored params are used and incoming params ignored."""
         tool = _load_tool()
         captured = {}
@@ -379,10 +384,17 @@ class TestGetToolsPagination:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
-        tool.get_tools(keyword="changed", cursor=cursor)
-
-        assert captured["tool"]["search_params"].get("keyword") == "original"
+        cursor = encode_cursor(
+            "cmr",
+            {
+                "token": "tok-abc",
+                "params": {"keyword": "original"},
+                "inputs": {"keyword": "original"},
+            },
+        )
+        output = tool.get_tools(keyword="changed", cursor=cursor)
+        assert output["status"] == "error"
+        assert "query-scoped" in output["error_message"].lower()
 
     def test_phase1_skipped_on_page2(self, monkeypatch):
         """Page 2 with cursor must not perform the Phase 1 collection lookup."""
@@ -396,7 +408,12 @@ class TestGetToolsPagination:
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
         cursor = encode_cursor(
-            "cmr", {"token": "tok-abc", "params": {"concept_id[]": ["TL1-PROV"]}}
+            "cmr",
+            {
+                "token": "tok-abc",
+                "params": {"concept_id[]": ["TL1-PROV"]},
+                "inputs": {"collection_concept_id": "C1-PROV"},
+            },
         )
         tool.get_tools(collection_concept_id="C1-PROV", cursor=cursor)
 

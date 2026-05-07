@@ -260,15 +260,16 @@ def test_get_keywords_old_format_cursor_returns_error(mock_search_kms_pattern: M
     assert "cursor" in result["error_message"].lower()
 
 
-def test_get_keywords_cursor_ignores_changed_params(mock_search_kms_pattern: MagicMock) -> None:
+def test_get_keywords_cursor_rejects_changed_params(mock_search_kms_pattern: MagicMock) -> None:
     """When cursor is present, search uses stored query/scheme, not incoming params."""
     tool = _load_tool()
     mock_search_kms_pattern.return_value = [_make_concept(0)]
 
     cursor = encode_cursor("kms", {"offset": 10, "query": "ORIGINAL", "scheme": "sciencekeywords"})
-    tool.get_keywords(query="CHANGED", scheme=None, limit=10, cursor=cursor)
+    output = tool.get_keywords(query="CHANGED", scheme=None, limit=10, cursor=cursor)
 
-    mock_search_kms_pattern.assert_called_once_with("ORIGINAL", "sciencekeywords")
+    assert output["status"] == "error"
+    assert "query-scoped" in output["error_message"].lower()
 
 
 def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:

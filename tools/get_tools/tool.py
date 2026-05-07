@@ -78,6 +78,24 @@ def get_tools(  # pylint: disable=too-many-return-statements
             cursor_value = resolve_cursor(params.cursor, "cmr")
             search_after = cursor_value.get("token")
             search_params = cursor_value.get("params", {})
+            cursor_inputs = cursor_value.get("inputs", {})
+
+            normalized_search = {k: v for k, v in current_inputs.items() if v}
+            for k, v in normalized_search.items():
+                if isinstance(v, list):
+                    normalized_search[k] = sorted(v)
+
+            normalized_cursor = {k: v for k, v in cursor_inputs.items() if v}
+            for k, v in normalized_cursor.items():
+                if isinstance(v, list):
+                    normalized_cursor[k] = sorted(v)
+
+            if normalized_search != normalized_cursor:
+                return GetToolsOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
+                    next_cursor=None,
+                ).model_dump()
         except ValueError as exc:
             return GetToolsOutput(
                 status=SearchStatus.ERROR,

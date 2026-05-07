@@ -58,22 +58,35 @@ class Check:
 
 
 @dataclass
-class Suite:
+class Group:
     name: str
     checks: list[Check] = field(default_factory=list)
+
+
+@dataclass
+class Suite:
+    name: str
+    groups: list[Group] = field(default_factory=lambda: [Group("General")])
     error: str = ""  # set when the whole suite fails to run
 
+    def group(self, name: str) -> None:
+        self.groups.append(Group(name))
+
     def ok(self, name: str) -> None:
-        self.checks.append(Check(name=name, passed=True))
+        self.groups[-1].checks.append(Check(name=name, passed=True))
 
     def fail(self, name: str, detail: str = "") -> None:
-        self.checks.append(Check(name=name, passed=False, detail=detail))
+        self.groups[-1].checks.append(Check(name=name, passed=False, detail=detail))
 
     def check(self, name: str, condition: bool, detail: str = "") -> bool:
-        self.checks.append(
+        self.groups[-1].checks.append(
             Check(name=name, passed=bool(condition), detail=detail if not condition else "")
         )
         return bool(condition)
+
+    @property
+    def checks(self) -> list[Check]:
+        return [c for g in self.groups for c in g.checks]
 
     @property
     def n_passed(self) -> int:
@@ -107,6 +120,7 @@ async def call(session: ClientSession, tool: str, **kwargs: Any) -> dict:
 async def suite_get_collections(session: ClientSession) -> Suite:
     s = Suite("get_collections")
 
+    s.group("Pagination — first page")
     # Pagination — first page
     r = await call(session, "get_collections", keyword="sea surface temperature", limit=3)
     if not s.check(
@@ -123,6 +137,7 @@ async def suite_get_collections(session: ClientSession) -> Suite:
     )
     s.check("total_hits > limit", r.get("total_hits", 0) > 3, f"total_hits={r.get('total_hits')}")
 
+    s.group("Pagination — cursor advances")
     # Pagination — cursor advances
     if r.get("next_cursor"):
         r2 = await call(
@@ -140,6 +155,7 @@ async def suite_get_collections(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    s.group("Cursor format: value must be a dict with token + params (self-describing)")
     # Cursor format: value must be a dict with token + params (self-describing)
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -163,26 +179,6 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         r_old.get("error_message", ""),
     )
 
-    # Self-describing cursor: changed keyword on page 2 must be ignored
-    if r.get("next_cursor"):
-        r2a = await call(
-            session,
-            "get_collections",
-            keyword="sea surface temperature",
-            limit=3,
-            cursor=r["next_cursor"],
-        )
-        r2b = await call(
-            session, "get_collections", keyword="vegetation", limit=3, cursor=r["next_cursor"]
-        )
-        ids_a = {c["concept_id"] for c in r2a.get("collections", [])}
-        ids_b = {c["concept_id"] for c in r2b.get("collections", [])}
-        s.check(
-            "self-describing cursor: changed keyword ignored on page 2",
-            bool(ids_a) and ids_a == ids_b,
-            f"a={ids_a}, b={ids_b}",
-        )
-
     # Cross-backend cursor rejected
     r_bad = await call(
         session,
@@ -195,6 +191,7 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("Fields filtering")
     # Fields filtering
     rf = await call(
         session,
@@ -212,6 +209,7 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "entry_title")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    s.group("New search parameters")
     # New search parameters
     rp = await call(session, "get_collections", keyword="vegetation", platform=["Terra"], limit=3)
     s.check(
@@ -229,6 +227,7 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         f"error: {rh.get('error_message')}",
     )
 
+    s.group("New response fields")
     # New response fields
     rn = await call(session, "get_collections", keyword="sea surface temperature", limit=1)
     if s.check(
@@ -244,6 +243,21 @@ async def suite_get_collections(session: ClientSession) -> Suite:
         ):
             s.check(f"response field '{fname}' present", fname in c)
 
+    if r.get("next_cursor"):
+        err = await call(
+            session,
+            "get_collections",
+            keyword="sea surface temperature",
+            short_name="OVERRIDE",
+            limit=3,
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
+
     return s
 
 
@@ -256,6 +270,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
         "temporal_end_date": "2024-01-31T23:59:59Z",
     }
 
+    s.group("Pagination — first page")
     # Pagination — first page
     r = await call(session, "get_granules", **base_args, limit=2)
     if not s.check(
@@ -267,6 +282,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
     s.check("limit=2 returns ≤2 items", len(granules) <= 2, f"got {len(granules)}")
     s.check("next_cursor present on full page", r.get("next_cursor") is not None)
 
+    s.group("Pagination — cursor advances")
     # Pagination — cursor advances
     if r.get("next_cursor"):
         r2 = await call(session, "get_granules", **base_args, limit=2, cursor=r["next_cursor"])
@@ -278,6 +294,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    s.group("Cursor format: value must be a dict with token + params")
     # Cursor format: value must be a dict with token + params
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -305,6 +322,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("Fields filtering")
     # Fields filtering
     rf = await call(session, "get_granules", **base_args, limit=2, fields=["granule_ur"])
     if s.check(
@@ -316,6 +334,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "granule_ur")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    s.group("New search parameters")
     # New search parameters
     rd = await call(session, "get_granules", **base_args, day_night_flag="DAY", limit=2)
     s.check(
@@ -331,11 +350,27 @@ async def suite_get_granules(session: ClientSession) -> Suite:
         f"error: {rs.get('error_message')}",
     )
 
+    s.group("New response fields (check on un-filtered first-page result)")
     # New response fields (check on un-filtered first-page result)
     if granules:
         g = granules[0]
         for fname in ("production_date", "orbit_info", "additional_attributes"):
             s.check(f"response field '{fname}' present", fname in g)
+
+    if r.get("next_cursor"):
+        err = await call(
+            session,
+            "get_granules",
+            collection_concept_id=COLLECTION_WITH_GRANULES,
+            limit=2,
+            temporal_start_date="2020-01-01T00:00:00Z",
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
 
     return s
 
@@ -343,6 +378,7 @@ async def suite_get_granules(session: ClientSession) -> Suite:
 async def suite_get_keywords(session: ClientSession) -> Suite:
     s = Suite("get_keywords")
 
+    s.group("Pagination — first page")
     # Pagination — first page
     r = await call(session, "get_keywords", query="temperature", limit=3)
     if not s.check(
@@ -359,6 +395,7 @@ async def suite_get_keywords(session: ClientSession) -> Suite:
     )
     s.check("next_cursor present when total_hits > limit", r.get("next_cursor") is not None)
 
+    s.group("Pagination — cursor advances, total_hits stable")
     # Pagination — cursor advances, total_hits stable
     if r.get("next_cursor"):
         r2 = await call(
@@ -377,6 +414,7 @@ async def suite_get_keywords(session: ClientSession) -> Suite:
             f"page1={r.get('total_hits')}, page2={r2.get('total_hits')}",
         )
 
+    s.group("KMS cursor format: value must be a dict with offset/query/scheme")
     # KMS cursor format: value must be a dict with offset/query/scheme
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -399,20 +437,6 @@ async def suite_get_keywords(session: ClientSession) -> Suite:
     )
 
     # Self-describing cursor: changed query on page 2 must be ignored
-    if r.get("next_cursor"):
-        r2a = await call(
-            session, "get_keywords", query="temperature", limit=3, cursor=r["next_cursor"]
-        )
-        r2b = await call(
-            session, "get_keywords", query="precipitation", limit=3, cursor=r["next_cursor"]
-        )
-        labels_a = {kw["prefLabel"] for kw in r2a.get("keywords", [])}
-        labels_b = {kw["prefLabel"] for kw in r2b.get("keywords", [])}
-        s.check(
-            "self-describing cursor: changed KMS query ignored on page 2",
-            bool(labels_a) and labels_a == labels_b,
-            f"a={labels_a}, b={labels_b}",
-        )
 
     # Cross-backend cursor rejected (keywords uses "kms"; send a "cmr" cursor)
     r_bad = await call(
@@ -423,12 +447,28 @@ async def suite_get_keywords(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    if r.get("next_cursor"):
+        err = await call(
+            session,
+            "get_keywords",
+            query="temperature",
+            scheme="instruments",
+            limit=2,
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
+
     return s
 
 
 async def suite_get_citations(session: ClientSession) -> Suite:
     s = Suite("get_citations")
 
+    s.group("Collection flow — first page")
     # Collection flow — first page
     r = await call(
         session, "get_citations", collection_concept_id=COLLECTION_WITH_CITATIONS, limit=5
@@ -445,6 +485,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
     s.check("total_hits > 0", r.get("total_hits", 0) > 0, f"total_hits={r.get('total_hits')}")
     s.check("next_cursor present (collection has >5 citations)", r.get("next_cursor") is not None)
 
+    s.group("Pagination — cursor advances")
     # Pagination — cursor advances
     if r.get("next_cursor"):
         r2 = await call(
@@ -462,6 +503,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    s.group("Cursor format: value must be dict with token + params")
     # Cursor format: value must be dict with token + params
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -472,6 +514,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
         s.check("cursor value has 'token' key", isinstance(cv, dict) and "token" in cv)
         s.check("cursor value has 'params' key", isinstance(cv, dict) and "params" in cv)
 
+    s.group("total_hits consistent on page 2 (Phase 1 skipped should not zero out total_hits)")
     # total_hits consistent on page 2 (Phase 1 skipped should not zero out total_hits)
     if r.get("next_cursor"):
         r2 = await call(
@@ -512,6 +555,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("Fields filtering (new in Phase 6)")
     # Fields filtering (new in Phase 6)
     rf = await call(
         session,
@@ -529,6 +573,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "name")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    s.group("Provider filter (new in Phase 6)")
     # Provider filter (new in Phase 6)
     rp = await call(
         session,
@@ -547,6 +592,7 @@ async def suite_get_citations(session: ClientSession) -> Suite:
     ):
         s.check("provider filter returns citations", len(rp.get("citations", [])) > 0)
 
+    s.group("Identifier flow")
     # Identifier flow
     if citations:
         doi = citations[0].get("identifier")
@@ -558,12 +604,28 @@ async def suite_get_citations(session: ClientSession) -> Suite:
                 f"error: {ri.get('error_message')}",
             )
 
+    if r.get("next_cursor"):
+        err = await call(
+            session,
+            "get_citations",
+            collection_concept_id=COLLECTION_WITH_CITATIONS,
+            provider="OVERRIDE",
+            limit=2,
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
+
     return s
 
 
 async def suite_get_services(session: ClientSession) -> Suite:
     s = Suite("get_services")
 
+    s.group("Keyword-only discovery (no collection_concept_id)")
     # Keyword-only discovery (no collection_concept_id)
     r = await call(session, "get_services", keyword="OPeNDAP", limit=3)
     if not s.check(
@@ -577,6 +639,7 @@ async def suite_get_services(session: ClientSession) -> Suite:
     s.check("keyword-only: returns ≤3 items", len(services) <= 3, f"got {len(services)}")
     s.check("next_cursor present", r.get("next_cursor") is not None)
 
+    s.group("Pagination — cursor advances")
     # Pagination — cursor advances
     if r.get("next_cursor"):
         r2 = await call(
@@ -590,6 +653,7 @@ async def suite_get_services(session: ClientSession) -> Suite:
             f"overlap: {ids1 & ids2}",
         )
 
+    s.group("Cursor format: value must be dict with token + params")
     # Cursor format: value must be dict with token + params
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -617,6 +681,7 @@ async def suite_get_services(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("Type-only discovery")
     # Type-only discovery
     rt = await call(session, "get_services", type="OPeNDAP", limit=3)
     s.check(
@@ -625,10 +690,12 @@ async def suite_get_services(session: ClientSession) -> Suite:
         f"error: {rt.get('error_message')}",
     )
 
+    s.group("No-args validation")
     # No-args validation
     r_none = await call(session, "get_services")
     s.check("no-args returns validation error", r_none["status"] == "error")
 
+    s.group("Fields filtering")
     # Fields filtering
     rf = await call(session, "get_services", keyword="OPeNDAP", limit=3, fields=["name", "url"])
     if s.check(
@@ -641,11 +708,27 @@ async def suite_get_services(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "name", "url")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    s.group("New response fields (new in Phase 4)")
     # New response fields (new in Phase 4)
     if services:
         svc = services[0]
         s.check("response field 'service_keywords' present", "service_keywords" in svc)
         s.check("response field 'service_organizations' present", "service_organizations" in svc)
+
+    if r.get("next_cursor"):
+        err = await call(
+            session,
+            "get_services",
+            collection_concept_id=COLLECTION_WITH_GRANULES,
+            keyword="OVERRIDE",
+            limit=2,
+            cursor=r["next_cursor"],
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
 
     return s
 
@@ -654,8 +737,10 @@ async def suite_get_tools(session: ClientSession) -> Suite:
     s = Suite("get_tools")
 
     # NOTE: CMR's tools endpoint does NOT support a `type` parameter (unlike services).
+    s.group("All discovery tests use `keyword` instead.")
     # All discovery tests use `keyword` instead.
 
+    s.group("Keyword-only discovery — first page")
     # Keyword-only discovery — first page
     r = await call(session, "get_tools", keyword="Giovanni", limit=3)
     if not s.check(
@@ -668,6 +753,7 @@ async def suite_get_tools(session: ClientSession) -> Suite:
     tools = r["tools"]
     s.check("keyword-only: returns ≤3 items", len(tools) <= 3, f"got {len(tools)}")
 
+    s.group("Pagination — cursor advances (use a broader keyword to get enough results)")
     # Pagination — cursor advances (use a broader keyword to get enough results)
     r_broad = await call(session, "get_tools", keyword="data", limit=3)
     if r_broad.get("next_cursor"):
@@ -684,6 +770,7 @@ async def suite_get_tools(session: ClientSession) -> Suite:
     else:
         s.check("next_cursor present or result set small", r_broad.get("total_hits", 0) <= 3)
 
+    s.group("Cursor format: value must be dict with token + params")
     # Cursor format: value must be dict with token + params
     if s.check(
         "next_cursor present for cursor format test", r_broad.get("next_cursor") is not None
@@ -713,10 +800,12 @@ async def suite_get_tools(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("No-args validation")
     # No-args validation
     r_none = await call(session, "get_tools")
     s.check("no-args returns validation error", r_none["status"] == "error")
 
+    s.group("Fields filtering (new in Phase 4 cleanup)")
     # Fields filtering (new in Phase 4 cleanup)
     rf = await call(session, "get_tools", keyword="Giovanni", limit=3, fields=["name"])
     if s.check(
@@ -728,12 +817,23 @@ async def suite_get_tools(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "name")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    if r_broad.get("next_cursor"):
+        err = await call(
+            session, "get_tools", keyword="OVERRIDE", limit=2, cursor=r_broad["next_cursor"]
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
+
     return s
 
 
 async def suite_get_variables(session: ClientSession) -> Suite:
     s = Suite("get_variables")
 
+    s.group("Keyword search — first page")
     # Keyword search — first page
     r = await call(session, "get_variables", keyword="sea_surface_temperature", limit=3)
     if not s.check(
@@ -746,6 +846,7 @@ async def suite_get_variables(session: ClientSession) -> Suite:
     variables = r["variables"]
     s.check("limit=3 returns ≤3 items", len(variables) <= 3, f"got {len(variables)}")
 
+    s.group("Pagination — cursor advances when more exist")
     # Pagination — cursor advances when more exist
     if r.get("next_cursor"):
         r2 = await call(
@@ -769,6 +870,7 @@ async def suite_get_variables(session: ClientSession) -> Suite:
             f"total_hits={r.get('total_hits')} but no cursor",
         )
 
+    s.group("Cursor format: value must be dict with token + params")
     # Cursor format: value must be dict with token + params
     if r.get("next_cursor"):
         parsed = decode_cursor(r["next_cursor"])
@@ -801,6 +903,7 @@ async def suite_get_variables(session: ClientSession) -> Suite:
         r_bad["status"] == "error" and "cursor" in r_bad.get("error_message", "").lower(),
     )
 
+    s.group("Fields filtering (new in Phase 4 cleanup)")
     # Fields filtering (new in Phase 4 cleanup)
     rf = await call(
         session, "get_variables", keyword="sea_surface_temperature", limit=3, fields=["long_name"]
@@ -814,6 +917,7 @@ async def suite_get_variables(session: ClientSession) -> Suite:
         extra = [k for k in item if k not in ("concept_id", "name", "long_name")]
         s.check("fields: unrequested keys absent", not extra, f"unexpected keys: {extra}")
 
+    s.group("Collection flow")
     # Collection flow
     rc = await call(
         session, "get_variables", collection_concept_id=COLLECTION_WITH_GRANULES, limit=3
@@ -822,9 +926,20 @@ async def suite_get_variables(session: ClientSession) -> Suite:
         "collection flow: no error", rc["status"] != "error", f"error: {rc.get('error_message')}"
     )
 
+    s.group("No-args validation")
     # No-args validation
     r_none = await call(session, "get_variables")
     s.check("no-args returns validation error", r_none["status"] == "error")
+
+    if r.get("next_cursor"):
+        err = await call(
+            session, "get_variables", keyword="OVERRIDE", limit=2, cursor=r["next_cursor"]
+        )
+        s.check(
+            "rejects cursor override",
+            err.get("status") == "error" and "query-scoped" in err.get("error_message", ""),
+            f"got: {err}",
+        )
 
     return s
 

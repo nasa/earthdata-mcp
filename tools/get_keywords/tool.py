@@ -74,8 +74,21 @@ def get_keywords(  # pylint: disable=too-many-return-statements
         try:
             cursor_value = resolve_cursor(params.cursor, "kms")
             offset = cursor_value.get("offset", 0)
-            query = cursor_value.get("query", params.query)
-            scheme = cursor_value.get("scheme")
+            cursor_query = cursor_value.get("query")
+            cursor_scheme = cursor_value.get("scheme")
+
+            if (cursor_query and cursor_query != params.query) or (cursor_scheme != params.scheme):
+                return GetKeywordsOutput(
+                    status=SearchStatus.ERROR,
+                    total_hits=0,
+                    next_cursor=None,
+                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
+                    keywords=[],
+                ).model_dump()
+
+            query = cursor_query or params.query
+            scheme = cursor_scheme or params.scheme
+
         except ValueError as exc:
             return GetKeywordsOutput(
                 status=SearchStatus.ERROR,
