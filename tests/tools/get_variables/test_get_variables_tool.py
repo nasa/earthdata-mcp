@@ -202,6 +202,29 @@ def test_get_variables_success_collection_and_keyword(monkeypatch):
     }
 
 
+def test_get_variables_collection_and_keyword_empty_associations(monkeypatch):
+    """Test get_variables when both collection and keyword are provided, but collection has no variables."""
+    tool = _load_tool()
+
+    page = CMRSearchResponse(
+        items=[{"meta": {"concept-id": "C99999-PROV", "associations": {}}}],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    def fake_search_cmr(**kwargs):
+        yield page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV", keyword="SST")
+
+    assert result["status"] == SearchStatus.NO_RESULTS
+    assert result["variables"] == []
+
+
 def test_get_variables_no_results(monkeypatch):
     """Test get_variables when CMR returns no results."""
     tool = _load_tool()

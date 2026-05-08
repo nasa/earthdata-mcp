@@ -111,8 +111,9 @@ def get_variables(
             collection_page.items[0].get("meta", {}).get("associations", {}).get("variables", [])
         )
 
-        # If no variables found and no fallback keyword provided, return immediately
-        if not variable_ids and not params.keyword:
+        # If the requested collection has no associated variables, the intersection
+        # with any keyword is inherently empty. Return immediately.
+        if not variable_ids and params.collection_concept_id:
             return GetVariablesOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
     # Phase 2: Fetch the actual variable details. If both a collection ID and a keyword are
