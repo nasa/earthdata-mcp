@@ -56,7 +56,8 @@ def get_services(  # pylint: disable=too-many-return-statements
             error_message=str(exc),
         ).model_dump()
 
-    # Phase 1: fetch the collection record to discover its direct service associations.
+    # Phase 1: Find linked services. CMR collections only list the IDs of their associated
+    # services, not the full details. We first fetch the collection to get this list of IDs.
     try:
         collection_page = next(
             search_cmr(
@@ -91,7 +92,7 @@ def get_services(  # pylint: disable=too-many-return-statements
     if not service_ids:
         return GetServicesOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
-    # Phase 2: fetch UMM-S records for the discovered service concept IDs.
+    # Phase 2: Fetch the actual service details using the IDs we found.
     try:
         service_page = next(
             search_cmr(

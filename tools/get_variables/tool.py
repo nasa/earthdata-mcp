@@ -21,6 +21,17 @@ def get_variables(
     # pylint: disable=too-many-return-statements
     """Search CMR variables by parent collection ID or keyword.
 
+    When using the `keyword` argument, CMR searches across the following fields:
+    - Variable Name and Long Name (e.g., "sea_surface_temperature" or "Sea Surface Temperature")
+    - GCMD Science Keywords (e.g., broad categories like "Oceans" down to specific terms)
+    - Variable Set Names (logical groupings of variables within a dataset)
+    - Collection Concept IDs (the parent collection this variable belongs to)
+    - Variable Concept ID (the unique CMR identifier for the variable)
+    - Data Format (e.g., "NetCDF-4", "HDF5")
+
+    This means you can discover variables using specific CF standard names, broad scientific
+    categories, data formats, or by searching a parent collection's ID to find its variables.
+
     The returned items use snake_cased keys mapping to UMM-V, including:
     - concept_id: CMR variable concept ID
     - name: Variable short name
@@ -64,7 +75,8 @@ def get_variables(
 
     variable_ids: list[str] = []
 
-    # Phase 1: If collection_concept_id provided, fetch the collection to discover associations.
+    # Phase 1: Find linked variables. CMR collections only list the IDs of their associated
+    # variables, not the full details. We first fetch the collection to get this list of variable IDs.
     if params.collection_concept_id:
         try:
             collection_page = next(
@@ -103,7 +115,8 @@ def get_variables(
         if not variable_ids and not params.keyword:
             return GetVariablesOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
-    # Phase 2: Fetch UMM-V records for the discovered variable concept IDs or direct keyword.
+    # Phase 2: Fetch the actual variable details. If both a collection ID and a keyword are
+    # provided, CMR will only return variables that belong to that collection AND match the keyword.
     search_params = {}
     if variable_ids:
         # Hard limit to 10 variables per the design requirement
@@ -146,12 +159,21 @@ def get_variables(
 
     variables = [normalize_variable_item(item) for item in variable_page.items]
 
-    # If we looked up via collection, the true total is the length of the associations list.
-    real_total_hits = (
-        len(variable_ids)
-        if (params.collection_concept_id and variable_ids)
-        else variable_page.total_hits
-    )
+    if params.collection_concept_id and params.keyword:
+        # Compute count as intersection of collection-associated IDs and keyword results
+        real_total_hits = len(
+            [
+                item
+                for item in variable_page.items
+                if item.get("meta", {}).get("concept-id") in variable_ids
+            ]
+        )
+    elif params.collection_concept_id and variable_ids:
+        # Just collection filter: the total is all associated variables
+        real_total_hits = len(variable_ids)
+    else:
+        # Just keyword filter: rely on the search hit count
+        real_total_hits = variable_page.total_hits
 
     return GetVariablesOutput(
         status=SearchStatus.SUCCESS,

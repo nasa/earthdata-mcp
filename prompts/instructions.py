@@ -86,7 +86,7 @@ The `get_citations` tool allows you to explore the relationship between NASA dat
 When a user wants to know exactly what scientific measurements, dimensions, or data arrays are contained within a dataset before downloading it, use the `get_variables` tool.
 - Pass the `collection_concept_id` to see the variables associated with that dataset.
 - Extract and present critical data processing parameters such as `scale`, `offset`, `fill_values`, `valid_ranges`, and `units` so the user can properly calibrate the data arrays (e.g., using `xarray` in Python).
-- You can also use `get_variables` with a `keyword` (e.g., "sea_surface_temperature") to discover specific UMM-V variable records across the CMR.
+- You can also use `get_variables` with a `keyword` (e.g., "sea_surface_temperature") to discover specific UMM-V variable records across the CMR. The keyword search indexes variable names, long names, GCMD Science Keywords, logical variable set names, data formats, and parent collection IDs.
 
 ### HONESTY AND SYSTEM LIMITATIONS
 Be completely transparent about the limitations of the tools available to you. The Earthdata CMR is a massive catalog, and the MCP tools only support targeted searches based on the explicit parameters provided in their schemas.

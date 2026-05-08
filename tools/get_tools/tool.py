@@ -64,7 +64,8 @@ def get_tools(  # pylint: disable=too-many-return-statements
             error_message=str(exc),
         ).model_dump()
 
-    # Phase 1: fetch the collection record to discover its direct tool associations.
+    # Phase 1: Find linked tools. CMR collections only list the IDs of their associated
+    # tools, not the full details. We first fetch the collection to get this list of IDs.
     try:
         collection_page = next(
             search_cmr(
@@ -99,7 +100,7 @@ def get_tools(  # pylint: disable=too-many-return-statements
     if not tool_ids:
         return GetToolsOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
-    # Phase 2: fetch UMM-T records for the discovered tool concept IDs.
+    # Phase 2: Fetch the actual tool details using the IDs we found.
     try:
         tool_page = next(
             search_cmr(

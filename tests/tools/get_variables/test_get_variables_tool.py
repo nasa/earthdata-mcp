@@ -135,6 +135,73 @@ def test_get_variables_success_collection_concept_id(monkeypatch):
     assert captured[1]["search_params"] == {"concept_id[]": ["V67890-PROV"]}
 
 
+def test_get_variables_success_collection_and_keyword(monkeypatch):
+    """Test successful variable lookup using both collection concept ID and keyword."""
+    tool = _load_tool()
+
+    coll_page = CMRSearchResponse(
+        items=[
+            {
+                "meta": {
+                    "concept-id": "C99999-PROV",
+                    "associations": {"variables": ["V67890-PROV", "V11111-PROV"]},
+                }
+            }
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    var_page = CMRSearchResponse(
+        items=[
+            {
+                "meta": {"concept-id": "V67890-PROV"},
+                "umm": {
+                    "Name": "NDVI",
+                    "LongName": "Normalized Difference Vegetation Index",
+                },
+            }
+        ],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=10,
+    )
+
+    captured = []
+
+    def fake_search_cmr(**kwargs):
+        captured.append(kwargs)
+        if kwargs["concept_type"] == "collection":
+            yield coll_page
+        else:
+            yield var_page
+
+    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+
+    result = tool.get_variables(collection_concept_id="C99999-PROV", keyword="NDVI")
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 1  # Intersection count
+    assert len(result["variables"]) == 1
+
+    var = result["variables"][0]
+    assert var["concept_id"] == "V67890-PROV"
+    assert var["name"] == "NDVI"
+
+    assert len(captured) == 2
+    assert captured[0]["concept_type"] == "collection"
+    assert captured[0]["search_params"] == {"concept_id": "C99999-PROV"}
+
+    assert captured[1]["concept_type"] == "variable"
+    assert captured[1]["search_params"] == {
+        "concept_id[]": ["V67890-PROV", "V11111-PROV"],
+        "keyword": "NDVI",
+    }
+
+
 def test_get_variables_no_results(monkeypatch):
     """Test get_variables when CMR returns no results."""
     tool = _load_tool()

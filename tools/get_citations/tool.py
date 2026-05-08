@@ -51,9 +51,12 @@ def get_citations(  # pylint: disable=too-many-return-statements
             error_message=str(exc),
         ).model_dump()
 
+    # Note: We only allow either a collection ID (to find all papers for a dataset) OR an
+    # identifier (to look up a specific paper), but never both.
     citation_ids: list[str] = []
 
-    # Phase 1: If collection_concept_id provided, fetch the collection to discover associations.
+    # Phase 1: Find linked citations. CMR collections only list the IDs of their associated
+    # citations, not the full details. We first fetch the collection to get this list of IDs.
     if params.collection_concept_id:
         try:
             collection_page = next(
@@ -91,7 +94,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
         if not citation_ids:
             return GetCitationsOutput(status=SearchStatus.NO_RESULTS).model_dump()
 
-    # Phase 2: Fetch UMM-C records for the discovered citation concept IDs or direct identifier.
+    # Phase 2: Fetch the actual citation details using the IDs we found (or the direct identifier provided).
     search_params = {}
     if citation_ids:
         # Hard limit to 10 citations per the design requirement
