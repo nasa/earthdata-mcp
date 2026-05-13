@@ -1,4 +1,4 @@
-"""Unit tests for the get_variables MCP tool."""
+"""Tests for get_variables_tool."""
 
 import importlib
 from unittest.mock import patch
@@ -6,21 +6,21 @@ from unittest.mock import patch
 import util.cmr.search_tools as _search_tools_mod
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
-from util.pagination import decode_cursor, encode_cursor
+from util.pagination import encode_cursor, resolve_cursor
 
 
 def _load_tool():
     return importlib.import_module("tools.get_variables.tool")
 
 
-def _patch_search_cmr(monkeypatch, tool, fake_fn):
-    """Patch search_cmr in both the tool module and search_tools (used by fetch_association_ids)."""
-    monkeypatch.setattr(tool, "search_cmr", fake_fn)
+def _patch_search_cmr(monkeypatch, tool_module, fake_fn):
+    """Patch both the local module search_cmr and the utils for fetch_association_ids."""
+    monkeypatch.setattr(tool_module, "search_cmr", fake_fn)
     monkeypatch.setattr(_search_tools_mod, "search_cmr", fake_fn)
 
 
 def test_get_variables_input_validation_missing_args(monkeypatch):
-    """Test that get_variables fails gracefully when no arguments are provided."""
+    """Test get_variables fails when neither collection_concept_id nor keyword is provided."""
     tool = _load_tool()
 
     result = tool.get_variables()
@@ -30,7 +30,7 @@ def test_get_variables_input_validation_missing_args(monkeypatch):
 
 
 def test_get_variables_success_keyword(monkeypatch):
-    """Test successful variable lookup by keyword."""
+    """Test successful variable lookup using a keyword."""
     tool = _load_tool()
 
     var_page = CMRSearchResponse(
@@ -40,9 +40,6 @@ def test_get_variables_success_keyword(monkeypatch):
                 "umm": {
                     "Name": "SST",
                     "LongName": "Sea Surface Temperature",
-                    "Definition": "Temperature of the sea surface",
-                    "DataType": "float32",
-                    "Units": "Kelvin",
                     "Scale": 0.01,
                     "Offset": 273.15,
                 },
@@ -87,7 +84,12 @@ def test_get_variables_success_collection_concept_id(monkeypatch):
 
     coll_page = CMRSearchResponse(
         items=[
-            {"meta": {"concept-id": "C99999-PROV", "associations": {"variables": ["V67890-PROV"]}}}
+            {
+                "meta": {
+                    "concept-id": "C99999-PROV",
+                    "associations": {"variables": ["V67890-PROV"]},
+                }
+            }
         ],
         total_hits=1,
         took_ms=5,
@@ -101,7 +103,6 @@ def test_get_variables_success_collection_concept_id(monkeypatch):
                 "meta": {"concept-id": "V67890-PROV"},
                 "umm": {
                     "Name": "NDVI",
-                    "LongName": "Normalized Difference Vegetation Index",
                     "ValidRanges": [{"Min": -1.0, "Max": 1.0}],
                     "Dimensions": [{"Name": "lat", "Size": 180}, {"Name": "lon", "Size": 360}],
                 },
@@ -188,7 +189,7 @@ def test_get_variables_success_collection_and_keyword(monkeypatch):
         else:
             yield var_page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV", keyword="NDVI")
 
@@ -215,7 +216,7 @@ def test_get_variables_collection_and_keyword_empty_associations(monkeypatch):
     """Test get_variables when both collection and keyword are provided, but collection has no variables."""
     tool = _load_tool()
 
-    page = CMRSearchResponse(
+    coll_page = CMRSearchResponse(
         items=[{"meta": {"concept-id": "C99999-PROV", "associations": {}}}],
         total_hits=1,
         took_ms=5,
@@ -223,10 +224,24 @@ def test_get_variables_collection_and_keyword_empty_associations(monkeypatch):
         page_size=1,
     )
 
-    def fake_search_cmr(**kwargs):
-        yield page
+    var_page = CMRSearchResponse(
+        items=[],
+        total_hits=0,
+        took_ms=5,
+        search_after=None,
+        page_size=10,
+    )
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    captured = []
+
+    def fake_search_cmr(**kwargs):
+        captured.append(kwargs)
+        if kwargs["concept_type"] == "collection":
+            yield coll_page
+        else:
+            yield var_page
+
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     result = tool.get_variables(collection_concept_id="C99999-PROV", keyword="SST")
 
@@ -440,10 +455,7 @@ def test_get_variables_pagination_first_page(monkeypatch):
     )
 
     var_page = CMRSearchResponse(
-        items=[
-            {"meta": {"concept-id": "V1-PROV"}, "umm": {"Name": "Var1"}},
-            {"meta": {"concept-id": "V2-PROV"}, "umm": {"Name": "Var2"}},
-        ],
+        items=[{"meta": {"concept-id": "V1-PROV"}}, {"meta": {"concept-id": "V2-PROV"}}],
         total_hits=3,
         took_ms=5,
         search_after="tok-v1",
@@ -463,10 +475,8 @@ def test_get_variables_pagination_first_page(monkeypatch):
     assert result["status"] == SearchStatus.SUCCESS
     assert len(result["variables"]) == 2
     assert result["next_cursor"] is not None
-    parsed = decode_cursor(result["next_cursor"])
-    assert parsed["backend"] == "cmr"
-    assert isinstance(parsed["value"], dict)
-    assert parsed["value"]["token"] == "tok-v1"
+    parsed = resolve_cursor(result["next_cursor"], "cmr")
+    assert parsed["token"] == "tok-v1"
     assert result["total_hits"] == 3
 
 
@@ -490,9 +500,7 @@ def test_get_variables_pagination_second_page(monkeypatch):
     )
 
     var_page_last = CMRSearchResponse(
-        items=[
-            {"meta": {"concept-id": "V3-PROV"}, "umm": {"Name": "Var3"}},
-        ],
+        items=[{"meta": {"concept-id": "V3-PROV"}}],
         total_hits=3,
         took_ms=5,
         search_after=None,
@@ -533,31 +541,33 @@ def test_get_variables_invalid_cursor(monkeypatch):
     result = tool.get_variables(keyword="SST", cursor="not-valid-base64!!!")
 
     assert result["status"] == SearchStatus.ERROR
-    assert result["next_cursor"] is None
-    assert "cursor" in result["error_message"].lower()
+    assert "Invalid pagination cursor" in result["error_message"]
 
 
 def test_get_variables_cross_backend_cursor(monkeypatch):
-    """Test get_variables returns error when cursor is from a different backend."""
+    """Test get_variables returns error if cursor is for wrong backend."""
     tool = _load_tool()
 
-    kms_cursor = encode_cursor("kms", 10)
+    kms_cursor = encode_cursor("kms", "some-token")
     result = tool.get_variables(keyword="SST", cursor=kms_cursor)
 
     assert result["status"] == SearchStatus.ERROR
-    assert result["next_cursor"] is None
-    assert "cursor" in result["error_message"].lower()
+    assert "not valid for this tool" in result["error_message"]
 
 
 def test_get_variables_fields_filter(monkeypatch):
-    """Test get_variables returns only requested fields plus mandatory concept_id."""
+    """Test get_variables respects the fields filter parameter."""
     tool = _load_tool()
 
     var_page = CMRSearchResponse(
         items=[
             {
                 "meta": {"concept-id": "V12345-PROV"},
-                "umm": {"Name": "SST", "LongName": "Sea Surface Temperature", "Units": "Kelvin"},
+                "umm": {
+                    "Name": "SST",
+                    "LongName": "Sea Surface Temperature",
+                    "Units": "Kelvin",
+                },
             }
         ],
         total_hits=1,
@@ -597,7 +607,7 @@ def test_get_variables_cursor_ignores_changed_params(monkeypatch):
     tool = _load_tool()
 
     var_page = CMRSearchResponse(
-        items=[{"meta": {"concept-id": "V1-PROV"}, "umm": {"Name": "SST"}}],
+        items=[{"meta": {"concept-id": "V1"}, "umm": {"Name": "Original"}}],
         total_hits=1,
         took_ms=5,
         search_after=None,

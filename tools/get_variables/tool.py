@@ -209,16 +209,11 @@ def get_variables(
         if variable_page.search_after and len(variable_page.items) == params.limit
         else None
     )
-    real_total_hits = (
-        len(variable_ids)
-        if (params.collection_concept_id and variable_ids)
-        else variable_page.total_hits
-    )
 
     response_dict = GetVariablesOutput(
         status=SearchStatus.SUCCESS,
         variables=variables,
-        total_hits=real_total_hits,
+        total_hits=variable_page.total_hits,
         next_cursor=next_cursor,
     ).model_dump()
 

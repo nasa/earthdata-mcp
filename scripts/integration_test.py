@@ -9,6 +9,8 @@ Usage:
     uv run python scripts/integration_test.py --url http://your-server:port/mcp/v1
 """
 
+# pylint: disable=missing-docstring
+
 import argparse
 import asyncio
 import base64
@@ -1015,6 +1017,7 @@ async def main(url: str) -> int:
     start = time.monotonic()
 
     try:
+        # pylint: disable=used-before-assignment
         async with (
             streamablehttp_client(url) as (read, write, _),
             ClientSession(read, write) as session,
