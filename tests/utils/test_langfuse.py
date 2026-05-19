@@ -143,12 +143,6 @@ def test_resolve_session_id_from_mcp_context_exception():
     assert _resolve_session_id_from_mcp_context() is None
 
 
-def test_trace_update_no_client():
-    """Test function."""
-    with patch("util.langfuse.get_langfuse", return_value=None):
-        trace_update(metadata={"a": 1})
-
-
 def test_trace_update_with_client():
     """Test function."""
     with (

@@ -20,14 +20,6 @@ data "aws_subnets" "main" {
   }
 }
 
-# Cross-stack reference to database via remote state
-
-
-locals {
-}
-
-# ECR Repositories for Lambda functions
-
 
 # ECR Repository for MCP server
 resource "aws_ecr_repository" "mcp_server" {
@@ -63,7 +55,7 @@ resource "aws_ecr_lifecycle_policy" "mcp_server" {
   })
 }
 
-# Application infrastructure (Lambdas, SQS, SNS subscription, MCP server)
+# Application infrastructure
 module "application" {
   source = "../modules/application"
 
@@ -71,17 +63,9 @@ module "application" {
   vpc_id           = data.aws_vpc.main.id
   subnet_ids       = data.aws_subnets.main.ids
 
-  # SNS subscription
-
-  # Database (from remote state)
-
-  # Lambda container images
-
   # Configuration
   cmr_url            = var.cmr_url
   associations_table = var.associations_table
-
-  # Lambda configuration
 
   # Langfuse
   langfuse_host       = var.langfuse_host
@@ -113,5 +97,3 @@ module "application" {
 
   tags = var.tags
 }
-
-# Allow embedding lambda to connect to database (direct)

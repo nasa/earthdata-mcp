@@ -14,6 +14,8 @@ def encode_cursor(backend: str, value: Any) -> str:
 def decode_cursor(cursor: str) -> dict[str, Any]:
     """Decode a pagination cursor, re-adding stripped base64 padding as needed."""
     try:
+        # Base64 requires length to be a multiple of 4; pad with '=' if needed
+
         padded = cursor + "=" * (-len(cursor) % 4)
         payload = base64.urlsafe_b64decode(padded).decode("utf-8")
         return json.loads(payload)

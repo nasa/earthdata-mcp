@@ -30,7 +30,7 @@ uv run python scripts/integration_test.py
 To run against a specific server URL:
 
 ```bash
-uv run python scripts/integration_test.py --url http://localhost:8000/mcp/v1
+uv run python scripts/integration_test.py --url http://localhost:5001/mcp/v1
 ```
 
 ## How it works

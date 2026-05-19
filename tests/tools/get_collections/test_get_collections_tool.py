@@ -619,10 +619,10 @@ def test_get_collections_safe_exception_surfacing(monkeypatch):
     assert "Safe validation error" in output["error_message"]
 
     def fake_search_generic_error(*args, **kwargs):
-        raise Exception("Leaked internal DB secret")
+        raise Exception("Fake secret")
 
     monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_generic_error)
     output = get_collections(keyword="modis")
     assert output["status"] == "error"
-    assert "Leaked internal DB secret" not in output["error_message"]
+    assert "Fake secret" not in output["error_message"]
     assert "unexpected internal error" in output["error_message"].lower()

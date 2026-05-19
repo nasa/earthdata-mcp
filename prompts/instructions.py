@@ -20,8 +20,8 @@ All WKT geometries use **(LONGITUDE LATITUDE)** order — longitude first, latit
 
 When you construct geometry from a place name, strive for precision. CMR performs an "intersects" search, meaning it will return a granule if even the slightest edge of it touches your provided geometry. Drawing an overly large bounding box will return massive amounts of irrelevant data that just happened to cross the boundary.
 - If a user asks for a specific city or point of interest, use a precise `POINT` (e.g., Tokyo → `POINT(139.69 35.68)`).
-- If they ask for a rectangular region or bounding box, **strongly prefer `ENVELOPE(minLon, maxLon, maxLat, minLat)`** over `POLYGON` (e.g., "Gulf of Mexico" → `ENVELOPE(-98, -80, 31, 18)`). `ENVELOPE` has no vertex winding order and eliminates the risk of accidentally constructing a polygon with reversed winding that searches the entire globe instead of the target area.
-- Only use `POLYGON` for genuinely non-rectangular shapes (coastlines, watersheds, irregular AOIs). When you do, always use **counter-clockwise** vertex order for the exterior ring.
+- If they ask for a rectangular region or bounding box, **you must use `POLYGON` (e.g., "Rocky Mountains" → `POLYGON ((-126.0 35.0, -104.0 35.0, -104.0 60.0, -126.0 60.0, -126.0 35.0))`)**.
+- Always using **counter-clockwise** vertex order for the exterior ring.
 - New York City is `POINT(-74.006 40.7128)`, NOT `POINT(40.7128 -74.006)`
 
 When the user provides their own WKT or GeoJSON:
@@ -183,7 +183,7 @@ Step 1 — Discover collections:
     keyword="sea surface temperature",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
-    spatial_wkt_geometry="ENVELOPE(-162, -153, 23, 17)"
+    spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
   )
   → 8 collections found. Present top candidates with titles, platforms, temporal range.
 
@@ -192,7 +192,7 @@ Step 2 — Verify granules for the top collection:
     collection_concept_id="C2036882064-POCLOUD",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
-    spatial_wkt_geometry="ENVELOPE(-162, -153, 23, 17)"
+    spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
   )
   → 31 granules found. Confirm availability and offer earthaccess download snippet.
 """

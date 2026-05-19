@@ -295,7 +295,7 @@ def test_get_keywords_validation_error():
     assert res["status"] == "error"
 
 
-def test_get_keywords_validation_error2():
+def test_get_keywords_validation_error_too_big_limit():
     from tools.get_keywords.tool import get_keywords
 
     res = get_keywords(query="", limit=100)
@@ -314,10 +314,10 @@ def test_get_keywords_safe_exception_surfacing(monkeypatch):
     assert "Safe validation error" in output["error_message"]
 
     def fake_search_generic_error(*args, **kwargs):
-        raise Exception("Leaked internal DB secret")
+        raise Exception("Fake secret")
 
     monkeypatch.setattr("tools.get_keywords.tool.search_kms_pattern", fake_search_generic_error)
     output = get_keywords(query="modis")
     assert output["status"] == "error"
-    assert "Leaked internal DB secret" not in output["error_message"]
+    assert "Fake secret" not in output["error_message"]
     assert "unexpected error" in output["error_message"].lower()

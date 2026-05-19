@@ -9,6 +9,7 @@ This reference maps Earthdata MCP tool parameters to their corresponding CMR API
 - [`get_tools`](#get_tools)
 - [`get_services`](#get_services)
 - [`get_keywords`](#get_keywords)
+- [`get_citations`](#get_citations) (Needs documentation)
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
 
