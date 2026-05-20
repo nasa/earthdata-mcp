@@ -83,15 +83,6 @@ resource "aws_iam_role_policy" "mcp_task" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "SecretsManager"
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = [
-        ]
-      },
-      {
         Sid    = "Bedrock"
         Effect = "Allow"
         Action = [
