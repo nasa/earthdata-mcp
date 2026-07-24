@@ -1,8 +1,29 @@
-  The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
+# Earthdata MCP Server User Guide
+
+The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
+
+## Table of Contents
+* [Glossary](#glossary)
+* [Connecting a client to the MCP Server](#connecting-a-client-to-the-mcp-server)
+  * [ChatGPT.com](#chatgptcom)
+  * [Claude.ai](#claudeai)
+  * [Claude Code](#claude-code)
+  * [Cursor](#cursor)
+  * [Github Copilot Chat](#github-copilot-chat)
+  * [Connecting Other MCP Clients](#connecting-other-mcp-clients)
+* [What tools are available?](#what-tools-are-available)
+* [How should I use the MCP server in my client?](#how-should-i-use-the-mcp-server-in-my-client)
+* [Tips for Better Queries](#tips-for-better-queries)
+* [Example Walkthrough](#example-walkthrough)
+* [Authentication](#authentication)
+* [Limitations](#limitations)
+* [Programmatic Access and End-to-end Workflows](#programmatic-access-and-end-to-end-workflows)
+* [Troubleshooting](#troubleshooting)
+* [Feedback and Issues](#feedback-and-issues)
 
 ---
 
-# Glossary
+## Glossary
 NASA's Common Metadata Repository (CMR) organizes Earth science data into a hierarchy of concepts. Understanding these terms will help you interpret the results from the MCP server.
 
 | CMR Term | What it means | Example |
@@ -17,7 +38,7 @@ NASA's Common Metadata Repository (CMR) organizes Earth science data into a hier
 
 ---
 
-# Connecting a client to the MCP Server
+## Connecting a client to the MCP Server
 The Earthdata MCP server can be accessed by any MCP client that supports the Streamable HTTP transport. If you are using a client not listed below, check its documentation for configuration information.
 
 ### ChatGPT.com
