@@ -9,6 +9,8 @@ import util.langfuse
 from util.langfuse import (
     _configure_langfuse,
     _resolve_session_id_from_mcp_context,
+    _resolve_user_agent_from_mcp_context,
+    get_request_metadata,
     create_score,
     flush_langfuse,
     get_current_trace_id,
@@ -40,7 +42,9 @@ def test_configure_langfuse_no_env():
 def test_configure_langfuse_with_env_and_ssm():
     """Test function."""
     os.environ["ENVIRONMENT_NAME"] = "test"
-    with patch("util.langfuse.get_parameter", return_value="secret-123") as mock_get_param:
+    with patch(
+        "util.langfuse.get_parameter", return_value="secret-123"
+    ) as mock_get_param:
         _configure_langfuse()
         assert os.environ["LANGFUSE_SECRET_KEY"] == "secret-123"
         mock_get_param.assert_called_once_with("test-langfuse-secret-key")
@@ -124,7 +128,11 @@ def test_resolve_session_id_from_mcp_context_success():
     mock_ctx.session_id = "sess-123"
     with patch.dict(
         "sys.modules",
-        {"fastmcp.server.dependencies": MagicMock(get_context=MagicMock(return_value=mock_ctx))},
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=mock_ctx)
+            )
+        },
     ):
         assert _resolve_session_id_from_mcp_context() == "sess-123"
 
@@ -133,7 +141,11 @@ def test_resolve_session_id_from_mcp_context_none():
     """Test function."""
     with patch.dict(
         "sys.modules",
-        {"fastmcp.server.dependencies": MagicMock(get_context=MagicMock(return_value=None))},
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=None)
+            )
+        },
     ):
         assert _resolve_session_id_from_mcp_context() is None
 
@@ -143,15 +155,115 @@ def test_resolve_session_id_from_mcp_context_exception():
     assert _resolve_session_id_from_mcp_context() is None
 
 
+def test_resolve_user_agent_from_mcp_context_success():
+    """Test function."""
+    mock_ctx = MagicMock()
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = "Mozilla/5.0 Test Agent"
+    mock_ctx.request = mock_request
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=mock_ctx)
+            )
+        },
+    ):
+        assert _resolve_user_agent_from_mcp_context() == "Mozilla/5.0 Test Agent"
+
+
+def test_resolve_user_agent_from_mcp_context_none():
+    """Test function."""
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=None)
+            )
+        },
+    ):
+        assert _resolve_user_agent_from_mcp_context() is None
+
+
+def test_resolve_user_agent_from_mcp_context_exception():
+    """Test function."""
+    assert _resolve_user_agent_from_mcp_context() is None
+
+
+def test_get_request_metadata_with_both():
+    """Test function."""
+    mock_ctx = MagicMock()
+    mock_ctx.session_id = "sess-123"
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = "TestAgent/1.0"
+    mock_ctx.request = mock_request
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=mock_ctx)
+            )
+        },
+    ):
+        metadata = get_request_metadata()
+        assert metadata["session_id"] == "sess-123"
+        assert metadata["user_agent"] == "TestAgent/1.0"
+
+
+def test_get_request_metadata_empty():
+    """Test function."""
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=None)
+            )
+        },
+    ):
+        metadata = get_request_metadata()
+        assert metadata == {}
+
+
 def test_trace_update_with_client():
     """Test function."""
     with (
         patch("util.langfuse.get_langfuse") as mock_get_langfuse,
-        patch("util.langfuse._resolve_session_id_from_mcp_context", return_value="sess-123"),
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value="sess-123",
+        ),
+        patch(
+            "util.langfuse.get_request_metadata",
+            return_value={"session_id": "sess-123", "user_agent": "Test/1.0"},
+        ),
     ):
         mock_client = MagicMock()
         mock_get_langfuse.return_value = mock_client
         trace_update(metadata={"a": 1}, tags=["tag1"], session_id=None)
+        mock_client.update_current_trace.assert_called_once_with(
+            metadata={"session_id": "sess-123", "user_agent": "Test/1.0", "a": 1},
+            tags=["tag1"],
+            session_id="sess-123",
+        )
+
+
+def test_trace_update_without_request_metadata():
+    """Test function."""
+    with (
+        patch("util.langfuse.get_langfuse") as mock_get_langfuse,
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value="sess-123",
+        ),
+    ):
+        mock_client = MagicMock()
+        mock_get_langfuse.return_value = mock_client
+        trace_update(
+            metadata={"a": 1},
+            tags=["tag1"],
+            session_id=None,
+            include_request_metadata=False,
+        )
         mock_client.update_current_trace.assert_called_once_with(
             metadata={"a": 1}, tags=["tag1"], session_id="sess-123"
         )
@@ -163,7 +275,9 @@ def test_get_current_trace_id_success():
         "sys.modules",
         {
             "langfuse.decorators": MagicMock(
-                langfuse_context=MagicMock(get_current_trace_id=MagicMock(return_value="trace-123"))
+                langfuse_context=MagicMock(
+                    get_current_trace_id=MagicMock(return_value="trace-123")
+                )
             )
         },
     ):
@@ -187,7 +301,11 @@ def test_create_score():
         mock_get_langfuse.return_value = mock_client
         create_score(name="accuracy", value=1.0)
         mock_client.create_score.assert_called_once_with(
-            name="accuracy", value=1.0, trace_id="trace-123", data_type="NUMERIC", comment=""
+            name="accuracy",
+            value=1.0,
+            trace_id="trace-123",
+            data_type="NUMERIC",
+            comment="",
         )
 
 

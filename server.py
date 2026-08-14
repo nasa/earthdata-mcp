@@ -53,8 +53,25 @@ async def health(_request):
     return JSONResponse({"earthdata-mcp": {"ok?": True}})
 
 
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class DebugMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Extract request metadata
+        user_agent = request.headers.get("user-agent", "unknown")
+        path = request.url.path
+
+        # Log request with session context if available
+        logger.info("Request: path=%s user_agent=%s", path, user_agent)
+
+        response = await call_next(request)
+        return response
+
+
 # Build the app with middleware and the intended path
-app = mcp.http_app(path="/mcp/v1", middleware=[cors])
+app = mcp.http_app(path="/mcp/v1", middleware=[cors, Middleware(DebugMiddleware)])
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
