@@ -86,10 +86,50 @@ def _resolve_session_id_from_mcp_context() -> str | None:
         return None
 
 
+def _resolve_user_agent_from_mcp_context() -> str | None:
+    """Resolve user-agent from FastMCP request context when available."""
+    try:
+        # Import lazily so this utility also works in non-FastMCP runtimes.
+        from fastmcp.server.dependencies import get_context  # type: ignore
+
+        ctx = get_context()
+        if ctx is None:
+            return None
+
+        # Get the request object from context
+        request_ctx = getattr(ctx, "request_context", None)
+        request = getattr(request_ctx, "request", None)
+        if request is None:
+            return None
+
+        # Extract user-agent from headers
+        user_agent = request.headers.get("user-agent")
+        return user_agent if isinstance(user_agent, str) and user_agent else None
+    except Exception:
+        # Outside request context or headers not available
+        return None
+
+
+def get_request_metadata() -> dict:
+    """Get metadata from the current request context (session_id, user_agent, etc.)."""
+    metadata = {}
+
+    session_id = _resolve_session_id_from_mcp_context()
+    if session_id:
+        metadata["session_id"] = session_id
+
+    user_agent = _resolve_user_agent_from_mcp_context()
+    if user_agent:
+        metadata["user_agent"] = user_agent
+
+    return metadata
+
+
 def trace_update(
     metadata: dict | None = None,
     tags: list[str] | None = None,
     session_id: str | None = None,
+    include_request_metadata: bool = True,
 ) -> None:
     """
     Update the current Langfuse trace with metadata and/or tags.
@@ -100,16 +140,27 @@ def trace_update(
         metadata: Key-value pairs to add to the trace
         tags: Tags to add to the trace
         session_id: Session ID to group traces together
+        include_request_metadata: If True, automatically include session_id and user_agent from request context
     """
     client = get_langfuse()
     if client is None:
         return
 
     kwargs = {}
+
+    # Build metadata, optionally including request context
+    combined_metadata = {}
+    if include_request_metadata:
+        combined_metadata.update(get_request_metadata())
     if metadata is not None:
-        kwargs["metadata"] = metadata
+        combined_metadata.update(metadata)
+
+    if combined_metadata:
+        kwargs["metadata"] = combined_metadata
+
     if tags is not None:
         kwargs["tags"] = tags
+
     resolved_session_id = session_id or _resolve_session_id_from_mcp_context()
     if resolved_session_id is not None:
         kwargs["session_id"] = resolved_session_id
