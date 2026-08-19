@@ -10,9 +10,6 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-from fastmcp.server.middleware.logging import (
-    StructuredLoggingMiddleware,
-)
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
@@ -60,12 +57,6 @@ async def health(_request):
 
 # Build the app with middleware and the intended path
 app = mcp.http_app(path="/mcp/v1", middleware=[cors])
-
-mcp.add_middleware(
-    StructuredLoggingMiddleware(
-        include_payloads=True, include_payload_length=1000, logger=logger
-    )
-)
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
