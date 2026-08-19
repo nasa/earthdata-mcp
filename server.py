@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-
+from fastmcp.server.middleware.logging import (
+    StructuredLoggingMiddleware,
+)
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
@@ -20,7 +22,10 @@ load_dotenv()
 # Initialize logging
 logger = logging.getLogger(__name__)
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 PACKAGE_NAME = "earthdata-mcp"
 
@@ -53,25 +58,14 @@ async def health(_request):
     return JSONResponse({"earthdata-mcp": {"ok?": True}})
 
 
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
-
-class DebugMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        # Extract request metadata
-        user_agent = request.headers.get("user-agent", "unknown")
-        path = request.url.path
-
-        # Log request with session context if available
-        logger.info("Request: path=%s user_agent=%s", path, user_agent)
-
-        response = await call_next(request)
-        return response
-
-
 # Build the app with middleware and the intended path
-app = mcp.http_app(path="/mcp/v1", middleware=[cors, Middleware(DebugMiddleware)])
+app = mcp.http_app(path="/mcp/v1", middleware=[cors])
+
+mcp.add_middleware(
+    StructuredLoggingMiddleware(
+        include_payloads=True, include_payload_length=1000, logger=logger
+    )
+)
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))

@@ -110,6 +110,33 @@ def _resolve_user_agent_from_mcp_context() -> str | None:
         return None
 
 
+def log_tool_call(tool_name: str, parameters: dict | None = None) -> None:
+    """
+    Emit a structured JSON log line to the Python logger (CloudWatch) for every tool
+    invocation.  The record includes session_id, user_agent, tool name, and the
+    parameters that were passed so operators can audit usage without relying on
+    Langfuse being available.
+
+    Args:
+        tool_name: Name of the MCP tool being invoked.
+        parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
+    """
+    import json as _json
+
+    session_id = _resolve_session_id_from_mcp_context()
+    user_agent = _resolve_user_agent_from_mcp_context()
+
+    record: dict = {
+        "event": "tool_call",
+        "tool": tool_name,
+        "session_id": session_id or "unknown",
+        "user_agent": user_agent or "unknown",
+        "parameters": parameters or {},
+    }
+
+    logger.info(_json.dumps(record))
+
+
 def get_request_metadata() -> dict:
     """Get metadata from the current request context (session_id, user_agent, etc.)."""
     metadata = {}
@@ -121,6 +148,8 @@ def get_request_metadata() -> dict:
     user_agent = _resolve_user_agent_from_mcp_context()
     if user_agent:
         metadata["user_agent"] = user_agent
+    else:
+        metadata["user_agent"] = "Unknown"
 
     return metadata
 

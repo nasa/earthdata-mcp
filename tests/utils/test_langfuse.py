@@ -16,6 +16,7 @@ from util.langfuse import (
     get_current_trace_id,
     get_langfuse,
     initialize_langfuse_client,
+    log_tool_call,
     trace_update,
 )
 
@@ -157,10 +158,12 @@ def test_resolve_session_id_from_mcp_context_exception():
 
 def test_resolve_user_agent_from_mcp_context_success():
     """Test function."""
-    mock_ctx = MagicMock()
     mock_request = MagicMock()
     mock_request.headers.get.return_value = "Mozilla/5.0 Test Agent"
-    mock_ctx.request = mock_request
+    mock_request_ctx = MagicMock()
+    mock_request_ctx.request = mock_request
+    mock_ctx = MagicMock()
+    mock_ctx.request_context = mock_request_ctx
     with patch.dict(
         "sys.modules",
         {
@@ -190,13 +193,63 @@ def test_resolve_user_agent_from_mcp_context_exception():
     assert _resolve_user_agent_from_mcp_context() is None
 
 
+def test_log_tool_call_with_session_and_agent():
+    """Structured log line includes tool name, session_id, user_agent, and parameters."""
+    with (
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value="sess-abc",
+        ),
+        patch(
+            "util.langfuse._resolve_user_agent_from_mcp_context",
+            return_value="Claude/1.0",
+        ),
+        patch("util.langfuse.logger") as mock_logger,
+    ):
+        import json
+
+        log_tool_call("get_collections", {"keyword": "SST", "limit": 10})
+        mock_logger.info.assert_called_once()
+        logged = json.loads(mock_logger.info.call_args[0][0])
+        assert logged["event"] == "tool_call"
+        assert logged["tool"] == "get_collections"
+        assert logged["session_id"] == "sess-abc"
+        assert logged["user_agent"] == "Claude/1.0"
+        assert logged["parameters"] == {"keyword": "SST", "limit": 10}
+
+
+def test_log_tool_call_unknown_context():
+    """Falls back to 'unknown' when session_id and user_agent are unavailable."""
+    with (
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value=None,
+        ),
+        patch(
+            "util.langfuse._resolve_user_agent_from_mcp_context",
+            return_value=None,
+        ),
+        patch("util.langfuse.logger") as mock_logger,
+    ):
+        import json
+
+        log_tool_call("get_granules", None)
+        mock_logger.info.assert_called_once()
+        logged = json.loads(mock_logger.info.call_args[0][0])
+        assert logged["session_id"] == "unknown"
+        assert logged["user_agent"] == "unknown"
+        assert logged["parameters"] == {}
+
+
 def test_get_request_metadata_with_both():
     """Test function."""
-    mock_ctx = MagicMock()
-    mock_ctx.session_id = "sess-123"
     mock_request = MagicMock()
     mock_request.headers.get.return_value = "TestAgent/1.0"
-    mock_ctx.request = mock_request
+    mock_request_ctx = MagicMock()
+    mock_request_ctx.request = mock_request
+    mock_ctx = MagicMock()
+    mock_ctx.session_id = "sess-123"
+    mock_ctx.request_context = mock_request_ctx
     with patch.dict(
         "sys.modules",
         {
@@ -211,7 +264,7 @@ def test_get_request_metadata_with_both():
 
 
 def test_get_request_metadata_empty():
-    """Test function."""
+    """Test function – no session_id when context is absent; user_agent defaults to 'Unknown'."""
     with patch.dict(
         "sys.modules",
         {
@@ -221,7 +274,8 @@ def test_get_request_metadata_empty():
         },
     ):
         metadata = get_request_metadata()
-        assert metadata == {}
+        assert "session_id" not in metadata
+        assert metadata["user_agent"] == "Unknown"
 
 
 def test_trace_update_with_client():

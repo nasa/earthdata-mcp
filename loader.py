@@ -13,7 +13,7 @@ from typing import Any
 from langfuse import observe
 from pydantic import BaseModel
 
-from util.langfuse import flush_langfuse, trace_update
+from util.langfuse import flush_langfuse, log_tool_call, trace_update
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +108,16 @@ def create_simple_tool(
         if manifest.annotations:
             tool_kwargs["annotations"] = manifest.annotations
 
+        _tool_name = manifest.name
+
         @mcp.tool(**tool_kwargs)
         @wraps(func)
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
             try:
-                # Add request metadata (session_id, user_agent) to trace
+                # Log to CloudWatch (structured JSON) – session_id, user_agent, params
+                log_tool_call(_tool_name, kwargs)
+                # Add request metadata (session_id, user_agent) to Langfuse trace
                 trace_update(include_request_metadata=True)
                 result = await asyncio.to_thread(func, *args, **kwargs)
                 return result
