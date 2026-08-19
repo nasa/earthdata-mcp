@@ -2,7 +2,7 @@
 
 import logging
 import os
-
+import json
 from langfuse import Langfuse, get_client
 
 from util.ssm import get_parameter
@@ -86,55 +86,91 @@ def _resolve_session_id_from_mcp_context() -> str | None:
         return None
 
 
-def _resolve_user_agent_from_mcp_context() -> str | None:
-    """Resolve user-agent from FastMCP request context when available."""
+def _resolve_header_from_mcp_context(header_name: str) -> str | None:
+    """Resolve a header value from the FastMCP HTTP request context when available."""
     try:
         # Import lazily so this utility also works in non-FastMCP runtimes.
-        from fastmcp.server.dependencies import get_context  # type: ignore
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
 
-        ctx = get_context()
-        if ctx is None:
+        http_request = get_http_request()
+        if http_request is None:
             return None
 
-        # Get the request object from context
-        request_ctx = getattr(ctx, "request_context", None)
-        request = getattr(request_ctx, "request", None)
-        if request is None:
-            return None
-
-        # Extract user-agent from headers
-        user_agent = request.headers.get("user-agent")
-        return user_agent if isinstance(user_agent, str) and user_agent else None
+        value = http_request.headers.get(header_name)
+        return value if isinstance(value, str) and value else None
     except Exception:
         # Outside request context or headers not available
         return None
 
 
+def _resolve_user_agent_from_mcp_context() -> str | None:
+    """Resolve user-agent from FastMCP request context when available."""
+    return _resolve_header_from_mcp_context("user-agent")
+
+
+def _resolve_mcp_protocol_version_from_context() -> str | None:
+    """Resolve mcp-protocol-version from FastMCP request context when available."""
+    return _resolve_header_from_mcp_context("mcp-protocol-version")
+
+
 def log_tool_call(tool_name: str, parameters: dict | None = None) -> None:
     """
     Emit a structured JSON log line to the Python logger (CloudWatch) for every tool
-    invocation.  The record includes session_id, user_agent, tool name, and the
-    parameters that were passed so operators can audit usage without relying on
-    Langfuse being available.
+    invocation.  The record includes the full HTTP headers and body from the MCP
+    request alongside the tool name and parameters, giving operators complete
+    request-level visibility without relying on Langfuse being available.
 
     Args:
         tool_name: Name of the MCP tool being invoked.
         parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
     """
-    import json as _json
+    headers = {}
+    body = {}
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
 
-    session_id = _resolve_session_id_from_mcp_context()
-    user_agent = _resolve_user_agent_from_mcp_context()
+        http_request = get_http_request()
+        if http_request is not None:
+            raw_headers = getattr(http_request, "_headers", None)
+            if raw_headers is not None:
+                # Starlette stores headers as a list of (name, value) byte tuples.
+                headers = {
+                    k.decode() if isinstance(k, bytes) else k: (
+                        v.decode() if isinstance(v, bytes) else v
+                    )
+                    for k, v in (
+                        raw_headers.items() if hasattr(raw_headers, "items") else []
+                    )
+                }
+
+            raw_body = getattr(http_request, "_body", None)
+            if raw_body is not None:
+                # 1. Decode to a string safely first
+                body_str = (
+                    raw_body.decode("utf-8", errors="ignore")
+                    if isinstance(raw_body, bytes)
+                    else (raw_body or "")
+                )
+
+                # 2. Attempt to parse it as JSON
+                try:
+                    # strip() removes leading/trailing spaces or newlines that cause parse errors
+                    body = json.loads(body_str.strip()) if body_str.strip() else {}
+                except (json.JSONDecodeError, AttributeError):
+                    # Fallback to an empty dict or a standard format if it isn't valid JSON
+                    body = {"raw_text": body_str} if body_str else {}
+    except Exception:
+        pass
 
     record: dict = {
         "event": "tool_call",
         "tool": tool_name,
-        "session_id": session_id or "unknown",
-        "user_agent": user_agent or "unknown",
         "parameters": parameters or {},
+        "http_headers": headers,
+        "http_body": body,
     }
 
-    logger.info(_json.dumps(record))
+    logger.info(json.dumps(record))
 
 
 def get_request_metadata() -> dict:
@@ -146,10 +182,11 @@ def get_request_metadata() -> dict:
         metadata["session_id"] = session_id
 
     user_agent = _resolve_user_agent_from_mcp_context()
-    if user_agent:
-        metadata["user_agent"] = user_agent
-    else:
-        metadata["user_agent"] = "Unknown"
+    metadata["user_agent"] = user_agent if user_agent else "Unknown"
+
+    mcp_protocol_version = _resolve_mcp_protocol_version_from_context()
+    if mcp_protocol_version:
+        metadata["mcp_protocol_version"] = mcp_protocol_version
 
     return metadata
 
