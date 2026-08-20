@@ -158,17 +158,13 @@ def test_resolve_session_id_from_mcp_context_exception():
 
 def test_resolve_user_agent_from_mcp_context_success():
     """Test function."""
-    mock_request = MagicMock()
-    mock_request.headers.get.return_value = "Mozilla/5.0 Test Agent"
-    mock_request_ctx = MagicMock()
-    mock_request_ctx.request = mock_request
-    mock_ctx = MagicMock()
-    mock_ctx.request_context = mock_request_ctx
+    mock_http_request = MagicMock()
+    mock_http_request.headers.get.return_value = "Mozilla/5.0 Test Agent"
     with patch.dict(
         "sys.modules",
         {
             "fastmcp.server.dependencies": MagicMock(
-                get_context=MagicMock(return_value=mock_ctx)
+                get_http_request=MagicMock(return_value=mock_http_request)
             )
         },
     ):
@@ -181,7 +177,7 @@ def test_resolve_user_agent_from_mcp_context_none():
         "sys.modules",
         {
             "fastmcp.server.dependencies": MagicMock(
-                get_context=MagicMock(return_value=None)
+                get_http_request=MagicMock(return_value=None)
             )
         },
     ):
@@ -194,15 +190,18 @@ def test_resolve_user_agent_from_mcp_context_exception():
 
 
 def test_log_tool_call_with_session_and_agent():
-    """Structured log line includes tool name, session_id, user_agent, and parameters."""
+    """Structured log line includes tool name, parameters, and HTTP headers."""
+    mock_http_request = MagicMock()
+    mock_http_request._headers = None
+    mock_http_request._body = None
     with (
-        patch(
-            "util.langfuse._resolve_session_id_from_mcp_context",
-            return_value="sess-abc",
-        ),
-        patch(
-            "util.langfuse._resolve_user_agent_from_mcp_context",
-            return_value="Claude/1.0",
+        patch.dict(
+            "sys.modules",
+            {
+                "fastmcp.server.dependencies": MagicMock(
+                    get_http_request=MagicMock(return_value=mock_http_request)
+                )
+            },
         ),
         patch("util.langfuse.logger") as mock_logger,
     ):
@@ -213,21 +212,21 @@ def test_log_tool_call_with_session_and_agent():
         logged = json.loads(mock_logger.info.call_args[0][0])
         assert logged["event"] == "tool_call"
         assert logged["tool"] == "get_collections"
-        assert logged["session_id"] == "sess-abc"
-        assert logged["user_agent"] == "Claude/1.0"
         assert logged["parameters"] == {"keyword": "SST", "limit": 10}
+        assert "http_headers" in logged
+        assert "http_body" in logged
 
 
 def test_log_tool_call_unknown_context():
-    """Falls back to 'unknown' when session_id and user_agent are unavailable."""
+    """Falls back gracefully when no HTTP request context is available."""
     with (
-        patch(
-            "util.langfuse._resolve_session_id_from_mcp_context",
-            return_value=None,
-        ),
-        patch(
-            "util.langfuse._resolve_user_agent_from_mcp_context",
-            return_value=None,
+        patch.dict(
+            "sys.modules",
+            {
+                "fastmcp.server.dependencies": MagicMock(
+                    get_http_request=MagicMock(return_value=None)
+                )
+            },
         ),
         patch("util.langfuse.logger") as mock_logger,
     ):
@@ -236,25 +235,25 @@ def test_log_tool_call_unknown_context():
         log_tool_call("get_granules", None)
         mock_logger.info.assert_called_once()
         logged = json.loads(mock_logger.info.call_args[0][0])
-        assert logged["session_id"] == "unknown"
-        assert logged["user_agent"] == "unknown"
+        assert logged["event"] == "tool_call"
+        assert logged["tool"] == "get_granules"
         assert logged["parameters"] == {}
+        assert logged["http_headers"] == {}
+        assert logged["http_body"] == {}
 
 
 def test_get_request_metadata_with_both():
     """Test function."""
-    mock_request = MagicMock()
-    mock_request.headers.get.return_value = "TestAgent/1.0"
-    mock_request_ctx = MagicMock()
-    mock_request_ctx.request = mock_request
     mock_ctx = MagicMock()
     mock_ctx.session_id = "sess-123"
-    mock_ctx.request_context = mock_request_ctx
+    mock_http_request = MagicMock()
+    mock_http_request.headers.get.return_value = "TestAgent/1.0"
     with patch.dict(
         "sys.modules",
         {
             "fastmcp.server.dependencies": MagicMock(
-                get_context=MagicMock(return_value=mock_ctx)
+                get_context=MagicMock(return_value=mock_ctx),
+                get_http_request=MagicMock(return_value=mock_http_request),
             )
         },
     ):
