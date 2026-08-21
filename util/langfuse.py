@@ -113,15 +113,18 @@ def _resolve_mcp_protocol_version_from_context() -> str | None:
     return _resolve_header_from_mcp_context("mcp-protocol-version")
 
 
-def log_tool_call(tool_name: str, parameters: dict | None = None) -> None:
+def log_tool_call(
+    tool_kwargs: dict,
+    parameters: dict | None = None,
+) -> None:
     """
     Emit a structured JSON log line to the Python logger (CloudWatch) for every tool
     invocation.  The record includes the full HTTP headers and body from the MCP
-    request alongside the tool name and parameters, giving operators complete
+    request alongside the tool name, version, and parameters, giving operators complete
     request-level visibility without relying on Langfuse being available.
 
     Args:
-        tool_name: Name of the MCP tool being invoked.
+        tool_kwargs: The tool registration dict (must contain 'name' and 'version').
         parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
     """
     headers = {}
@@ -164,7 +167,8 @@ def log_tool_call(tool_name: str, parameters: dict | None = None) -> None:
 
     record: dict = {
         "event": "tool_call",
-        "tool": tool_name,
+        "tool": tool_kwargs["name"],
+        "tool_version": tool_kwargs.get("version"),
         "parameters": parameters or {},
         "http_headers": headers,
         "http_body": body,
@@ -203,7 +207,9 @@ def trace_update(
     Safely handles the case where Langfuse is not available.
 
     Args:
-        metadata: Key-value pairs to add to the trace
+        metadata: Key-value pairs to add to the trace. Merged on top of request
+            metadata when ``include_request_metadata`` is True, so callers can
+            inject arbitrary keys (e.g. ``{"tool_version": "1.2.3"}``) here.
         tags: Tags to add to the trace
         session_id: Session ID to group traces together
         include_request_metadata: If True, automatically include session_id and user_agent from request context
@@ -214,15 +220,12 @@ def trace_update(
 
     kwargs = {}
 
-    # Build metadata, optionally including request context
-    combined_metadata = {}
+    # Build metadata, optionally including request context.
+    # Caller-supplied metadata is merged last so it can override request metadata.
     if include_request_metadata:
-        combined_metadata.update(get_request_metadata())
-    if metadata is not None:
-        combined_metadata.update(metadata)
-
-    if combined_metadata:
-        kwargs["metadata"] = combined_metadata
+        metadata.update(get_request_metadata())
+    if metadata:
+        kwargs["metadata"] = metadata
 
     if tags is not None:
         kwargs["tags"] = tags

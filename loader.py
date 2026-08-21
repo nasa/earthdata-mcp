@@ -108,17 +108,17 @@ def create_simple_tool(
         if manifest.annotations:
             tool_kwargs["annotations"] = manifest.annotations
 
-        _tool_name = manifest.name
-
         @mcp.tool(**tool_kwargs)
         @wraps(func)
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
             try:
                 # Log to CloudWatch (structured JSON) – session_id, user_agent, params
-                log_tool_call(_tool_name, kwargs)
-                # Add request metadata (session_id, user_agent) to Langfuse trace
-                trace_update(include_request_metadata=True)
+                log_tool_call(tool_kwargs, kwargs)
+
+                # Add request metadata (session_id, user_agent) and tool version to Langfuse trace
+                metadata = {"tool_version": tool_kwargs["version"]}
+                trace_update(metadata=metadata)
                 result = await asyncio.to_thread(func, *args, **kwargs)
                 return result
             finally:
