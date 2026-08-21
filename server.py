@@ -22,7 +22,6 @@ log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler("mcp_server.log")],
 )
 
 PACKAGE_NAME = "earthdata-mcp"
