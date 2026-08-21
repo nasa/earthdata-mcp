@@ -207,11 +207,15 @@ def test_log_tool_call_with_session_and_agent():
     ):
         import json
 
-        log_tool_call("get_collections", {"keyword": "SST", "limit": 10})
+        log_tool_call(
+            {"name": "get_collections", "version": "1.0.0"},
+            {"keyword": "SST", "limit": 10},
+        )
         mock_logger.info.assert_called_once()
         logged = json.loads(mock_logger.info.call_args[0][0])
         assert logged["event"] == "tool_call"
         assert logged["tool"] == "get_collections"
+        assert logged["tool_version"] == "1.0.0"
         assert logged["parameters"] == {"keyword": "SST", "limit": 10}
         assert "http_headers" in logged
         assert "http_body" in logged
@@ -232,11 +236,12 @@ def test_log_tool_call_unknown_context():
     ):
         import json
 
-        log_tool_call("get_granules", None)
+        log_tool_call({"name": "get_granules", "version": "2.1.0"}, None)
         mock_logger.info.assert_called_once()
         logged = json.loads(mock_logger.info.call_args[0][0])
         assert logged["event"] == "tool_call"
         assert logged["tool"] == "get_granules"
+        assert logged["tool_version"] == "2.1.0"
         assert logged["parameters"] == {}
         assert logged["http_headers"] == {}
         assert logged["http_body"] == {}
