@@ -113,6 +113,36 @@ def _resolve_mcp_protocol_version_from_context() -> str | None:
     return _resolve_header_from_mcp_context("mcp-protocol-version")
 
 
+def _resolve_client_params_from_mcp_context() -> dict:
+    """Resolve clientInfo from the MCP initialize handshake via FastMCP context."""
+    try:
+        from fastmcp.server.dependencies import get_context  # type: ignore
+
+        ctx = get_context()
+        if ctx is None:
+            return {}
+
+        client_params = getattr(getattr(ctx, "session", None), "client_params", None)
+        if client_params is None:
+            return {}
+
+        client_info = getattr(client_params, "clientInfo", None)
+        if client_info is None:
+            return {}
+
+        return {
+            k: v
+            for k, v in {
+                "client_name": getattr(client_info, "name", None),
+                "client_version": getattr(client_info, "version", None),
+                "client_url": getattr(client_info, "websiteUrl", None),
+            }.items()
+            if v is not None
+        }
+    except Exception:
+        return {}
+
+
 def log_tool_call(
     tool_kwargs: dict,
     parameters: dict | None = None,
@@ -127,70 +157,102 @@ def log_tool_call(
         tool_kwargs: The tool registration dict (must contain 'name' and 'version').
         parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
     """
+    # Allowlisted headers — excludes authorization, cookie, and other sensitive values.
+    _LOGGED_HEADERS = {
+        "user-agent",
+        "mcp-protocol-version",
+        "mcp-session-id",
+        "x-forwarded-for",
+        "origin",
+        "referer",
+        "content-type",
+        "accept",
+    }
+
     headers = {}
-    body = {}
+    client_info: dict = {}
     try:
         from fastmcp.server.dependencies import get_http_request  # type: ignore
 
         http_request = get_http_request()
         if http_request is not None:
-            raw_headers = getattr(http_request, "_headers", None)
-            if raw_headers is not None:
-                # Starlette stores headers as a list of (name, value) byte tuples.
-                headers = {
-                    k.decode() if isinstance(k, bytes) else k: (
-                        v.decode() if isinstance(v, bytes) else v
-                    )
-                    for k, v in (
-                        raw_headers.items() if hasattr(raw_headers, "items") else []
-                    )
+            client = getattr(http_request, "client", None)
+            if client is not None:
+                client_info = {
+                    "host": getattr(client, "host", None),
+                    "port": getattr(client, "port", None),
                 }
 
-            raw_body = getattr(http_request, "_body", None)
-            if raw_body is not None:
-                # 1. Decode to a string safely first
-                body_str = (
-                    raw_body.decode("utf-8", errors="ignore")
-                    if isinstance(raw_body, bytes)
-                    else (raw_body or "")
-                )
-
-                # 2. Attempt to parse it as JSON
-                try:
-                    # strip() removes leading/trailing spaces or newlines that cause parse errors
-                    body = json.loads(body_str.strip()) if body_str.strip() else {}
-                except (json.JSONDecodeError, AttributeError):
-                    # Fallback to an empty dict or a standard format if it isn't valid JSON
-                    body = {"raw_text": body_str} if body_str else {}
+            # Use the public .headers property, not the private _headers attribute.
+            headers = {
+                k: v
+                for k, v in http_request.headers.items()
+                if k.lower() in _LOGGED_HEADERS
+            }
     except Exception:
         pass
+
+    # Merge in client_name, client_version, client_url from the MCP handshake so
+    # the CloudWatch record carries the same parsed client identity that Langfuse does.
+    client_params = _resolve_client_params_from_mcp_context()
 
     record: dict = {
         "event": "tool_call",
         "tool": tool_kwargs["name"],
         "tool_version": tool_kwargs.get("version"),
         "parameters": parameters or {},
+        "client_info": client_info,
         "http_headers": headers,
-        "http_body": body,
+        **client_params,
     }
 
     logger.info(json.dumps(record))
 
 
+def _resolve_client_info_from_mcp_context() -> dict:
+    """Resolve client host/port from the Starlette request and clientInfo from the MCP handshake."""
+    info: dict = {}
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is not None:
+            client = getattr(http_request, "client", None)
+            if client is not None:
+                host = getattr(client, "host", None)
+                port = getattr(client, "port", None)
+                if host is not None:
+                    info["client_host"] = host
+                if port is not None:
+                    info["client_port"] = port
+
+            # Prefer x-forwarded-for over client.host when behind a load balancer.
+            forwarded_for = http_request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                info["client_host"] = forwarded_for.split(",")[0].strip()
+    except Exception:
+        pass
+
+    info.update(_resolve_client_params_from_mcp_context())
+    return info
+
+
 def get_request_metadata() -> dict:
-    """Get metadata from the current request context (session_id, user_agent, etc.)."""
+    """
+    Get metadata from the current request context for storage in Langfuse trace metadata.
+
+    These values all go into the metadata bag — not top-level trace fields. Langfuse
+    top-level fields (session_id, tags, user_id) are handled separately in trace_update
+    so they are indexed and filterable in the UI. Everything here is context that is
+    useful to inspect per-trace but not needed as a filter column.
+    """
     metadata = {}
-
-    session_id = _resolve_session_id_from_mcp_context()
-    if session_id:
-        metadata["session_id"] = session_id
-
-    user_agent = _resolve_user_agent_from_mcp_context()
-    metadata["user_agent"] = user_agent if user_agent else "Unknown"
 
     mcp_protocol_version = _resolve_mcp_protocol_version_from_context()
     if mcp_protocol_version:
         metadata["mcp_protocol_version"] = mcp_protocol_version
+
+    metadata.update(_resolve_client_info_from_mcp_context())
 
     return metadata
 
@@ -220,19 +282,32 @@ def trace_update(
 
     kwargs = {}
 
-    # Build metadata, optionally including request context.
-    # Caller-supplied metadata is merged last so it can override request metadata.
-    if include_request_metadata:
-        metadata.update(get_request_metadata())
-    if metadata:
-        kwargs["metadata"] = metadata
-
-    if tags is not None:
-        kwargs["tags"] = tags
-
+    # --- Langfuse top-level fields (indexed, filterable in the UI) ---
+    # session_id and tags are first-class Langfuse fields; they go as top-level kwargs.
+    # client_name is promoted to a tag so it appears as a filter column.
     resolved_session_id = session_id or _resolve_session_id_from_mcp_context()
     if resolved_session_id is not None:
         kwargs["session_id"] = resolved_session_id
+
+    client_params = _resolve_client_params_from_mcp_context()
+    client_name = client_params.get("client_name")
+    resolved_tags = list(tags) if tags is not None else []
+    if client_name and client_name not in resolved_tags:
+        resolved_tags.append(client_name)
+    if resolved_tags:
+        kwargs["tags"] = resolved_tags
+
+    # --- Langfuse metadata bag (inspectable per-trace, not filterable as columns) ---
+    # Includes protocol version, client host/port, client name/version/url, and any
+    # caller-supplied keys. Caller values are merged last so they can override.
+    combined_metadata: dict = {}
+    if include_request_metadata:
+        combined_metadata.update(get_request_metadata())
+        combined_metadata.update(client_params)
+    if metadata is not None:
+        combined_metadata.update(metadata)
+    if combined_metadata:
+        kwargs["metadata"] = combined_metadata
 
     if kwargs:
         client.update_current_trace(**kwargs)

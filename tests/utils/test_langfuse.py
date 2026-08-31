@@ -190,16 +190,26 @@ def test_resolve_user_agent_from_mcp_context_exception():
 
 
 def test_log_tool_call_with_session_and_agent():
-    """Structured log line includes tool name, parameters, and HTTP headers."""
+    """Structured log line includes tool name, parameters, HTTP headers, and parsed client identity."""
     mock_http_request = MagicMock()
     mock_http_request._headers = None
     mock_http_request._body = None
+    mock_http_request.client = None
+
+    mock_ctx = MagicMock()
+    mock_client_info = MagicMock()
+    mock_client_info.name = "claude-code"
+    mock_client_info.version = "2.1.92"
+    mock_client_info.websiteUrl = "https://claude.com/claude-code"
+    mock_ctx.session.client_params.clientInfo = mock_client_info
+
     with (
         patch.dict(
             "sys.modules",
             {
                 "fastmcp.server.dependencies": MagicMock(
-                    get_http_request=MagicMock(return_value=mock_http_request)
+                    get_http_request=MagicMock(return_value=mock_http_request),
+                    get_context=MagicMock(return_value=mock_ctx),
                 )
             },
         ),
@@ -218,7 +228,10 @@ def test_log_tool_call_with_session_and_agent():
         assert logged["tool_version"] == "1.0.0"
         assert logged["parameters"] == {"keyword": "SST", "limit": 10}
         assert "http_headers" in logged
-        assert "http_body" in logged
+        assert "http_body" not in logged
+        assert logged["client_name"] == "claude-code"
+        assert logged["client_version"] == "2.1.92"
+        assert logged["client_url"] == "https://claude.com/claude-code"
 
 
 def test_log_tool_call_unknown_context():
@@ -228,7 +241,8 @@ def test_log_tool_call_unknown_context():
             "sys.modules",
             {
                 "fastmcp.server.dependencies": MagicMock(
-                    get_http_request=MagicMock(return_value=None)
+                    get_http_request=MagicMock(return_value=None),
+                    get_context=MagicMock(return_value=None),
                 )
             },
         ),
@@ -244,7 +258,11 @@ def test_log_tool_call_unknown_context():
         assert logged["tool_version"] == "2.1.0"
         assert logged["parameters"] == {}
         assert logged["http_headers"] == {}
-        assert logged["http_body"] == {}
+        assert "http_body" not in logged
+        # No client identity when context is absent — keys must not be present.
+        assert "client_name" not in logged
+        assert "client_version" not in logged
+        assert "client_url" not in logged
 
 
 def test_get_request_metadata_with_both():
@@ -263,8 +281,8 @@ def test_get_request_metadata_with_both():
         },
     ):
         metadata = get_request_metadata()
-        assert metadata["session_id"] == "sess-123"
-        assert metadata["user_agent"] == "TestAgent/1.0"
+        assert "session_id" not in metadata
+        assert "user_agent" not in metadata
 
 
 def test_get_request_metadata_empty():
@@ -279,7 +297,7 @@ def test_get_request_metadata_empty():
     ):
         metadata = get_request_metadata()
         assert "session_id" not in metadata
-        assert metadata["user_agent"] == "Unknown"
+        assert "user_agent" not in metadata
 
 
 def test_trace_update_with_client():
