@@ -192,9 +192,10 @@ def log_tool_call(
     except Exception:
         pass
 
-    # Merge in client_name, client_version, client_url from the MCP handshake so
-    # the CloudWatch record carries the same parsed client identity that Langfuse does.
-    client_params = _resolve_client_params_from_mcp_context()
+    # Merge client_name, client_version, client_url from the MCP handshake into
+    # client_info so the CloudWatch record carries the same parsed client identity
+    # that Langfuse does, all in one place.
+    client_info.update(_resolve_client_params_from_mcp_context())
 
     record: dict = {
         "event": "tool_call",
@@ -203,7 +204,6 @@ def log_tool_call(
         "parameters": parameters or {},
         "client_info": client_info,
         "http_headers": headers,
-        **client_params,
     }
 
     logger.info(json.dumps(record))

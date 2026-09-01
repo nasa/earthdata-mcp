@@ -229,9 +229,9 @@ def test_log_tool_call_with_session_and_agent():
         assert logged["parameters"] == {"keyword": "SST", "limit": 10}
         assert "http_headers" in logged
         assert "http_body" not in logged
-        assert logged["client_name"] == "claude-code"
-        assert logged["client_version"] == "2.1.92"
-        assert logged["client_url"] == "https://claude.com/claude-code"
+        assert logged["client_info"]["client_name"] == "claude-code"
+        assert logged["client_info"]["client_version"] == "2.1.92"
+        assert logged["client_info"]["client_url"] == "https://claude.com/claude-code"
 
 
 def test_log_tool_call_unknown_context():
@@ -259,10 +259,11 @@ def test_log_tool_call_unknown_context():
         assert logged["parameters"] == {}
         assert logged["http_headers"] == {}
         assert "http_body" not in logged
-        # No client identity when context is absent — keys must not be present.
-        assert "client_name" not in logged
-        assert "client_version" not in logged
-        assert "client_url" not in logged
+        # No client identity when context is absent — client_info stays empty.
+        assert logged["client_info"] == {}
+        assert "client_name" not in logged["client_info"]
+        assert "client_version" not in logged["client_info"]
+        assert "client_url" not in logged["client_info"]
 
 
 def test_get_request_metadata_with_both():
