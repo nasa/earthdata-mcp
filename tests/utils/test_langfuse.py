@@ -271,7 +271,13 @@ def test_get_request_metadata_with_both():
     mock_ctx = MagicMock()
     mock_ctx.session_id = "sess-123"
     mock_http_request = MagicMock()
-    mock_http_request.headers.get.return_value = "TestAgent/1.0"
+    mock_http_request.headers.items.return_value = [
+        ("user-agent", "claude-code/2.1.92 (cli)"),
+        ("content-type", "application/json"),
+        ("authorization", "Bearer secret"),  # must be excluded
+    ]
+    mock_http_request.headers.get.return_value = None
+    mock_http_request.client = None
     with patch.dict(
         "sys.modules",
         {
@@ -284,6 +290,9 @@ def test_get_request_metadata_with_both():
         metadata = get_request_metadata()
         assert "session_id" not in metadata
         assert "user_agent" not in metadata
+        assert metadata["http_headers"]["user-agent"] == "claude-code/2.1.92 (cli)"
+        assert metadata["http_headers"]["content-type"] == "application/json"
+        assert "authorization" not in metadata["http_headers"]
 
 
 def test_get_request_metadata_empty():

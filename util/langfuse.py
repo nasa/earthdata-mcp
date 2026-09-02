@@ -143,6 +143,39 @@ def _resolve_client_params_from_mcp_context() -> dict:
         return {}
 
 
+# Headers included in both CloudWatch logs and Langfuse metadata.
+# Excludes authorization, cookie, and other sensitive values.
+_LOGGED_HEADERS: frozenset[str] = frozenset(
+    {
+        "accept",
+        "content-type",
+        "mcp-protocol-version",
+        "mcp-session-id",
+        "origin",
+        "referer",
+        "user-agent",
+        "x-forwarded-for",
+    }
+)
+
+
+def _resolve_http_headers_from_mcp_context() -> dict:
+    """Resolve the allowlisted HTTP headers from the FastMCP request context."""
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is None:
+            return {}
+        return {
+            k: v
+            for k, v in http_request.headers.items()
+            if k.lower() in _LOGGED_HEADERS
+        }
+    except Exception:
+        return {}
+
+
 def log_tool_call(
     tool_kwargs: dict,
     parameters: dict | None = None,
@@ -157,18 +190,6 @@ def log_tool_call(
         tool_kwargs: The tool registration dict (must contain 'name' and 'version').
         parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
     """
-    # Allowlisted headers — excludes authorization, cookie, and other sensitive values.
-    _LOGGED_HEADERS = {
-        "user-agent",
-        "mcp-protocol-version",
-        "mcp-session-id",
-        "x-forwarded-for",
-        "origin",
-        "referer",
-        "content-type",
-        "accept",
-    }
-
     headers = {}
     client_info: dict = {}
     try:
@@ -183,7 +204,7 @@ def log_tool_call(
                     "port": getattr(client, "port", None),
                 }
 
-            # Use the public .headers property, not the private _headers attribute.
+            # Use the module-level allowlist — excludes auth, cookie, and other sensitive values.
             headers = {
                 k: v
                 for k, v in http_request.headers.items()
@@ -253,6 +274,10 @@ def get_request_metadata() -> dict:
         metadata["mcp_protocol_version"] = mcp_protocol_version
 
     metadata.update(_resolve_client_info_from_mcp_context())
+
+    http_headers = _resolve_http_headers_from_mcp_context()
+    if http_headers:
+        metadata["http_headers"] = http_headers
 
     return metadata
 
