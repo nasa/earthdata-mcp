@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
@@ -20,7 +19,10 @@ load_dotenv()
 # Initialize logging
 logger = logging.getLogger(__name__)
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 PACKAGE_NAME = "earthdata-mcp"
 

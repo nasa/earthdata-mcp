@@ -13,7 +13,7 @@ from typing import Any
 from langfuse import observe
 from pydantic import BaseModel
 
-from util.langfuse import flush_langfuse
+from util.langfuse import flush_langfuse, log_tool_call, trace_update
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +113,12 @@ def create_simple_tool(
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
             try:
+                # Log to CloudWatch (structured JSON) – session_id, user_agent, params
+                log_tool_call(tool_kwargs, kwargs)
+
+                # Add request metadata (session_id, user_agent) and tool version to Langfuse trace
+                metadata = {"tool_version": tool_kwargs["version"]}
+                trace_update(metadata=metadata)
                 result = await asyncio.to_thread(func, *args, **kwargs)
                 return result
             finally:
@@ -181,7 +187,9 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
                         and attr is not BaseModel
                     ):
                         output_schema = attr.model_json_schema()
-                        logger.debug("Using Pydantic model %s for %s", attr_name, tool_name)
+                        logger.debug(
+                            "Using Pydantic model %s for %s", attr_name, tool_name
+                        )
                         break
             except (ImportError, AttributeError):
                 # Fall back to JSON schema if output_model.py doesn't exist
@@ -192,7 +200,9 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
                             output_schema = json.load(f)
                             logger.debug("Using JSON schema for %s", tool_name)
                     except Exception as e:
-                        logger.warning("Could not load output schema for %s: %s", tool_name, e)
+                        logger.warning(
+                            "Could not load output schema for %s: %s", tool_name, e
+                        )
 
             # Register the tool using create_simple_tool
             register_func = create_simple_tool(tool_folder, tool_func, output_schema)

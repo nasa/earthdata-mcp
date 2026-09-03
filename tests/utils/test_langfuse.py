@@ -9,11 +9,14 @@ import util.langfuse
 from util.langfuse import (
     _configure_langfuse,
     _resolve_session_id_from_mcp_context,
+    _resolve_user_agent_from_mcp_context,
+    get_request_metadata,
     create_score,
     flush_langfuse,
     get_current_trace_id,
     get_langfuse,
     initialize_langfuse_client,
+    log_tool_call,
     trace_update,
 )
 
@@ -40,7 +43,9 @@ def test_configure_langfuse_no_env():
 def test_configure_langfuse_with_env_and_ssm():
     """Test function."""
     os.environ["ENVIRONMENT_NAME"] = "test"
-    with patch("util.langfuse.get_parameter", return_value="secret-123") as mock_get_param:
+    with patch(
+        "util.langfuse.get_parameter", return_value="secret-123"
+    ) as mock_get_param:
         _configure_langfuse()
         assert os.environ["LANGFUSE_SECRET_KEY"] == "secret-123"
         mock_get_param.assert_called_once_with("test-langfuse-secret-key")
@@ -124,7 +129,11 @@ def test_resolve_session_id_from_mcp_context_success():
     mock_ctx.session_id = "sess-123"
     with patch.dict(
         "sys.modules",
-        {"fastmcp.server.dependencies": MagicMock(get_context=MagicMock(return_value=mock_ctx))},
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=mock_ctx)
+            )
+        },
     ):
         assert _resolve_session_id_from_mcp_context() == "sess-123"
 
@@ -133,7 +142,11 @@ def test_resolve_session_id_from_mcp_context_none():
     """Test function."""
     with patch.dict(
         "sys.modules",
-        {"fastmcp.server.dependencies": MagicMock(get_context=MagicMock(return_value=None))},
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=None)
+            )
+        },
     ):
         assert _resolve_session_id_from_mcp_context() is None
 
@@ -143,15 +156,200 @@ def test_resolve_session_id_from_mcp_context_exception():
     assert _resolve_session_id_from_mcp_context() is None
 
 
+def test_resolve_user_agent_from_mcp_context_success():
+    """Test function."""
+    mock_http_request = MagicMock()
+    mock_http_request.headers.get.return_value = "Mozilla/5.0 Test Agent"
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_http_request=MagicMock(return_value=mock_http_request)
+            )
+        },
+    ):
+        assert _resolve_user_agent_from_mcp_context() == "Mozilla/5.0 Test Agent"
+
+
+def test_resolve_user_agent_from_mcp_context_none():
+    """Test function."""
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_http_request=MagicMock(return_value=None)
+            )
+        },
+    ):
+        assert _resolve_user_agent_from_mcp_context() is None
+
+
+def test_resolve_user_agent_from_mcp_context_exception():
+    """Test function."""
+    assert _resolve_user_agent_from_mcp_context() is None
+
+
+def test_log_tool_call_with_session_and_agent():
+    """Structured log line includes tool name, parameters, HTTP headers, and parsed client identity."""
+    mock_http_request = MagicMock()
+    mock_http_request._headers = None
+    mock_http_request._body = None
+    mock_http_request.client = None
+
+    mock_ctx = MagicMock()
+    mock_client_info = MagicMock()
+    mock_client_info.name = "claude-code"
+    mock_client_info.version = "2.1.92"
+    mock_client_info.websiteUrl = "https://claude.com/claude-code"
+    mock_ctx.session.client_params.clientInfo = mock_client_info
+
+    with (
+        patch.dict(
+            "sys.modules",
+            {
+                "fastmcp.server.dependencies": MagicMock(
+                    get_http_request=MagicMock(return_value=mock_http_request),
+                    get_context=MagicMock(return_value=mock_ctx),
+                )
+            },
+        ),
+        patch("util.langfuse.logger") as mock_logger,
+    ):
+        import json
+
+        log_tool_call(
+            {"name": "get_collections", "version": "1.0.0"},
+            {"keyword": "SST", "limit": 10},
+        )
+        mock_logger.info.assert_called_once()
+        logged = json.loads(mock_logger.info.call_args[0][0])
+        assert logged["event"] == "tool_call"
+        assert logged["tool"] == "get_collections"
+        assert logged["tool_version"] == "1.0.0"
+        assert logged["parameters"] == {"keyword": "SST", "limit": 10}
+        assert "http_headers" in logged
+        assert "http_body" not in logged
+        assert logged["client_info"]["client_name"] == "claude-code"
+        assert logged["client_info"]["client_version"] == "2.1.92"
+        assert logged["client_info"]["client_url"] == "https://claude.com/claude-code"
+
+
+def test_log_tool_call_unknown_context():
+    """Falls back gracefully when no HTTP request context is available."""
+    with (
+        patch.dict(
+            "sys.modules",
+            {
+                "fastmcp.server.dependencies": MagicMock(
+                    get_http_request=MagicMock(return_value=None),
+                    get_context=MagicMock(return_value=None),
+                )
+            },
+        ),
+        patch("util.langfuse.logger") as mock_logger,
+    ):
+        import json
+
+        log_tool_call({"name": "get_granules", "version": "2.1.0"}, None)
+        mock_logger.info.assert_called_once()
+        logged = json.loads(mock_logger.info.call_args[0][0])
+        assert logged["event"] == "tool_call"
+        assert logged["tool"] == "get_granules"
+        assert logged["tool_version"] == "2.1.0"
+        assert logged["parameters"] == {}
+        assert logged["http_headers"] == {}
+        assert "http_body" not in logged
+        # No client identity when context is absent — client_info stays empty.
+        assert logged["client_info"] == {}
+        assert "client_name" not in logged["client_info"]
+        assert "client_version" not in logged["client_info"]
+        assert "client_url" not in logged["client_info"]
+
+
+def test_get_request_metadata_with_both():
+    """Test function."""
+    mock_ctx = MagicMock()
+    mock_ctx.session_id = "sess-123"
+    mock_http_request = MagicMock()
+    mock_http_request.headers.items.return_value = [
+        ("user-agent", "claude-code/2.1.92 (cli)"),
+        ("content-type", "application/json"),
+        ("authorization", "Bearer secret"),  # must be excluded
+    ]
+    mock_http_request.headers.get.return_value = None
+    mock_http_request.client = None
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=mock_ctx),
+                get_http_request=MagicMock(return_value=mock_http_request),
+            )
+        },
+    ):
+        metadata = get_request_metadata()
+        assert "session_id" not in metadata
+        assert "user_agent" not in metadata
+        assert metadata["http_headers"]["user-agent"] == "claude-code/2.1.92 (cli)"
+        assert metadata["http_headers"]["content-type"] == "application/json"
+        assert "authorization" not in metadata["http_headers"]
+
+
+def test_get_request_metadata_empty():
+    """Test function – no session_id when context is absent; user_agent defaults to 'Unknown'."""
+    with patch.dict(
+        "sys.modules",
+        {
+            "fastmcp.server.dependencies": MagicMock(
+                get_context=MagicMock(return_value=None)
+            )
+        },
+    ):
+        metadata = get_request_metadata()
+        assert "session_id" not in metadata
+        assert "user_agent" not in metadata
+
+
 def test_trace_update_with_client():
     """Test function."""
     with (
         patch("util.langfuse.get_langfuse") as mock_get_langfuse,
-        patch("util.langfuse._resolve_session_id_from_mcp_context", return_value="sess-123"),
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value="sess-123",
+        ),
+        patch(
+            "util.langfuse.get_request_metadata",
+            return_value={"session_id": "sess-123", "user_agent": "Test/1.0"},
+        ),
     ):
         mock_client = MagicMock()
         mock_get_langfuse.return_value = mock_client
         trace_update(metadata={"a": 1}, tags=["tag1"], session_id=None)
+        mock_client.update_current_trace.assert_called_once_with(
+            metadata={"session_id": "sess-123", "user_agent": "Test/1.0", "a": 1},
+            tags=["tag1"],
+            session_id="sess-123",
+        )
+
+
+def test_trace_update_without_request_metadata():
+    """Test function."""
+    with (
+        patch("util.langfuse.get_langfuse") as mock_get_langfuse,
+        patch(
+            "util.langfuse._resolve_session_id_from_mcp_context",
+            return_value="sess-123",
+        ),
+    ):
+        mock_client = MagicMock()
+        mock_get_langfuse.return_value = mock_client
+        trace_update(
+            metadata={"a": 1},
+            tags=["tag1"],
+            session_id=None,
+            include_request_metadata=False,
+        )
         mock_client.update_current_trace.assert_called_once_with(
             metadata={"a": 1}, tags=["tag1"], session_id="sess-123"
         )
@@ -163,7 +361,9 @@ def test_get_current_trace_id_success():
         "sys.modules",
         {
             "langfuse.decorators": MagicMock(
-                langfuse_context=MagicMock(get_current_trace_id=MagicMock(return_value="trace-123"))
+                langfuse_context=MagicMock(
+                    get_current_trace_id=MagicMock(return_value="trace-123")
+                )
             )
         },
     ):
@@ -187,7 +387,11 @@ def test_create_score():
         mock_get_langfuse.return_value = mock_client
         create_score(name="accuracy", value=1.0)
         mock_client.create_score.assert_called_once_with(
-            name="accuracy", value=1.0, trace_id="trace-123", data_type="NUMERIC", comment=""
+            name="accuracy",
+            value=1.0,
+            trace_id="trace-123",
+            data_type="NUMERIC",
+            comment="",
         )
 
 

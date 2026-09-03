@@ -2,7 +2,7 @@
 
 import logging
 import os
-
+import json
 from langfuse import Langfuse, get_client
 
 from util.ssm import get_parameter
@@ -86,10 +86,207 @@ def _resolve_session_id_from_mcp_context() -> str | None:
         return None
 
 
+def _resolve_header_from_mcp_context(header_name: str) -> str | None:
+    """Resolve a header value from the FastMCP HTTP request context when available."""
+    try:
+        # Import lazily so this utility also works in non-FastMCP runtimes.
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is None:
+            return None
+
+        value = http_request.headers.get(header_name)
+        return value if isinstance(value, str) and value else None
+    except Exception:
+        # Outside request context or headers not available
+        return None
+
+
+def _resolve_user_agent_from_mcp_context() -> str | None:
+    """Resolve user-agent from FastMCP request context when available."""
+    return _resolve_header_from_mcp_context("user-agent")
+
+
+def _resolve_mcp_protocol_version_from_context() -> str | None:
+    """Resolve mcp-protocol-version from FastMCP request context when available."""
+    return _resolve_header_from_mcp_context("mcp-protocol-version")
+
+
+def _resolve_client_params_from_mcp_context() -> dict:
+    """Resolve clientInfo from the MCP initialize handshake via FastMCP context."""
+    try:
+        from fastmcp.server.dependencies import get_context  # type: ignore
+
+        ctx = get_context()
+        if ctx is None:
+            return {}
+
+        client_params = getattr(getattr(ctx, "session", None), "client_params", None)
+        if client_params is None:
+            return {}
+
+        client_info = getattr(client_params, "clientInfo", None)
+        if client_info is None:
+            return {}
+
+        return {
+            k: v
+            for k, v in {
+                "client_name": getattr(client_info, "name", None),
+                "client_version": getattr(client_info, "version", None),
+                "client_url": getattr(client_info, "websiteUrl", None),
+            }.items()
+            if v is not None
+        }
+    except Exception:
+        return {}
+
+
+# Headers included in both CloudWatch logs and Langfuse metadata.
+# Excludes authorization, cookie, and other sensitive values.
+_LOGGED_HEADERS: frozenset[str] = frozenset(
+    {
+        "accept",
+        "content-type",
+        "mcp-protocol-version",
+        "mcp-session-id",
+        "origin",
+        "referer",
+        "user-agent",
+        "x-forwarded-for",
+    }
+)
+
+
+def _resolve_http_headers_from_mcp_context() -> dict:
+    """Resolve the allowlisted HTTP headers from the FastMCP request context."""
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is None:
+            return {}
+        return {
+            k: v
+            for k, v in http_request.headers.items()
+            if k.lower() in _LOGGED_HEADERS
+        }
+    except Exception:
+        return {}
+
+
+def log_tool_call(
+    tool_kwargs: dict,
+    parameters: dict | None = None,
+) -> None:
+    """
+    Emit a structured JSON log line to the Python logger (CloudWatch) for every tool
+    invocation.  The record includes the full HTTP headers and body from the MCP
+    request alongside the tool name, version, and parameters, giving operators complete
+    request-level visibility without relying on Langfuse being available.
+
+    Args:
+        tool_kwargs: The tool registration dict (must contain 'name' and 'version').
+        parameters: Dict of keyword arguments passed to the tool (caller's **kwargs).
+    """
+    headers = {}
+    client_info: dict = {}
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is not None:
+            client = getattr(http_request, "client", None)
+            if client is not None:
+                client_info = {
+                    "host": getattr(client, "host", None),
+                    "port": getattr(client, "port", None),
+                }
+
+            # Use the module-level allowlist — excludes auth, cookie, and other sensitive values.
+            headers = {
+                k: v
+                for k, v in http_request.headers.items()
+                if k.lower() in _LOGGED_HEADERS
+            }
+    except Exception:
+        pass
+
+    # Merge client_name, client_version, client_url from the MCP handshake into
+    # client_info so the CloudWatch record carries the same parsed client identity
+    # that Langfuse does, all in one place.
+    client_info.update(_resolve_client_params_from_mcp_context())
+
+    record: dict = {
+        "event": "tool_call",
+        "tool": tool_kwargs["name"],
+        "tool_version": tool_kwargs.get("version"),
+        "parameters": parameters or {},
+        "client_info": client_info,
+        "http_headers": headers,
+    }
+
+    logger.info(json.dumps(record))
+
+
+def _resolve_client_info_from_mcp_context() -> dict:
+    """Resolve client host/port from the Starlette request and clientInfo from the MCP handshake."""
+    info: dict = {}
+    try:
+        from fastmcp.server.dependencies import get_http_request  # type: ignore
+
+        http_request = get_http_request()
+        if http_request is not None:
+            client = getattr(http_request, "client", None)
+            if client is not None:
+                host = getattr(client, "host", None)
+                port = getattr(client, "port", None)
+                if host is not None:
+                    info["client_host"] = host
+                if port is not None:
+                    info["client_port"] = port
+
+            # Prefer x-forwarded-for over client.host when behind a load balancer.
+            forwarded_for = http_request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                info["client_host"] = forwarded_for.split(",")[0].strip()
+    except Exception:
+        pass
+
+    info.update(_resolve_client_params_from_mcp_context())
+    return info
+
+
+def get_request_metadata() -> dict:
+    """
+    Get metadata from the current request context for storage in Langfuse trace metadata.
+
+    These values all go into the metadata bag — not top-level trace fields. Langfuse
+    top-level fields (session_id, tags, user_id) are handled separately in trace_update
+    so they are indexed and filterable in the UI. Everything here is context that is
+    useful to inspect per-trace but not needed as a filter column.
+    """
+    metadata = {}
+
+    mcp_protocol_version = _resolve_mcp_protocol_version_from_context()
+    if mcp_protocol_version:
+        metadata["mcp_protocol_version"] = mcp_protocol_version
+
+    metadata.update(_resolve_client_info_from_mcp_context())
+
+    http_headers = _resolve_http_headers_from_mcp_context()
+    if http_headers:
+        metadata["http_headers"] = http_headers
+
+    return metadata
+
+
 def trace_update(
     metadata: dict | None = None,
     tags: list[str] | None = None,
     session_id: str | None = None,
+    include_request_metadata: bool = True,
 ) -> None:
     """
     Update the current Langfuse trace with metadata and/or tags.
@@ -97,22 +294,45 @@ def trace_update(
     Safely handles the case where Langfuse is not available.
 
     Args:
-        metadata: Key-value pairs to add to the trace
+        metadata: Key-value pairs to add to the trace. Merged on top of request
+            metadata when ``include_request_metadata`` is True, so callers can
+            inject arbitrary keys (e.g. ``{"tool_version": "1.2.3"}``) here.
         tags: Tags to add to the trace
         session_id: Session ID to group traces together
+        include_request_metadata: If True, automatically include session_id and user_agent from request context
     """
     client = get_langfuse()
     if client is None:
         return
 
     kwargs = {}
-    if metadata is not None:
-        kwargs["metadata"] = metadata
-    if tags is not None:
-        kwargs["tags"] = tags
+
+    # --- Langfuse top-level fields (indexed, filterable in the UI) ---
+    # session_id and tags are first-class Langfuse fields; they go as top-level kwargs.
+    # client_name is promoted to a tag so it appears as a filter column.
     resolved_session_id = session_id or _resolve_session_id_from_mcp_context()
     if resolved_session_id is not None:
         kwargs["session_id"] = resolved_session_id
+
+    client_params = _resolve_client_params_from_mcp_context()
+    client_name = client_params.get("client_name")
+    resolved_tags = list(tags) if tags is not None else []
+    if client_name and client_name not in resolved_tags:
+        resolved_tags.append(client_name)
+    if resolved_tags:
+        kwargs["tags"] = resolved_tags
+
+    # --- Langfuse metadata bag (inspectable per-trace, not filterable as columns) ---
+    # Includes protocol version, client host/port, client name/version/url, and any
+    # caller-supplied keys. Caller values are merged last so they can override.
+    combined_metadata: dict = {}
+    if include_request_metadata:
+        combined_metadata.update(get_request_metadata())
+        combined_metadata.update(client_params)
+    if metadata is not None:
+        combined_metadata.update(metadata)
+    if combined_metadata:
+        kwargs["metadata"] = combined_metadata
 
     if kwargs:
         client.update_current_trace(**kwargs)
