@@ -148,7 +148,6 @@ def create_simple_tool(
                     )
 
                 # Inject the token into kwargs so the underlying tool function can use it
-                logger.info("This is the access_token %s", token)
                 kwargs["access_token"] = token
 
             try:

@@ -34,8 +34,6 @@ def get_collection_capabilities(
         },
     )
 
-    logger.info("Token was passed in?:%s", access_token)
-
     if not collection_concept_id and not short_name:
         raise ValueError("Provide either collection_id or short_name")
 
