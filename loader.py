@@ -5,6 +5,7 @@ import importlib
 import inspect
 import json
 import logging
+import urllib.parse
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -14,6 +15,8 @@ from langfuse import observe
 from pydantic import BaseModel
 
 from util.langfuse import flush_langfuse, log_tool_call, trace_update
+
+from state import TOKEN_STORE, EARTHDATA_CLIENT_ID, REDIRECT_URI
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,11 @@ class ToolManifest:
         """Get the tool annotations from the manifest, returning empty dict if not specified."""
         return self.manifest.get("annotations", {})
 
+    @property
+    def requires_auth(self) -> bool:
+        """Get the requires_auth flag from the manifest."""
+        return self.manifest.get("requires_auth", False)
+
 
 def create_simple_tool(
     manifest_path: Path,
@@ -97,6 +105,7 @@ def create_simple_tool(
         register = create_simple_tool(Path(__file__).parent, my_tool_logic)
     """
     manifest = ToolManifest(manifest_path)
+    requires_auth = manifest.requires_auth
 
     def register(mcp):
         tool_kwargs = {
@@ -112,13 +121,45 @@ def create_simple_tool(
         @wraps(func)
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
+            # Authentication interceptor logic
+            if requires_auth:
+                session_id = kwargs.get("session_id")
+                
+                if not session_id:
+                    return "Error: 'session_id' is required but was not provided by the AI client."
+
+                token = TOKEN_STORE.get(session_id)
+                
+                if not token:
+                    # Generate the Authorization URL if no token is found
+                    auth_url = (
+                        f"https://urs.earthdata.nasa.gov/oauth/authorize" # (I see you are using UAT!)
+                        f"?client_id={EARTHDATA_CLIENT_ID}"
+                        f"&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
+                        f"&response_type=code"
+                        f"&state={session_id}"
+                    )
+                    
+                    # Raise PermissionError
+                    raise PermissionError(
+                        f"AUTHENTICATION REQUIRED: Please ask the user to click the following link to authenticate "
+                        f"with Earthdata Login:\n\n{auth_url}\n\n"
+                        f"Once they tell you they have logged in, retry this tool call with the exact same session_id ('{session_id}')."
+                    )
+
+                # Inject the token into kwargs so the underlying tool function can use it
+                logger.info("This is the access_token %s", token)
+                kwargs["access_token"] = token
+
             try:
-                # Log to CloudWatch (structured JSON) – session_id, user_agent, params
+                                # Log to CloudWatch (structured JSON) – session_id, user_agent, params
                 log_tool_call(tool_kwargs, kwargs)
 
                 # Add request metadata (session_id, user_agent) and tool version to Langfuse trace
                 metadata = {"tool_version": tool_kwargs["version"]}
                 trace_update(metadata=metadata)
+
+                # Execute the actual tool
                 result = await asyncio.to_thread(func, *args, **kwargs)
                 return result
             finally:

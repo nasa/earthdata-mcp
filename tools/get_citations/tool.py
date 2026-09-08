@@ -21,12 +21,14 @@ logger = logging.getLogger(__name__)
 
 @observe(name="get_citations")
 def get_citations(  # pylint: disable=too-many-return-statements
+    session_id: str,
     collection_concept_id: str | None = None,
     identifier: str | None = None,
     provider: str | None = None,
     limit: LimitParam = 10,
     cursor: CursorParam = None,
     fields: list[str] | None = None,
+    access_token: str | None = None,
 ) -> dict:
     """Search CMR citations by parent collection ID or specific citation identifier (DOI).
 
