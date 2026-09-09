@@ -70,7 +70,7 @@ auth = OAuthProxy(
     # base_url=MCP_HOST,
     issuer_url=MCP_HOST,
 
-    # resource_base_url=MCP_HOST,
+    resource_base_url=MCP_HOST,
     # redirect_path="/mcp/v1/auth/callback",
 
     # EDL handles the consent
