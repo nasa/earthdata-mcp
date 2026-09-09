@@ -4,8 +4,7 @@ import importlib
 import importlib.util
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
-
+from unittest.mock import mock_open, Mock, patch
 import pytest
 
 import server
@@ -77,15 +76,13 @@ class TestHealthEndpoint:
         response = await server.health(None)
         assert response.status_code == 200
         assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
-from unittest.mock import mock_open, patch
-
 
 class TestArdEndpoint:
     """Test the .well-known/ard.json endpoint."""
 
     @pytest.mark.asyncio
     @patch("builtins.open", new_callable=mock_open, read_data='{"name": "earthdata-mcp"}')
-    async def test_serve_ard_returns_ok(self, mock_file):
+    async def test_serve_ard_returns_ok(self, _mock_file):
         """serve_ard endpoint should return the parsed ard.json data and CORS headers."""
         import json
 
