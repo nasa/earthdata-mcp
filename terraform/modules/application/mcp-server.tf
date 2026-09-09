@@ -266,6 +266,10 @@ resource "aws_ecs_task_definition" "mcp" {
           value = var.tool_assoc_max_workers
         },
         {
+          name  = "MCP_HOST"
+          value = var.mcp_host
+        },
+        {
           name  = "URS_HOST"
           value = var.urs_host
         },

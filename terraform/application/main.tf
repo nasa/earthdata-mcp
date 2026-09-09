@@ -95,6 +95,7 @@ module "application" {
   # Tool associations
   tool_assoc_max_workers = var.tool_assoc_max_workers
 
+  mcp_host          = var.mcp_host
   urs_host          = var.urs_host
   urs_client_id     = var.urs_client_id
   urs_client_secret = var.urs_client_secret

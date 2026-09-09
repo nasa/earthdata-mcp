@@ -36,7 +36,7 @@ PACKAGE_NAME = "earthdata-mcp"
 URS_HOST = os.environ.get("URS_HOST", "https://sit.urs.earthdata.nasa.gov")
 URS_CLIENT_ID = os.environ.get("URS_CLIENT_ID")
 URS_CLIENT_SECRET = os.environ.get("URS_CLIENT_SECRET")
-PUBLIC_URL = "http://localhost:5001"
+MCP_HOST = os.environ.get("MCP_HOST", "http://localhost:5001")
 MCP_PATH = "/mcp/v1"
 
 # Get server version from installed package metadata
@@ -66,11 +66,11 @@ auth = OAuthProxy(
     token_verifier=token_verifier,
 
     # Your FastMCP server's public URL
-    # base_url=PUBLIC_URL + "/mcp/v1",
-    base_url=PUBLIC_URL,
-    # issuer_url=PUBLIC_URL,
+    # base_url=MCP_HOST + "/mcp/v1",
+    base_url=MCP_HOST,
+    # issuer_url=MCP_HOST,
 
-    resource_base_url=PUBLIC_URL,
+    resource_base_url=MCP_HOST,
     redirect_path="/mcp/v1/auth/callback",
 
     # EDL handles the consent
@@ -104,7 +104,7 @@ async def health(_request):
 
 middleware = list(auth.get_middleware())
 
-metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{PUBLIC_URL}{MCP_PATH}"))
+metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{MCP_HOST}{MCP_PATH}"))
 
 middleware.append(ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url))
 middleware.append(cors)

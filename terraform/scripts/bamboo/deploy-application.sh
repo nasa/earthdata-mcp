@@ -36,6 +36,7 @@ set -e
 # | bamboo_SIMPLIFY_GEOM_MAX_POINT  | No       | 4900                           |
 # | bamboo_EMBEDDING_LAMBDA_CONCURRENCY   | No | 10                             |
 # | bamboo_ENRICHMENT_LAMBDA_CONCURRENCY  | No | 500                            |
+# | bamboo_MCP_HOST                 | No       | http://localhost:5001          |
 # | bamboo_URS_HOST                 | No       | https://sit.urs.earthdata.nasa.gov |
 # | bamboo_URS_CLIENT_ID            | No       |                                |
 # | bamboo_URS_CLIENT_SECRET        | No       |                                |
@@ -78,6 +79,7 @@ export TF_VAR_load_balancer_name="${bamboo_LOAD_BALANCER_NAME}"
 [ -n "$bamboo_GEOCODE_INDEX_PORT" ] && export TF_VAR_geocode_index_port="$bamboo_GEOCODE_INDEX_PORT"
 [ -n "$bamboo_SIMPLIFY_GEOM_MAX_POINT" ] && export TF_VAR_simplify_geom_max_point="$bamboo_SIMPLIFY_GEOM_MAX_POINT"
 
+[ -n "$bamboo_MCP_HOST" ] && export TF_VAR_mcp_host="$bamboo_MCP_HOST"
 [ -n "$bamboo_URS_HOST" ] && export TF_VAR_urs_host="$bamboo_URS_HOST"
 [ -n "$bamboo_URS_CLIENT_ID" ] && export TF_VAR_urs_client_id="$bamboo_URS_CLIENT_ID"
 [ -n "$bamboo_URS_CLIENT_SECRET" ] && export TF_VAR_urs_client_secret="$bamboo_URS_CLIENT_SECRET"

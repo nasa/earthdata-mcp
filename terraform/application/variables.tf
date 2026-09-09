@@ -194,6 +194,12 @@ variable "tool_assoc_max_workers" {
   default     = "10"
 }
 
+variable "mcp_host" {
+  description = "MCP host URL"
+  type        = string
+  default     = "http://localhost:5001"
+}
+
 variable "urs_host" {
   description = "URS host URL"
   type        = string
