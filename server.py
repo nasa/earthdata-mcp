@@ -121,13 +121,10 @@ print(auth_routes)
 well_known = [route for route in auth_routes if route.path.startswith("/.well-known")]
 operational = [route for route in auth_routes if not route.path.startswith("/.well-known")]
 
-app.routes.extend(auth_routes)
+# app.routes.extend(auth_routes)
 app.routes.extend(well_known)
-as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
-app.routes.append(Route("/.well-known/oauth-authorization-server/mcp", as_metadata.endpoint, methods=["GET", "OPTIONS"]))
-
-# register_metadata = next(route for route in operational if route.path == "/register")
-# app.routes.append(Route("/mcp/v1/register", register_metadata.endpoint, methods=["GET", "OPTIONS"]))
+# as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
+# app.routes.append(Route("/.well-known/oauth-authorization-server/mcp", as_metadata.endpoint, methods=["GET", "OPTIONS"]))
 
 app.routes.append(Mount("/mcp/v1", routes=operational))
 
