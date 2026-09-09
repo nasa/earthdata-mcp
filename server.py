@@ -12,7 +12,7 @@ from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from starlette.middleware import Middleware as ASGIMiddleware
 from starlette.responses import JSONResponse
-from starlette.routing import Route
+from starlette.routing import Mount, Route
 from mcp.server.auth.routes import build_resource_metadata_url
 
 from pydantic import AnyHttpUrl
@@ -66,12 +66,12 @@ auth = OAuthProxy(
     token_verifier=token_verifier,
 
     # Your FastMCP server's public URL
-    # base_url=MCP_HOST + "/mcp/v1",
-    base_url=MCP_HOST,
-    # issuer_url=MCP_HOST,
+    base_url=MCP_HOST + "/mcp/v1",
+    # base_url=MCP_HOST,
+    issuer_url=MCP_HOST,
 
     resource_base_url=MCP_HOST,
-    redirect_path="/mcp/v1/auth/callback",
+    # redirect_path="/mcp/v1/auth/callback",
 
     # EDL handles the consent
     require_authorization_consent="external",
@@ -118,10 +118,20 @@ auth_routes = auth.get_routes(mcp_path=MCP_PATH)
 
 print(auth_routes)
 
+well_known = [route for route in auth_routes if route.path.startswith("/.well-known")]
+operational = [route for route in auth_routes if not route.path.startswith("/.well-known")]
+
 app.routes.extend(auth_routes)
+app.routes.extend(well_known)
+as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
+app.routes.append(Route("/.well-known/oauth-authorization-server/mcp", as_metadata.endpoint, methods=["GET", "OPTIONS"]))
+app.routes.append(Mount("/mcp/v1", routes=operational))
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
+
+all_routes = app.routes
+print(all_routes)
 
 
 def main():
