@@ -73,6 +73,11 @@ class ToolManifest:
         """Get the tool annotations from the manifest, returning empty dict if not specified."""
         return self.manifest.get("annotations", {})
 
+    @property
+    def require_auth(self) -> bool:
+        """Get the tool auth requirement from the manifest, returning False if not specified."""
+        return self.manifest.get("require_auth", False)
+
 
 def create_simple_tool(
     manifest_path: Path,
@@ -129,10 +134,13 @@ def create_simple_tool(
     return register
 
 
-def load_tools_from_directory(mcp, tools_dir="tools"):
+ToolsReturnType = dict[str, dict[str, ToolManifest]]
+def load_tools_from_directory(mcp, tools_dir="tools") -> ToolsReturnType:
     """Load all tools from the tools directory."""
     tools_dir = Path(tools_dir)
     loaded = []
+
+    manifests = {}
 
     for tool_folder in sorted(tools_dir.iterdir()):
         if not tool_folder.is_dir() or tool_folder.name.startswith((".", "__")):
@@ -148,6 +156,8 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
             manifest = ToolManifest(tool_folder)
 
             tool_name = manifest.get("name")
+            manifest_require_auth = manifest.get("require_auth", False)
+            manifests[tool_name] = manifest_require_auth
             tool_entry = manifest.get("entry_function")
             if not tool_name:
                 raise ValueError("manifest.json missing 'name' field")
@@ -222,4 +232,4 @@ def load_tools_from_directory(mcp, tools_dir="tools"):
     logger.info("Loaded: %d tools", len(loaded))
     logger.info("%s\n", "=" * 50)
 
-    return {"loaded": loaded, "failed": []}
+    return {"loaded": loaded, "failed": [], "manifests": manifests}

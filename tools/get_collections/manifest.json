@@ -19,6 +19,7 @@
         "idempotentHint": true,
         "openWorldHint": true
     },
+    "require_auth": true,
     "examples": {
         "keyword_search": {
             "description": "Search collections by keyword",

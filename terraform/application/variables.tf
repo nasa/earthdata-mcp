@@ -193,3 +193,21 @@ variable "tool_assoc_max_workers" {
   type        = string
   default     = "10"
 }
+
+variable "urs_host" {
+  description = "URS host URL"
+  type        = string
+  default     = "https://sit.urs.earthdata.nasa.gov"
+}
+
+variable "urs_client_id" {
+  description = "URS client ID"
+  type        = string
+  default     = ""
+}
+
+variable "urs_client_secret" {
+  description = "URS client secret"
+  type        = string
+  default     = ""
+}

@@ -171,3 +171,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "urs_host" {
+  description = "URS host URL"
+  type        = string
+  default     = "https://sit.urs.earthdata.nasa.gov"
+}
+
+variable "urs_client_id" {
+  description = "URS client ID"
+  type        = string
+  default     = ""
+}
+
+variable "urs_client_secret" {
+  description = "URS client secret"
+  type        = string
+  default     = ""
+}

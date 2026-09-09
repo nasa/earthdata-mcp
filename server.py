@@ -8,11 +8,18 @@ import sys
 import uvicorn
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from fastmcp.server.auth import OAuthProxy
+from fastmcp.server.auth.providers.jwt import JWTVerifier
+from starlette.middleware import Middleware as ASGIMiddleware
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+from mcp.server.auth.routes import build_resource_metadata_url
+
+from pydantic import AnyHttpUrl
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
+from util.stepup import StepUpAuth
 
 load_dotenv()
 
@@ -26,11 +33,51 @@ logging.basicConfig(
 
 PACKAGE_NAME = "earthdata-mcp"
 
+URS_HOST = os.environ.get("URS_HOST", "https://sit.urs.earthdata.nasa.gov")
+URS_CLIENT_ID = os.environ.get("URS_CLIENT_ID")
+URS_CLIENT_SECRET = os.environ.get("URS_CLIENT_SECRET")
+PUBLIC_URL = "http://localhost:5001"
+MCP_PATH = "/mcp/v1"
+
 # Get server version from installed package metadata
 try:
     server_version = importlib.metadata.version(PACKAGE_NAME)
 except importlib.metadata.PackageNotFoundError:
     server_version = "dev"
+
+# Configure token verification for your provider
+# See the Token Verification guide for provider-specific setups
+token_verifier = JWTVerifier(
+    jwks_uri=URS_HOST + "/.well-known/edl_sit_jwks.json",
+    issuer=URS_HOST,
+)
+
+# Create the OAuth proxy
+auth = OAuthProxy(
+    # Provider's OAuth endpoints (from their documentation)
+    upstream_authorization_endpoint=URS_HOST + "/oauth/authorize",
+    upstream_token_endpoint=URS_HOST + "/oauth/token",
+
+    # Your registered app credentials
+    upstream_client_id=URS_CLIENT_ID,
+    upstream_client_secret=URS_CLIENT_SECRET,
+
+    # Token validation (see Token Verification guide)
+    token_verifier=token_verifier,
+
+    # Your FastMCP server's public URL
+    # base_url=PUBLIC_URL + "/mcp/v1",
+    base_url=PUBLIC_URL,
+    # issuer_url=PUBLIC_URL,
+
+    resource_base_url=PUBLIC_URL,
+    redirect_path="/mcp/v1/auth/callback",
+
+    # EDL handles the consent
+    require_authorization_consent="external",
+    # Do not forward the resource to the upstream provider
+    forward_resource=False,
+)
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -42,7 +89,8 @@ cors = get_cors_middleware()
 
 try:
     # Load tool plugins
-    load_tools_from_directory(mcp)
+    result = load_tools_from_directory(mcp)
+    manifests = result.get("manifests", [])
     logger.info("Successfully loaded tools from directory")
 except Exception as e:
     logger.error("Failed to load tools: %s", e)
@@ -54,9 +102,23 @@ async def health(_request):
     """Health check endpoint for load balancer."""
     return JSONResponse({"earthdata-mcp": {"ok?": True}})
 
+middleware = list(auth.get_middleware())
+
+metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{PUBLIC_URL}{MCP_PATH}"))
+
+middleware.append(ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url))
+middleware.append(cors)
 
 # Build the app with middleware and the intended path
-app = mcp.http_app(path="/mcp/v1", middleware=[cors])
+app = mcp.http_app(path=MCP_PATH, middleware=middleware)
+# app = mcp.http_app(path="/", middleware=middleware)
+
+auth_routes = auth.get_routes(mcp_path=MCP_PATH)
+# auth_routes = auth.get_routes()
+
+print(auth_routes)
+
+app.routes.extend(auth_routes)
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
