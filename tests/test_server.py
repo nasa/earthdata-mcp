@@ -77,7 +77,22 @@ class TestHealthEndpoint:
         response = await server.health(None)
         assert response.status_code == 200
         assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
+from unittest.mock import patch, mock_open
 
+class TestArdEndpoint:
+    """Test the .well-known/ard.json endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("builtins.open", new_callable=mock_open, read_data='{"name": "earthdata-mcp"}')
+    async def test_serve_ard_returns_ok(self, mock_file):
+        """serve_ard endpoint should return the parsed ard.json data and CORS headers."""
+        import json
+
+        response = await server.serve_ard(None)
+        
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "*"
+        assert json.loads(response.body) == {"name": "earthdata-mcp"}
 
 class TestMainFunction:
     """Test the main() function with different modes."""

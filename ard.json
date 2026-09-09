@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "identifier": "urn:mcp:earthdata:server:cmr-search",
+      "displayName": "Earthdata CMR Search and Discovery",
+      "type": "application/mcp-server+json",
+      "capabilities": [
+        "get_collections",
+        "get_granules",
+        "get_services",
+        "get_tools",
+        "get_variables",
+        "get_keywords",
+        "get_citations",
+        "get_collection_capabilities"
+      ],
+      "description": "An MCP server providing access to NASA Earthdata's Common Metadata Repository (CMR) for discovering and searching collections, granules, services, tools, variables, keywords, and citations.",
+      "representativeQueries": [
+        "find Landsat 8 collections",
+        "search for granules in the MODIS Terra collection",
+        "what services are available for the GEDI L2A collection",
+        "find tools that support subsetting for ASTER collections",
+        "search for temperature-related variables in climate data",
+        "get citations for a specific collection"
+      ]
+    }
+  ]
+}
