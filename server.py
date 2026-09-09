@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
@@ -61,7 +62,7 @@ async def serve_ard(_request):
     """Serve ard.json registry entry document with CORS headers."""
     ard_path = os.path.join(os.path.dirname(__file__), "ard.json")
     try:
-        with open(ard_path, "r") as f:
+        with open(ard_path) as f:
             ard_data = json.load(f)
         response = JSONResponse(ard_data)
     except FileNotFoundError:

@@ -1,8 +1,9 @@
 """Langfuse client utility."""
 
+import json
 import logging
 import os
-import json
+
 from langfuse import Langfuse, get_client
 
 from util.ssm import get_parameter
