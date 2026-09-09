@@ -264,6 +264,18 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "TOOL_ASSOC_MAX_WORKERS"
           value = var.tool_assoc_max_workers
+        },
+        {
+          name  = "URS_HOST"
+          value = var.urs_host
+        },
+        {
+          name  = "URS_CLIENT_ID"
+          value = var.urs_client_id
+        },
+        {
+          name  = "URS_CLIENT_SECRET"
+          value = var.urs_client_secret
         }
       ]
 
