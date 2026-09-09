@@ -70,7 +70,7 @@ auth = OAuthProxy(
     # base_url=MCP_HOST,
     issuer_url=MCP_HOST,
 
-    resource_base_url=MCP_HOST,
+    # resource_base_url=MCP_HOST,
     # redirect_path="/mcp/v1/auth/callback",
 
     # EDL handles the consent
@@ -125,6 +125,10 @@ app.routes.extend(auth_routes)
 app.routes.extend(well_known)
 as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
 app.routes.append(Route("/.well-known/oauth-authorization-server/mcp", as_metadata.endpoint, methods=["GET", "OPTIONS"]))
+
+# register_metadata = next(route for route in operational if route.path == "/register")
+# app.routes.append(Route("/mcp/v1/register", register_metadata.endpoint, methods=["GET", "OPTIONS"]))
+
 app.routes.append(Mount("/mcp/v1", routes=operational))
 
 # Add health check route
