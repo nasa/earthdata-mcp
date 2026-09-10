@@ -1,3 +1,7 @@
+---
+pagetitle: Earthdata MCP Server User Guide
+---
+
 # Earthdata MCP Server User Guide
 
 The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
@@ -41,6 +45,8 @@ NASA's Common Metadata Repository (CMR) organizes Earth science data into a hier
 ## Connecting a client to the MCP Server
 The Earthdata MCP server can be accessed by any MCP client that supports the Streamable HTTP transport. If you are using a client not listed below, check its documentation for configuration information.
 
+<a id="chatgptcom"></a>
+
 ### ChatGPT.com
 ChatGPT supports custom MCP server connections using Plugins in Developer Mode (not available on free plans)
 1. Open [chatgpt.com](https://chatgpt.com)
@@ -53,6 +59,8 @@ ChatGPT supports custom MCP server connections using Plugins in Developer Mode (
 8. Click **Create**
 
 After configuring the custom ChatGPT App, the **Earthdata** MCP Server (or your custom-named server) can be used in a new chat by clicking the **+** icon and selecting the server.
+
+<a id="claudeai"></a>
 
 ### Claude.ai
 1. Open [claude.ai](https://claude.ai)
