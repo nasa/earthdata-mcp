@@ -34,22 +34,19 @@ class StepUpAuth:
 
         body, receive = await _buffer_body(receive)
         name = _called_tool(body)
-        logger.info(f"StepUpAuth: called tool '{name}'")
-        logger.info(f"StepUpAuth: self.tool_manifests = {self.tool_manifests}")
-        tool_auth = self.tool_manifests.get(name, False)
-        logger.info(f"StepUpAuth: tool_auth = {tool_auth}")
-        if tool_auth is False:
-            logger.info(f"StepUpAuth: tool '{name}' does not require auth")
+        tool_requires_auth = self.tool_manifests.get(name, False)
+
+        # If the tool does not require authentication, proceed with the request.
+        if tool_requires_auth is False:
             return await self.app(scope, receive, send)
 
         user = scope.get("user")
         token = user.access_token if isinstance(user, AuthenticatedUser) else None
+
+        # If the token exists, proceed with the request.
         if token is not None:
             return await self.app(scope, receive, send)
 
-        status = "401 (no valid token)" if token is None else "403 insufficient_scope"
-
-        logger.info(f"StepUpAuth: HTTP {status} challenge for tool '{name}'")
         # Reuse the framework's own enforcement for the response. It picks 401 vs 403 and
         # builds the WWW-Authenticate header (resource_metadata=..., scope=...).
         gate = RequireAuthMiddleware(
@@ -57,6 +54,8 @@ class StepUpAuth:
             required_scopes=[],
             resource_metadata_url=self.resource_metadata_url,
         )
+
+        # Redirect the request to the RequireAuthMiddleware to enforce authentication.
         await gate(scope, receive, send)
 
 

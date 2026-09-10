@@ -187,7 +187,7 @@ resource "aws_lb_listener_rule" "mcp" {
 
   condition {
     path_pattern {
-      values = ["/mcp", "/mcp/*", "/.well-known/oauth-authorization-server/mcp*"]
+      values = ["/mcp", "/mcp/*", "/.well-known/*/mcp*"]
     }
   }
 

@@ -17,7 +17,6 @@ from util.langfuse import flush_langfuse, log_tool_call, trace_update
 
 logger = logging.getLogger(__name__)
 
-
 class ToolManifest:
     """Handles manifest loading with sensible defaults."""
 

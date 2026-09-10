@@ -67,11 +67,8 @@ auth = OAuthProxy(
 
     # Your FastMCP server's public URL
     base_url=MCP_HOST + "/mcp/v1",
-    # base_url=MCP_HOST,
-    # issuer_url=MCP_HOST,
 
     resource_base_url=MCP_HOST,
-    # redirect_path="/mcp/v1/auth/callback",
 
     # EDL handles the consent
     require_authorization_consent="external",
@@ -111,29 +108,23 @@ middleware.append(cors)
 
 # Build the app with middleware and the intended path
 app = mcp.http_app(path=MCP_PATH, middleware=middleware)
-# app = mcp.http_app(path="/", middleware=middleware)
 
 auth_routes = auth.get_routes(mcp_path=MCP_PATH)
-# auth_routes = auth.get_routes()
-
-print(auth_routes)
 
 well_known = [route for route in auth_routes if route.path.startswith("/.well-known")]
 operational = [route for route in auth_routes if not route.path.startswith("/.well-known")]
 
 app.routes.extend(auth_routes)
-# app.routes.extend(well_known)
+
+# Mount the well-known OAuth authorization server route with the MCP path
 as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
 app.routes.append(Route("/.well-known/oauth-authorization-server" + MCP_PATH, as_metadata.endpoint, methods=["GET", "OPTIONS"]))
 
+# Mount the operational routes under the /mcp/v1 path
 app.routes.append(Mount("/mcp/v1", routes=operational))
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
-
-all_routes = app.routes
-print(all_routes)
-
 
 def main():
     """
