@@ -67,7 +67,7 @@ auth = OAuthProxy(
     token_verifier=token_verifier,
 
     # Your FastMCP server's public URL
-    base_url=CMR_HOST + "/mcp/v1",
+    base_url=CMR_HOST + MCP_PATH,
     resource_base_url=CMR_HOST,
 
     # EDL handles the consent
@@ -120,8 +120,8 @@ app.routes.extend(auth_routes)
 as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
 app.routes.append(Route("/.well-known/oauth-authorization-server" + MCP_PATH, as_metadata.endpoint, methods=["GET", "OPTIONS"]))
 
-# Mount the operational routes under the /mcp/v1 path
-app.routes.append(Mount("/mcp/v1", routes=operational))
+# Mount the operational routes under the MCP_PATH
+app.routes.append(Mount(MCP_PATH, routes=operational))
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
