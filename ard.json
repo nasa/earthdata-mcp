@@ -11,8 +11,7 @@
         "get_tools",
         "get_variables",
         "get_keywords",
-        "get_citations",
-        "get_collection_capabilities"
+        "get_citations"
       ],
       "description": "An MCP server providing access to NASA Earthdata's Common Metadata Repository (CMR) for discovering and searching collections, granules, services, tools, variables, keywords, and citations.",
       "representativeQueries": [
