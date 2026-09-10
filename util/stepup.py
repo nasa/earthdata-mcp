@@ -14,15 +14,15 @@ ASGI stack, outermost first:
 import json
 import logging
 
-from fastmcp.server.auth import AuthContext
 from fastmcp.server.auth.middleware import RequireAuthMiddleware
-from fastmcp.server.auth import require_scopes
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
 
 
 class StepUpAuth:
+    """Per-tool step-up authentication middleware for MCP server."""
+
     def __init__(self, app, *, tool_manifests, resource_metadata_url):
         self.app = app
         self.tool_manifests = tool_manifests  # tool name -> AuthCheck (must expose .scopes and .label)

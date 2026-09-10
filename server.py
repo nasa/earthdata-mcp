@@ -34,8 +34,8 @@ logging.basicConfig(
 PACKAGE_NAME = "earthdata-mcp"
 
 URS_HOST = os.environ.get("URS_HOST", "https://sit.urs.earthdata.nasa.gov")
-URS_CLIENT_ID = os.environ.get("URS_CLIENT_ID")
-URS_CLIENT_SECRET = os.environ.get("URS_CLIENT_SECRET")
+URS_CLIENT_ID = os.environ.get("URS_CLIENT_ID", "fake_client_id")
+URS_CLIENT_SECRET = os.environ.get("URS_CLIENT_SECRET", "fake_client_secret")
 MCP_HOST = os.environ.get("MCP_HOST", "http://localhost:5001")
 MCP_PATH = "/mcp/v1"
 
