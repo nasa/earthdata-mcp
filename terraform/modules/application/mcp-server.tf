@@ -187,7 +187,7 @@ resource "aws_lb_listener_rule" "mcp" {
 
   condition {
     path_pattern {
-      values = ["/mcp", "/mcp/*"]
+      values = ["/mcp", "/mcp/*", "/.well-known/*/mcp*"]
     }
   }
 
@@ -264,6 +264,26 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "TOOL_ASSOC_MAX_WORKERS"
           value = var.tool_assoc_max_workers
+        },
+        {
+          name  = "CMR_HOST"
+          value = var.cmr_host
+        },
+        {
+          name  = "URS_HOST"
+          value = var.urs_host
+        },
+        {
+          name  = "URS_CLIENT_ID"
+          value = var.urs_client_id
+        },
+        {
+          name  = "URS_CLIENT_SECRET"
+          value = var.urs_client_secret
+        },
+        {
+          name  = "URS_JWKS_PATH"
+          value = var.urs_jwks_path
         }
       ]
 

@@ -171,3 +171,33 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "cmr_host" {
+  description = "CMR host URL"
+  type        = string
+  default     = "http://localhost:5001"
+}
+
+variable "urs_host" {
+  description = "URS host URL"
+  type        = string
+  default     = "https://sit.urs.earthdata.nasa.gov"
+}
+
+variable "urs_client_id" {
+  description = "URS client ID"
+  type        = string
+  default     = ""
+}
+
+variable "urs_client_secret" {
+  description = "URS client secret"
+  type        = string
+  default     = ""
+}
+
+variable "urs_jwks_path" {
+  description = "Path to the URS JWKS file"
+  type        = string
+  default     = "/.well-known/edl_sit_jwks.json"
+}
