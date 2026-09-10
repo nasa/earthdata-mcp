@@ -2,10 +2,8 @@ import logging
 import datetime
 
 from langfuse import observe
-from models.tools.cmr_search import SearchStatus
-from models.tools.get_citations import GetCitationsInput, GetCitationsOutput
+from models.tools.get_collection_capabilities import GetCollectionCapabilitiesInput, GetCollectionCapabilitiesOutput
 from util.harmony.client import get_client
-from util.cmr.search_tools import fetch_association_ids, normalize_citation_item
 from util.langfuse import trace_update
 
 import harmony
@@ -34,8 +32,18 @@ def get_collection_capabilities(
         },
     )
 
-    if not collection_concept_id and not short_name:
-        raise ValueError("Provide either collection_id or short_name")
+    # 1. Validate Input
+    try:
+        params = GetCollectionCapabilitiesInput(
+            collection_id=collection_concept_id,
+            short_name=short_name,
+        )
+    except (ValueError, TypeError) as exc:
+        logger.error("get_collection_capabilities input validation failed: %s", exc)
+        return GetCollectionCapabilitiesOutput(
+            code=type(exc).__name__,
+            description=str(exc)
+        ).model_dump()
 
     kwargs = {}
     if collection_concept_id:
@@ -43,17 +51,16 @@ def get_collection_capabilities(
     if short_name:
         kwargs["short_name"] = short_name
 
-    client = get_client(access_token)
-    request = harmony.CapabilitiesRequest(**kwargs)
-    result = client.submit(request)
-    return _json_safe(result)
+    # 2. Execute Harmony Request
+    try:
+        client = get_client(access_token)
+        request = harmony.CapabilitiesRequest(**kwargs)
+        result = client.submit(request)
+    except Exception as exc:
+        logger.error("Error communicating with Harmony API: %s", exc, exc_info=True)
+        return GetCollectionCapabilitiesOutput(
+            code=type(exc).__name__,
+            description=f"Failed to fetch capabilities from Harmony: {str(exc)}"
+        ).model_dump()
 
-def _json_safe(value):
-    """Recursively convert datetimes (harmony-py's status() returns some) to ISO strings."""
-    if isinstance(value, datetime.datetime):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {k: _json_safe(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_json_safe(v) for v in value]
-    return value
+    return result

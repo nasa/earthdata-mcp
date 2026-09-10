@@ -17,15 +17,10 @@ def get_client(token: str) -> harmony.Client:
     Deferred until first use so a missing/invalid credential surfaces as a
     tool-call error rather than crashing server startup.
     """
+    if not token:
+        raise ValueError("A valid token is required to initialize the Harmony client.")
 
-    kwargs: dict = {"env": harmony_environment()}
-    if token:
-        kwargs["token"] = token
-    elif username and password:
-        kwargs["auth"] = (username, password)
-    # else: fall back to harmony-py's own .netrc lookup
-
-    return harmony.Client(**kwargs)
+    return harmony.Client(env=harmony_environment(), token=token)
 
 def harmony_environment() -> harmony.Environment:
     name = os.environ.get("HARMONY_ENV", "prod").strip().lower()
