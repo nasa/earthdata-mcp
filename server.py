@@ -36,7 +36,8 @@ PACKAGE_NAME = "earthdata-mcp"
 URS_HOST = os.environ.get("URS_HOST", "https://sit.urs.earthdata.nasa.gov")
 URS_CLIENT_ID = os.environ.get("URS_CLIENT_ID", "fake_client_id")
 URS_CLIENT_SECRET = os.environ.get("URS_CLIENT_SECRET", "fake_client_secret")
-MCP_HOST = os.environ.get("MCP_HOST", "http://localhost:5001")
+URS_JWKS_PATH = os.environ.get("URS_JWKS_PATH", "/.well-known/edl_sit_jwks.json")
+CMR_HOST = os.environ.get("CMR_HOST", "http://localhost:5001")
 MCP_PATH = "/mcp/v1"
 
 # Get server version from installed package metadata
@@ -48,7 +49,7 @@ except importlib.metadata.PackageNotFoundError:
 # Configure token verification for your provider
 # See the Token Verification guide for provider-specific setups
 token_verifier = JWTVerifier(
-    jwks_uri=URS_HOST + "/.well-known/edl_sit_jwks.json",
+    jwks_uri=URS_HOST + URS_JWKS_PATH,
     issuer=URS_HOST,
 )
 
@@ -66,9 +67,8 @@ auth = OAuthProxy(
     token_verifier=token_verifier,
 
     # Your FastMCP server's public URL
-    base_url=MCP_HOST + "/mcp/v1",
-
-    resource_base_url=MCP_HOST,
+    base_url=CMR_HOST + "/mcp/v1",
+    resource_base_url=CMR_HOST,
 
     # EDL handles the consent
     require_authorization_consent="external",
@@ -101,7 +101,7 @@ async def health(_request):
 
 middleware = list(auth.get_middleware())
 
-metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{MCP_HOST}{MCP_PATH}"))
+metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{CMR_HOST}{MCP_PATH}"))
 
 middleware.append(ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url))
 middleware.append(cors)

@@ -172,8 +172,8 @@ variable "tags" {
   default     = {}
 }
 
-variable "mcp_host" {
-  description = "MCP host URL"
+variable "cmr_host" {
+  description = "CMR host URL"
   type        = string
   default     = "http://localhost:5001"
 }
@@ -194,4 +194,10 @@ variable "urs_client_secret" {
   description = "URS client secret"
   type        = string
   default     = ""
+}
+
+variable "urs_jwks_path" {
+  description = "Path to the URS JWKS file"
+  type        = string
+  default     = "/.well-known/edl_sit_jwks.json"
 }

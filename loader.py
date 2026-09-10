@@ -139,6 +139,7 @@ def load_tools_from_directory(mcp, tools_dir="tools") -> ToolsReturnType:
     tools_dir = Path(tools_dir)
     loaded = []
 
+    # Collection information about each manifest. Keyed by tool name, storing whether authentication is required.
     manifests = {}
 
     for tool_folder in sorted(tools_dir.iterdir()):

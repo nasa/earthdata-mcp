@@ -266,8 +266,8 @@ resource "aws_ecs_task_definition" "mcp" {
           value = var.tool_assoc_max_workers
         },
         {
-          name  = "MCP_HOST"
-          value = var.mcp_host
+          name  = "CMR_HOST"
+          value = var.cmr_host
         },
         {
           name  = "URS_HOST"
@@ -280,6 +280,10 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "URS_CLIENT_SECRET"
           value = var.urs_client_secret
+        },
+        {
+          name  = "URS_JWKS_PATH"
+          value = var.urs_jwks_path
         }
       ]
 
