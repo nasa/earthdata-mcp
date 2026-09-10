@@ -135,3 +135,24 @@ uv run pytest tests/test_server.py
 The application deploys to AWS via Bamboo CI/CD.
 
 See the **[Developer Guides](docs/README.md)** for detailed architectural breakdowns, deployment procedures, infrastructure definitions (`terraform/`), and troubleshooting steps for server startup issues.
+
+## Publishing to Model Context Protocol Registry
+
+Pre-requisites:
+
+1. Download `mcp-publisher` from homebrew or make the source on https://github.com/modelcontextprotocol/registry
+
+2. Sign into github using the following `mcp-publisher login github` ensure you are part of the NASA organization on github before publishing
+
+Publishing Steps:
+
+1. Since we are supporting multiple MCP servers we need to first bump the `version` in the `server.json` because each release is immutable to a new version number e.g. `"version": "1.0.1","` and add a new remote e.g.
+
+```json
+{
+      "type": "streamable-http",
+      "url": "https://cmr.earthdata.nasa.gov/mcp/v2"
+    }
+```
+
+2. Run `mcp-publisher publish` by default this will publish to the MCP registry at https://registry.modelcontextprotocol.io/servers and be publicly available to all MCP clients.
