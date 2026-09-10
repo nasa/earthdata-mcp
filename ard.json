@@ -19,6 +19,7 @@
         "find Landsat 8 collections",
         "search for granules in the MODIS Terra collection",
         "what services are available for the GEDI L2A collection",
+        "What are the official science keywords related to Earth's climate and environment?",
         "find tools that support subsetting for ASTER collections",
         "search for temperature-related variables in climate data",
         "get citations for a specific collection"
