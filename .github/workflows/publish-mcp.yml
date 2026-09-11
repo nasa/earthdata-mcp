@@ -1,7 +1,8 @@
 name: Publish to MCP Registry
 
 on:
-  workflow_dispatch: {}
+  push:
+    branches: ["CMRNLP-110-registry-bug-workaround"]   # your exact branch name
 
 jobs:
   publish:
