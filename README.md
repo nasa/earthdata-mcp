@@ -150,7 +150,7 @@ Pre-requisites:
 Publishing Steps:
 
 1. Since we are supporting multiple MCP servers, first bump the `version` in `server.json` — each release
-   is immutable, so increment to a new version number, e.g. `"version": "1.0.1"`, and add a new remote, e.g.
+   is immutable, so increment to a new version number, e.g. `"version": "2.0.0"`, and add a new remote, e.g.
 
 ```json
    {
@@ -158,6 +158,8 @@ Publishing Steps:
      "url": "https://cmr.earthdata.nasa.gov/mcp/v2"
    }
 ```
+
+Note: you cannot update the registry entry without bumping the version number, as the registry is immutable.
 
 2. Commit and get your changes for `server.json` merged into to `main` after the PR.
 
