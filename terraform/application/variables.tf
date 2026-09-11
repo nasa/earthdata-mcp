@@ -223,3 +223,9 @@ variable "urs_jwks_path" {
   type        = string
   default     = "/.well-known/edl_sit_jwks.json"
 }
+
+variable "harmony_env" {
+  description = "The Harmony environment"
+  type        = string
+  default     = "prod"
+}

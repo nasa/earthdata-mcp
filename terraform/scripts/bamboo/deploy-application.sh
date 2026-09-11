@@ -41,6 +41,7 @@ set -e
 # | bamboo_URS_CLIENT_ID            | No       |                                |
 # | bamboo_URS_CLIENT_SECRET        | No       |                                |
 # | bamboo_URS_JWKS_PATH            | No       | /.well-known/edl_sit_jwks.json |
+# | bamboo_HARMONY_ENV              | No       | prod                           |
 # +---------------------------------+----------+--------------------------------+
 
 # Set AWS credentials from Bamboo variables
@@ -85,6 +86,8 @@ export TF_VAR_load_balancer_name="${bamboo_LOAD_BALANCER_NAME}"
 [ -n "$bamboo_URS_CLIENT_ID" ] && export TF_VAR_urs_client_id="$bamboo_URS_CLIENT_ID"
 [ -n "$bamboo_URS_CLIENT_SECRET" ] && export TF_VAR_urs_client_secret="$bamboo_URS_CLIENT_SECRET"
 [ -n "$bamboo_URS_JWKS_PATH" ] && export TF_VAR_urs_jwks_path="$bamboo_URS_JWKS_PATH"
+
+[ -n "$bamboo_HARMONY_ENV" ] && export TF_VAR_harmony_env="$bamboo_HARMONY_ENV"
 
 # Store Langfuse secret in SSM SecureString if provided
 if [ -n "$bamboo_LANGFUSE_SECRET_KEY" ]; then
