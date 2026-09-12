@@ -1,0 +1,33 @@
+---
+title: Earthdata MCP documentation
+---
+
+Connect a compatible client to NASA's Common Metadata Repository through the
+Earthdata MCP server, then discover datasets, verify data availability, and find
+access methods.
+
+## Start here
+
+The [user guide](consumers/earthdata-mcp-server-user-guide.md) covers client setup,
+example queries, authentication, limitations, and troubleshooting.
+
+The [parameter reference](consumers/supported-parameters.md) describes supported
+tool inputs and their mapping to CMR metadata.
+
+## Connection details
+
+| Setting | Value |
+| --- | --- |
+| Server URL | `https://cmr.earthdata.nasa.gov/mcp/v1` |
+| Transport | Streamable HTTP |
+| Server authentication | None |
+
+Downloading data can require a separate Earthdata Login account. See the
+[user guide's authentication section](consumers/earthdata-mcp-server-user-guide.md#authentication).
+
+## Development and feedback
+
+[Developer guides](https://github.com/nasa/earthdata-mcp/blob/main/docs/README.md)
+cover local setup, adding tools, and maintaining the service.
+
+[Report problems or suggest improvements](https://github.com/nasa/earthdata-mcp/issues).

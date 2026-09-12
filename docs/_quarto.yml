@@ -1,0 +1,32 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - consumers/*.md
+
+website:
+  title: Earthdata MCP
+  site-url: https://nasa.github.io/earthdata-mcp/
+  repo-url: https://github.com/nasa/earthdata-mcp
+  search: true
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: consumers/earthdata-mcp-server-user-guide.md
+        text: User guide
+      - href: consumers/supported-parameters.md
+        text: Parameter reference
+    right:
+      - href: https://github.com/nasa/earthdata-mcp
+        text: GitHub
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-copy: true
+
+execute:
+  enabled: false

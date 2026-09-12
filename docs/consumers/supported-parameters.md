@@ -1,3 +1,7 @@
+---
+pagetitle: Supported Parameters
+---
+
 # Earthdata MCP Parameter Support Reference
 
 This reference maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths. It provides consumers with a clear picture of current API integration depth and search capabilities.
@@ -9,7 +13,7 @@ This reference maps Earthdata MCP tool parameters to their corresponding CMR API
 - [`get_tools`](#get_tools)
 - [`get_services`](#get_services)
 - [`get_keywords`](#get_keywords)
-- [`get_citations`](#get_citations) (Needs documentation)
+- `get_citations` (Needs documentation)
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
 
