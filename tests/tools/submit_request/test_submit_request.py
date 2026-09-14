@@ -17,7 +17,7 @@ MOCK_STATUS_RESPONSE = {
     "updated_at": "2026-09-14T03:29:37.591000+00:00",
     "created_at_local": "2026-09-13T23:29:36-04:00",
     "updated_at_local": "2026-09-13T23:29:37-04:00",
-    "request": "https://harmony.earthdata.nasa.gov/C12345-PROV/ogc-api-coverages/1.0.0/collections/all/coverage/rangeset?forceAsync=true&label=harmony-mcp&bbox=-10.0%2C-20.0%2C10.0%2C20.0&shapefile=path%2Fto%2Fshape.zip&subset=time(%222026-01-01T00%3A00%3A00Z%22%3A%222026-12-31T23%3A59%3A59Z%22)&variable=var1&variable=var2&format=image%2Ftiff&outputCrs=EPSG%3A4326&width=1024&height=2048&maxResults=10&granuleId=G1-PROV%2CG2-PROV",
+    "request": "https://harmony.earthdata.nasa.gov/...",
     "num_input_granules": 2,
     "data_expiration": "2026-10-14T03:29:36.665000+00:00",
     "data_expiration_local": "2026-10-13T23:29:36-04:00"
