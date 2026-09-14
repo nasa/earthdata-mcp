@@ -26,7 +26,7 @@ def get_job_status(job_id: str) -> dict:
             job_id=job_id
         )
     except (ValueError, TypeError) as exc:
-        logger.error("get_job_status input validation failed: %s", exc)
+        logger.warning("get_job_status input validation failed: %s", exc)
         return GetJobStatusOutput(
             code=type(exc).__name__,
             description=str(exc)

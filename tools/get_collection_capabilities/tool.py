@@ -36,7 +36,7 @@ def get_collection_capabilities(
             short_name=short_name,
         )
     except (ValueError, TypeError) as exc:
-        logger.error("get_collection_capabilities input validation failed: %s", exc)
+        logger.warning("get_collection_capabilities input validation failed: %s", exc)
         return GetCollectionCapabilitiesOutput(
             code=type(exc).__name__,
             description=str(exc)
