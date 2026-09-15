@@ -1,11 +1,13 @@
+"""Harmony get collection capabilities tool."""
+
 import logging
 import harmony
 
 from langfuse import observe
+from fastmcp.server.dependencies import get_access_token
 from models.tools.get_collection_capabilities import GetCollectionCapabilitiesInput, GetCollectionCapabilitiesOutput
 from util.harmony.client import get_client
 from util.langfuse import trace_update
-from fastmcp.server.dependencies import get_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def get_collection_capabilities(
 
     # Validate Input
     try:
-        params = GetCollectionCapabilitiesInput(
+        GetCollectionCapabilitiesInput(
             collection_id=collection_concept_id,
             short_name=short_name,
         )

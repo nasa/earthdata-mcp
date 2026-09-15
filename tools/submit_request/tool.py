@@ -1,18 +1,20 @@
+"""Harmony submit request tool."""
+
 import logging
 import dateutil.parser
 import harmony
 
 from langfuse import observe
+from fastmcp.server.dependencies import get_access_token
 from models.tools.submit_request import SubmitRequestInput, SubmitRequestOutput
 from util.harmony.client import get_client, _json_safe
 from util.langfuse import trace_update
-from fastmcp.server.dependencies import get_access_token
 
 logger = logging.getLogger(__name__)
 
 
 @observe(name="submit_request")
-def submit_request(
+def submit_request( # pylint: disable=too-many-arguments, disable=redefined-builtin
     collection_id: str,
     bbox: list[float] | None = None,
     shape: str | None = None,
@@ -57,7 +59,7 @@ def submit_request(
 
     # Validate Input via Pydantic
     try:
-        params = SubmitRequestInput(
+        SubmitRequestInput(
             collection_id=collection_id,
             bbox=bbox,
             shape=shape,
@@ -122,9 +124,9 @@ def submit_request(
         request_kwargs["height"] = height
     if max_results is not None:
         request_kwargs["max_results"] = max_results
-        
+
     if granule_ids is not None:
-        request_kwargs["granule_id"] = granule_ids 
+        request_kwargs["granule_id"] = granule_ids
 
     # Always tag requests so they're identifiable as originating from this
     # MCP server (visible in the Harmony job's labels / request URL).
@@ -139,7 +141,7 @@ def submit_request(
         client = get_client(token)
         job_id = client.submit(request)
         status = client.status(job_id)
-        
+
     except Exception as exc:
         logger.error("Error submitting request to Harmony API: %s", exc, exc_info=True)
         return SubmitRequestOutput(

@@ -1,10 +1,12 @@
+"""Harmony get job status tool."""
+
 import logging
 
 from langfuse import observe
+from fastmcp.server.dependencies import get_access_token
 from models.tools.get_job_status import GetJobStatusInput, GetJobStatusOutput
 from util.harmony.client import get_client, _json_safe
 from util.langfuse import trace_update
-from fastmcp.server.dependencies import get_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 @observe(name="get_job_status")
 def get_job_status(job_id: str) -> dict:
     """Get the current status, progress percentage, and metadata for a Harmony job."""
-    
+
     trace_update(
         tags=["harmony", "job_status"],
         metadata={
@@ -22,7 +24,7 @@ def get_job_status(job_id: str) -> dict:
 
     # Validate Input
     try:
-        params = GetJobStatusInput(
+        GetJobStatusInput(
             job_id=job_id
         )
     except (ValueError, TypeError) as exc:
@@ -37,7 +39,7 @@ def get_job_status(job_id: str) -> dict:
         token = get_access_token().token
         client = get_client(token)
         status = client.status(job_id)
-        
+
     except Exception as exc:
         logger.error("Error communicating with Harmony API: %s", exc, exc_info=True)
         return GetJobStatusOutput(

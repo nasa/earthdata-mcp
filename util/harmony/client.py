@@ -1,3 +1,5 @@
+"""Harmony API client."""
+
 import os
 import datetime
 from functools import lru_cache
@@ -34,6 +36,7 @@ def get_client(token: str) -> harmony.Client:
     return harmony.Client(env=harmony_environment(), token=token)
 
 def harmony_environment() -> harmony.Environment:
+    """Return harmony environment."""
     name = os.environ.get("HARMONY_ENV", "prod").strip().lower()
     if name not in _ENV_MAP:
         raise ValueError(
