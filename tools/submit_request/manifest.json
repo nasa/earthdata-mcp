@@ -1,0 +1,25 @@
+{
+    "name": "submit_request",
+    "module": "tool",
+    "description": "Get the job status of a Harmony request. Provide the job_id.",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "transformation",
+        "collections",
+        "harmony"
+    ],
+    "entry_function": "submit_request",
+    "require_auth": true,
+    "enabled": true,
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    }
+}

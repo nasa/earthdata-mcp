@@ -1,0 +1,25 @@
+{
+    "name": "get_collection_capabilities",
+    "module": "tool",
+    "description": "Look up what Harmony operations a collection supports. Provide either collection_id (CMR concept id) or short_name. Returns which subsetting/reprojection/reformatting features are available, the services that implement them, supported output formats, and variables.",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "transformation",
+        "collections",
+        "harmony"
+    ],
+    "entry_function": "get_collection_capabilities",
+    "require_auth": true,
+    "enabled": true,
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    }
+}
