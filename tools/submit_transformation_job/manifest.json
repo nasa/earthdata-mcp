@@ -1,7 +1,7 @@
 {
-    "name": "submit_request",
+    "name": "submit_transformation_job",
     "module": "tool",
-    "description": "Get the job status of a Harmony request. Provide the job_id.",
+    "description": "Submit a transformation job to Harmony.",
     "version": "1.0.0",
     "tags": [
         "nasa",
@@ -13,13 +13,13 @@
         "collections",
         "harmony"
     ],
-    "entry_function": "submit_request",
+    "entry_function": "submit_transformation_job",
     "require_auth": true,
     "enabled": true,
     "annotations": {
-        "readOnlyHint": true,
+        "readOnlyHint": false,
         "destructiveHint": false,
-        "idempotentHint": true,
+        "idempotentHint": false,
         "openWorldHint": true
     }
 }

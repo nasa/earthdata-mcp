@@ -1,4 +1,4 @@
-"""Input and output models for the get_capabilities MCP tool.
+"""Input and output models for the get_transformation_options MCP tool.
 
 Wraps the NASA Harmony `/capabilities` endpoint, which returns the set of
 Harmony transformation capabilities (subsetting, reprojection, averaging,
@@ -25,7 +25,7 @@ CollectionIdParam = Annotated[
         description=(
             "Concept ID of the collection to retrieve capabilities for "
             "(format: C<number>-<PROVIDER>, e.g., C1234567890-PROVIDER). "
-            "Exactly one of collection_id or short_name must be provided."
+            "Exactly one of collection_concept_id or short_name must be provided."
         )
     ),
 ]
@@ -35,7 +35,7 @@ ShortNameParam = Annotated[
     Field(
         description=(
             "Short name of the collection to retrieve capabilities for. "
-            "Exactly one of collection_id or short_name must be provided. "
+            "Exactly one of collection_concept_id or short_name must be provided. "
             "If multiple collections share the short name, Harmony prefers "
             "the one configured for use in Harmony."
         )
@@ -169,8 +169,8 @@ class VariableInfo(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class GetCollectionCapabilitiesInput(BaseModel):
-    """Input model for get_capabilities."""
+class GetTransformationOptionsInput(BaseModel):
+    """Input model for get_transformation_options."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -178,18 +178,18 @@ class GetCollectionCapabilitiesInput(BaseModel):
     short_name: ShortNameParam = None
 
     @model_validator(mode="after")
-    def _check_collection_identifier(self) -> "GetCapabilitiesInput":
+    def _check_collection_identifier(self) -> "GetTransformationOptionsInput":
         if not self.collection_id and not self.short_name:
-            raise ValueError("Must specify either collection_id or short_name")
+            raise ValueError("Must specify either collection_concept_id or short_name")
         if self.collection_id and self.short_name:
             raise ValueError(
-                "Must specify only one of collection_id or short_name, not both"
+                "Must specify only one of collection_concept_id or short_name, not both"
             )
         return self
 
 
-class GetCollectionCapabilitiesOutput(BaseHarmonyToolOutput):
-    """Output model for get_capabilities (version 3 response format)."""
+class GetTransformationOptionsOutput(BaseHarmonyToolOutput):
+    """Output model for get_transformation_options (version 3 response format)."""
 
     concept_id: str | None  = Field(default=None, alias="conceptId", description="Concept ID of the collection")
     short_name: str | None  = Field(default=None, alias="shortName", description="Short name of the collection")

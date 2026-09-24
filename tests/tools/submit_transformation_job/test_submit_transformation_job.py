@@ -1,4 +1,4 @@
-"""Tests for the submit_request MCP tool."""
+"""Tests for the submit_transformation_job MCP tool."""
 
 import importlib
 import types
@@ -7,20 +7,22 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
 
-# Mock status response for when the job successfully submits
+
+# Mock status response returned by client.status() right after submission.
 MOCK_STATUS_RESPONSE = {
     "status": "running",
     "message": "The job is being processed",
     "progress": 9,
-    "created_at": "2026-09-14T03:29:36.665000+00:00",
-    "updated_at": "2026-09-14T03:29:37.591000+00:00",
-    "created_at_local": "2026-09-13T23:29:36-04:00",
-    "updated_at_local": "2026-09-13T23:29:37-04:00",
+    "created_at": "2026-09-18T00:10:10.444000Z",
+    "updated_at": "2026-09-18T00:38:11.770000Z",
+    "created_at_local": "2026-09-17T20:10:10-04:00",
+    "updated_at_local": "2026-09-17T20:38:11-04:00",
     "request": "https://harmony.earthdata.nasa.gov/...",
     "num_input_granules": 2,
-    "data_expiration": "2026-10-14T03:29:36.665000+00:00",
-    "data_expiration_local": "2026-10-13T23:29:36-04:00"
+    "data_expiration": "2026-10-18T00:10:10.444000Z",
+    "data_expiration_local": "2026-10-17T20:10:10-04:00",
 }
 
 # The job ID that client.submit() returns
@@ -29,14 +31,13 @@ MOCK_JOB_ID = "job-id-12345"
 
 def _load_tool() -> types.ModuleType:
     """Load the tool module dynamically to avoid circular imports."""
-    # Note: Adjust the import path below to match your project structure
-    return importlib.import_module("tools.submit_request.tool")
+    return importlib.import_module("tools.submit_transformation_job.tool")
 
 
 @pytest.fixture
 def mock_get_access_token() -> Generator[MagicMock, None, None]:
     """Mock the get_access_token function specifically within the tool module."""
-    with patch("tools.submit_request.tool.get_access_token") as mock_token_func:
+    with patch("tools.submit_transformation_job.tool.get_access_token") as mock_token_func:
         mock_token_obj = MagicMock()
         mock_token_obj.token = "fake-jwt-token"
         mock_token_func.return_value = mock_token_obj
@@ -46,38 +47,38 @@ def mock_get_access_token() -> Generator[MagicMock, None, None]:
 @pytest.fixture
 def mock_get_client() -> Generator[MagicMock, None, None]:
     """Mock util.harmony.client.get_client within the tool."""
-    with patch("tools.submit_request.tool.get_client") as mock_client:
+    with patch("tools.submit_transformation_job.tool.get_client") as mock_client:
         yield mock_client
 
 
 @pytest.fixture
 def mock_harmony_request() -> Generator[MagicMock, None, None]:
     """Mock harmony.Request to avoid triggering real harmony-py logic."""
-    with patch("tools.submit_request.tool.harmony.Request") as mock_req:
+    with patch("tools.submit_transformation_job.tool.harmony.Request") as mock_req:
         yield mock_req
 
 
 @pytest.fixture
 def mock_harmony_collection() -> Generator[MagicMock, None, None]:
     """Mock harmony.Collection."""
-    with patch("tools.submit_request.tool.harmony.Collection") as mock_coll:
+    with patch("tools.submit_transformation_job.tool.harmony.Collection") as mock_coll:
         yield mock_coll
 
 
 @pytest.fixture
 def mock_harmony_bbox() -> Generator[MagicMock, None, None]:
     """Mock harmony.BBox."""
-    with patch("tools.submit_request.tool.harmony.BBox") as mock_bbox:
+    with patch("tools.submit_transformation_job.tool.harmony.BBox") as mock_bbox:
         yield mock_bbox
 
 
-def test_submit_request_minimal_success(
+def test_submit_transformation_job_minimal_success(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
     mock_harmony_request: MagicMock,
     mock_harmony_collection: MagicMock,
 ) -> None:
-    """Test successful submission with only the required collection_id."""
+    """Test successful submission with only the required collection_concept_id."""
     tool = _load_tool()
 
     # Arrange Mocks
@@ -92,22 +93,28 @@ def test_submit_request_minimal_success(
     mock_harmony_collection.return_value = mock_coll_instance
 
     # Act
-    result = tool.submit_request(collection_id="C12345-PROV")
+    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV")
 
-    # Assert 
-    # Check that job_id was merged into the status dictionary correctly
-    assert result == {"job_id": MOCK_JOB_ID, **MOCK_STATUS_RESPONSE}
-    
+    # Build the expected output via the same transformation the tool
+    # performs (construct model from raw status, overwrite job_id, dump the
+    # same way) rather than assuming raw-dict/model-output equality.
+    expected_output = GetTransformationJobStatusOutput(**MOCK_STATUS_RESPONSE)
+    expected_output.job_id = MOCK_JOB_ID
+    expected = expected_output.model_dump(mode="json", by_alias=True)
+
+    # Assert
+    assert result == expected
+
     mock_harmony_collection.assert_called_once_with(id="C12345-PROV")
     mock_harmony_request.assert_called_once_with(collection=mock_coll_instance, labels=["harmony-mcp"])
-    
+
     mock_get_access_token.assert_called_once()
     mock_get_client.assert_called_once_with("fake-jwt-token")
     mock_client_instance.submit.assert_called_once_with(mock_req_instance)
     mock_client_instance.status.assert_called_once_with(MOCK_JOB_ID)
 
 
-def test_submit_request_all_params_success(
+def test_submit_transformation_job_all_params_success(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
     mock_harmony_request: MagicMock,
@@ -131,8 +138,8 @@ def test_submit_request_all_params_success(
     mock_harmony_bbox.return_value = mock_bbox_instance
 
     # Act
-    result = tool.submit_request(
-        collection_id="C12345-PROV",
+    result = tool.submit_transformation_job(
+        collection_concept_id="C12345-PROV",
         bbox=[-10.0, -20.0, 10.0, 20.0],
         shape="path/to/shape.zip",
         temporal_start="2026-01-01T00:00:00Z",
@@ -143,7 +150,7 @@ def test_submit_request_all_params_success(
         width=1024,
         height=2048,
         max_results=10,
-        granule_ids=["G1-PROV", "G2-PROV"]
+        granule_ids=["G1-PROV", "G2-PROV"],
     )
 
     # Assert
@@ -163,47 +170,57 @@ def test_submit_request_all_params_success(
     assert call_kwargs["max_results"] == 10
     assert call_kwargs["granule_id"] == ["G1-PROV", "G2-PROV"]
     assert call_kwargs["labels"] == ["harmony-mcp"]
-    
+
     # Ensure temporal parsed the strings into datetime objects
     assert "start" in call_kwargs["temporal"]
     assert "stop" in call_kwargs["temporal"]
 
 
-def test_submit_request_invalid_bbox_length() -> None:
-    """Test explicitly checking for bbox validation."""
+def test_submit_transformation_job_invalid_bbox_length() -> None:
+    """Test explicitly checking for bbox validation.
+
+    Assumes SubmitTransformationJobInput does not itself enforce bbox
+    length, letting the tool's manual length check run. Confirm this
+    against the actual input model if it starts failing unexpectedly.
+    """
     tool = _load_tool()
 
     # Pass only 3 values instead of 4
-    result = tool.submit_request(collection_id="C12345-PROV", bbox=[-10.0, -20.0, 10.0])
+    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV", bbox=[-10.0, -20.0, 10.0])
 
     assert result.get("code") == "ValueError"
     assert "bbox must have exactly 4 values" in result.get("description", "")
 
 
-def test_submit_request_invalid_temporal_date() -> None:
-    """Test explicitly checking for dateutil parsing errors."""
+def test_submit_transformation_job_invalid_temporal_date() -> None:
+    """Test explicitly checking for dateutil parsing errors.
+
+    Assumes SubmitTransformationJobInput treats temporal_start as a plain
+    string with no date-format validation of its own, so the ParserError
+    is raised later by dateutil.parser.parse rather than by Pydantic.
+    """
     tool = _load_tool()
 
     # Pass garbage date string
-    result = tool.submit_request(collection_id="C12345-PROV", temporal_start="not-a-real-date")
+    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV", temporal_start="not-a-real-date")
 
     assert result.get("code") == "ParserError"
     assert "Invalid date format" in result.get("description", "")
 
 
-def test_submit_request_missing_collection_id() -> None:
+def test_submit_transformation_job_missing_collection_concept_id() -> None:
     """Test behavior when input validation fails due to missing required parameter."""
     tool = _load_tool()
 
     # Act
-    result = tool.submit_request(collection_id=None)
+    result = tool.submit_transformation_job(collection_concept_id=None)
 
     # Assert
     assert result.get("code") in ["ValueError", "ValidationError"]
     assert "collection_id" in result.get("description", "").lower()
 
 
-def test_submit_request_client_error(
+def test_submit_transformation_job_client_error(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
     mock_harmony_request: MagicMock,
@@ -214,19 +231,48 @@ def test_submit_request_client_error(
 
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
-    
+
     # Simulate an error from the Harmony API during submit
     mock_client_instance.submit.side_effect = Exception("Service Unavailable")
 
     # Act
-    result = tool.submit_request(collection_id="C12345-PROV")
-    
+    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV")
+
     # Assert
     assert result.get("code") == "Exception"
     assert "Failed to submit request to Harmony: Service Unavailable" in result.get("description", "")
 
+def test_submit_transformation_job_schema_mismatch(
+    mock_get_client: MagicMock,
+    mock_get_access_token: MagicMock,
+    mock_harmony_request: MagicMock,
+    mock_harmony_collection: MagicMock,
+) -> None:
+    """Test behavior when Harmony's post-submit status response doesn't match the
+    expected schema.
+    """
+    tool = _load_tool()
 
-def test_submit_request_calls_trace_update(
+    mock_client_instance = MagicMock()
+    mock_get_client.return_value = mock_client_instance
+    mock_client_instance.submit.return_value = MOCK_JOB_ID
+
+    malformed_status = {**MOCK_STATUS_RESPONSE, "progress": "not-a-number"}
+    mock_client_instance.status.return_value = malformed_status
+
+    mock_req_instance = MagicMock()
+    mock_harmony_request.return_value = mock_req_instance
+    mock_coll_instance = MagicMock()
+    mock_harmony_collection.return_value = mock_coll_instance
+
+    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV")
+
+    assert result.get("code") in ["ValueError", "ValidationError"]
+    assert "Unexpected response shape from Harmony" in result.get("description", "")
+    mock_client_instance.submit.assert_called_once_with(mock_req_instance)
+    mock_client_instance.status.assert_called_once_with(MOCK_JOB_ID)
+
+def test_submit_transformation_job_calls_trace_update(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
     mock_harmony_request: MagicMock,
@@ -234,13 +280,13 @@ def test_submit_request_calls_trace_update(
 ) -> None:
     """Test telemetry tracing is called correctly."""
     tool = _load_tool()
-    
+
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
     mock_client_instance.submit.return_value = MOCK_JOB_ID
     mock_client_instance.status.return_value = {}
 
     with patch.object(tool, "trace_update") as mock_trace_update:
-        tool.submit_request(collection_id="C123")
+        tool.submit_transformation_job(collection_concept_id="C123")
 
     assert mock_trace_update.called

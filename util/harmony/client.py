@@ -1,9 +1,9 @@
 """Harmony API client."""
 
 import os
-import datetime
-from functools import lru_cache
 
+from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 import harmony
 
 _ENV_MAP = {
@@ -13,17 +13,11 @@ _ENV_MAP = {
     "local": harmony.Environment.LOCAL,
 }
 
-def _json_safe(value):
-    """Recursively convert datetimes (harmony-py's status() returns some) to ISO strings."""
-    if isinstance(value, datetime.datetime):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {k: _json_safe(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_json_safe(v) for v in value]
-    return value
+# TTL set to 12 hours. EDL token lifetime is 24 hours.
+_client_cache: TTLCache = TTLCache(maxsize=256, ttl=43200)
 
-@lru_cache(maxsize=1)
+
+@cached(cache=_client_cache, key=hashkey)
 def get_client(token: str) -> harmony.Client:
     """Build (once) and cache the harmony-py Client for this process.
 

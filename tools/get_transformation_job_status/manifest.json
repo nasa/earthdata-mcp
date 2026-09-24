@@ -1,7 +1,7 @@
 {
-    "name": "get_collection_capabilities",
+    "name": "get_transformation_job_status",
     "module": "tool",
-    "description": "Look up what Harmony operations a collection supports. Provide either collection_id (CMR concept id) or short_name. Returns which subsetting/reprojection/reformatting features are available, the services that implement them, supported output formats, and variables.",
+    "description": "Get the job status of a Harmony request. Provide the job_id.",
     "version": "1.0.0",
     "tags": [
         "nasa",
@@ -13,7 +13,7 @@
         "collections",
         "harmony"
     ],
-    "entry_function": "get_collection_capabilities",
+    "entry_function": "get_transformation_job_status",
     "require_auth": true,
     "enabled": true,
     "annotations": {
