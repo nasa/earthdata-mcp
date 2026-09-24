@@ -1,0 +1,25 @@
+{
+    "name": "submit_transformation_job",
+    "module": "tool",
+    "description": "Submit a transformation job to Harmony.",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "transformation",
+        "collections",
+        "harmony"
+    ],
+    "entry_function": "submit_transformation_job",
+    "require_auth": true,
+    "enabled": true,
+    "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+    }
+}

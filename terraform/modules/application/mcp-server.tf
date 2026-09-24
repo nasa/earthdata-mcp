@@ -284,6 +284,10 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name  = "URS_JWKS_PATH"
           value = var.urs_jwks_path
+        },
+        {
+          name  = "HARMONY_ENV"
+          value = var.harmony_env
         }
       ]
 
