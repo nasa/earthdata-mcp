@@ -62,7 +62,7 @@ async def serve_ard(_request):
     """Serve ard.json registry entry document with CORS headers."""
     ard_path = os.path.join(os.path.dirname(__file__), "ard.json")
     try:
-        with open(ard_path) as f:
+        with open(ard_path, encoding="utf-8") as f:
             ard_data = json.load(f)
         response = JSONResponse(ard_data)
     except FileNotFoundError:
@@ -72,6 +72,7 @@ async def serve_ard(_request):
 
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
 
 # Build the app with middleware and the intended path
 app = mcp.http_app(path="/mcp/v1", middleware=[cors])
