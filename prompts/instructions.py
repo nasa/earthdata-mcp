@@ -80,6 +80,18 @@ If the user is not familiar with Python or prefers other tools, briefly mention 
 - **Earthdata Search (GUI)**: Direct them to https://search.earthdata.nasa.gov/?utm_source=mcp&utm_medium=earthdata-mcp to visually browse and download data.
 - **Direct Download (HTTPS)**: Mention that individual granule URLs can be downloaded via browser, `curl`, or `wget`, though this requires Earthdata Login credentials (e.g., via an `.netrc` file).
 
+### DATA TRANSFORMATION (HARMONY)
+When the user wants the data itself modified server-side — subset by area/shape/time, reprojected, or reformatted — rather than just downloaded as-is, use the Harmony transformation tools instead of (or in addition to) earthaccess. Three tools support this workflow:
+- get_transformation_options — Looks up which subsetting/reprojection/reformatting operations a collection supports, which services implement them, the available output formats, and the subsettable variables. Pass collection_concept_id (preferred, taken from a prior get_collections/get_granules result) or short_name. This tool is optional, not a mandatory prerequisite — you do not have to call it before submit_transformation_job. It's most useful when the user asks what's possible for a collection, when you want to confirm supported output formats/variables before building a request, or as a troubleshooting step after a failed job submission.
+- submit_transformation_job — Submits the actual Harmony processing request against collection_concept_id. Include whichever of bbox, shape, temporal_start/temporal_stop, granule_ids, and format/reprojection parameters are relevant to what the user asked for. You may call this directly without first calling get_transformation_options — Harmony itself will reject the request if the collection's services don't support the requested combination of parameters. If the job submission fails because the requested combination of operations is unsupported, tell the user plainly and then suggest calling get_transformation_options to see what that collection actually supports, rather than repeatedly guessing at different parameter combinations.
+- get_transformation_job_status — Poll with the job_id returned by submit_transformation_job to track status and progress percentage. Once the job reaches a terminal status, the full list of result/download links becomes available in links. total_hits reflects the full link count for the job, and pages are sliced in-memory — pass the returned next_cursor into cursor to advance. Cursors are job-scoped: they lock in the original job_id and cannot be reused for a different job; to check a different job, start a new call without a cursor.
+
+**CRITICAL — large result sets consume context, be judicious about job scope**:
+Harmony jobs process whatever granules match the request, and both the processing time and the eventual link list returned by get_transformation_job_status scale with how many granules you feed in. A large, unbounded job can return hundreds or thousands of result links that will overwhelm your context window when you fetch the status. Before calling submit_transformation_job:
+- Run get_granules first (with the user's spatial/temporal constraints) to see how many granules actually match. Do not submit a transformation job "blind" on an unverified, potentially huge result set.
+- If the count is large, narrow it down before submitting — either refine get_granules further and pass a trimmed, curated granule_ids list into submit_transformation_job, or pass Harmony's max_results parameter to submit_transformation_job to cap how many granules the job will actually process.
+- Flag the scope to the user (e.g., "this matches 4,200 granules — I'll cap the job at N or restrict to the granules you actually need") rather than silently submitting a catalog-scale job on their behalf.
+
 ### TOOLS & WEB INTERFACES
 When a user asks what tools, web applications, or portals are available for a specific collection, use `get_tools` with the collection's concept ID. Tools (UMM-T) are distinct from services (UMM-S):
 - **Tools** (UMM-T): End-user software and web interfaces (e.g., Giovanni, Panoply, Worldview). Types include: Downloadable Tool, Web User Interface, Web Portal, Model.
@@ -122,16 +134,18 @@ Keep `limit` small (default 10, max 50). Only raise it if you are aggregating re
 Never construct or modify a cursor. Pass the exact `next_cursor` string from a previous
 response as the `cursor` parameter for the next call. Do not display the raw `next_cursor`
 string to the user — if there are more results, simply tell the user you can fetch the
-next page if they ask. Cursors are **query-scoped**: they
-lock in the original search parameters. If you pass a cursor alongside different search
+next page if they ask. Cursors are query-scoped (for search tools like
+get_collections/get_granules) or job-scoped (for get_transformation_job_status): they
+lock in the original search parameters or job_id. If you pass a cursor alongside different search
 parameters (e.g., a different keyword or changed temporal range), the server will use the
 original query from the cursor and ignore your new parameters — your parameter changes will
-have no effect until you start a new search without a cursor. Cursors are also tool-specific
-and cannot be reused across tools — passing a cursor from one tool to another will return a
-clean error.
+have no effect until you start a new search without a cursor. The same applies to
+get_transformation_job_status: a cursor cannot be reused for a different job_id. Cursors are
+also tool-specific and cannot be reused across tools — passing a cursor from one tool to another
+will return a clean error.
 
 **When to paginate vs. when to refine:**
-If `total_hits` far exceeds `limit` and the tool supports filtering parameters (keyword, temporal, spatial, platform, instrument), refine your query first rather than paginating through hundreds of pages.
+If `total_hits` far exceeds `limit` and the tool supports filtering parameters (keyword, temporal, spatial, platform, instrument), refine your query first rather than paginating through hundreds of pages. For Harmony jobs, total_hits reflects the full result-link count for a completed job — if it's very large consider whether the original job should have been scoped down (via granule_ids or max_results) before it was submitted.
 
 **Association-based tools (`get_citations`, `get_variables`, `get_services`, `get_tools`):**
 These tools look up records associated with a specific collection. They have no additional filter parameters beyond `collection_concept_id` — pagination is the only mechanism for retrieving records past the first page. The first page is sufficient for most queries; paginate only when the user explicitly needs comprehensive coverage.
@@ -144,6 +158,7 @@ When `total_hits: 0` is returned for a valid `collection_concept_id`, the collec
 - **Multi-collection verification:** `get_granules` accepts a single `collection_concept_id` — it cannot check multiple collections in one call. If the user's query yields several relevant collections that all need availability verification, call `get_granules` separately for each `collection_concept_id`. You can issue these calls concurrently.
 - `get_keywords`: Use this proactively as a translation step whenever the user's query contains non-scientific terminology, broad concepts, or if your `get_collections` query yields no results.
 - NEVER call `get_services`, `get_tools`, `get_citations`, or `get_variables` during discovery or availability checks. Call `get_services` ONLY when the user has a specific collection and asks about programmatic access methods, subsetting capabilities, or visualization layers. Call `get_tools` ONLY when the user has a specific collection and asks about available software tools, web interfaces, or web portals (e.g., Giovanni, Panoply, Worldview) associated with that collection. Call `get_citations` ONLY when the user specifically asks for research papers, DOIs, or citations related to a dataset. Call `get_variables` ONLY when the user asks about the specific variables, measurements, dimensions, or data calibration parameters (scale, offset, fill values) contained within a dataset.
+- Harmony transformation tools: Call submit_transformation_job when the user explicitly wants the data processed/transformed server-side (not a plain download — for that, use earthaccess as described above). You do NOT need to call get_transformation_options first — go ahead and call submit_transformation_job directly if you're reasonably confident about the parameters. Call get_transformation_options proactively only when the user is asking what's possible for a collection, or reactively if submit_transformation_job fails due to an unsupported operation/parameter combination — in that failure case, always suggest checking get_transformation_options rather than guessing at new parameters. Always check the likely result-set size with get_granules first, and prefer a trimmed granule_ids list or a max_results cap over submitting an unbounded job. Call get_transformation_job_status to poll a job you (or the user) already submitted; never fabricate a job_id.
 
 **CRITICAL — CMR keyword AND logic:**
 CMR's `keyword` parameter uses AND logic: every space-separated word must appear *somewhere* in the collection's indexed metadata, but words do NOT need to be in the same field or adjacent. This means **more keywords = stricter filtering** (the opposite of typical web search engines). Keep keyword queries to 2–4 precise scientific terms.
@@ -189,10 +204,21 @@ Step 1 — Discover collections:
 
 Step 2 — Verify granules for the top collection:
   get_granules(
-    collection_concept_id="C2036882064-POCLOUD",
+    collection_concept_id="C1996881146-POCLOUD",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
     spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
   )
-  → 31 granules found. Confirm availability and offer earthaccess download snippet.
+  → 32 granules found. Confirm availability and offer earthaccess download snippet.
+
+Step 3 (if the user instead wants a subset/reformat, not a raw download) — Submit a scoped transformation job directly:
+  submit_transformation_job(
+    collection_concept_id="C1996881146-POCLOUD",
+    bbox=[-162, 17, -153, 23],
+    temporal_start="2024-01-01T00:00:00Z",
+    temporal_stop="2024-01-31T23:59:59Z",
+    granule_ids=[...]  # trimmed list from Step 2's 32 granules, or use max_results to limit the set
+  )
+  → Job submitted successfully. Poll get_transformation_job_status(job_id=...) and send links once complete.
+  → (If instead the job had failed due to an unsupported parameter combination, call get_transformation_options(collection_concept_id="C2036882064-POCLOUD") to see what that collection actually supports, then retry with corrected parameters.)
 """
