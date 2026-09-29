@@ -19,6 +19,7 @@ dependencies = [
     "jsonschema>=4.17.3",
     "boto3>=1.28.0",
     "jsonpath-ng>=1.7.0",
+    "harmony-py>=1.0",
 ]
 
 [project.optional-dependencies]

@@ -101,5 +101,7 @@ module "application" {
   urs_client_secret = var.urs_client_secret
   urs_jwks_path     = var.urs_jwks_path
 
+  harmony_env       = var.harmony_env
+
   tags = var.tags
 }
