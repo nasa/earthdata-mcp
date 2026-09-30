@@ -77,7 +77,7 @@ For advanced usage (subsetting, streaming to xarray), direct the user to https:/
 
 **Alternative Access Methods:**
 If the user is not familiar with Python or prefers other tools, briefly mention these alternatives:
-- **Earthdata Search (GUI)**: Direct them to https://search.earthdata.nasa.gov/?utm_source=mcp&utm_medium=earthdata-mcp to visually browse and download data. When the user follows this link, please include the `Referer` Header in the request. The value of the `Referer` Header should be the full URL from which the request is being made.
+- **Earthdata Search (GUI)**: Direct them to https://search.earthdata.nasa.gov/?utm_source=mcp&utm_medium=earthdata-mcp to visually browse and download data. When the user follows this link, please include the `Referer` Header in the request.
 - **Direct Download (HTTPS)**: Mention that individual granule URLs can be downloaded via browser, `curl`, or `wget`, though this requires Earthdata Login credentials (e.g., via an `.netrc` file).
 
 ### TOOLS & WEB INTERFACES
