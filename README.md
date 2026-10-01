@@ -135,3 +135,35 @@ uv run pytest tests/test_server.py
 The application deploys to AWS via Bamboo CI/CD.
 
 See the **[Developer Guides](docs/README.md)** for detailed architectural breakdowns, deployment procedures, infrastructure definitions (`terraform/`), and troubleshooting steps for server startup issues.
+
+## Publishing to Model Context Protocol Registry
+
+Pre-requisites:
+
+1. Download `mcp-publisher` from homebrew or make the source on https://github.com/modelcontextprotocol/registry
+
+2. Publishing is handled via GitHub Actions using OIDC authentication — see `.github/workflows/publish-mcp.yml`.
+   Manual login via `mcp-publisher login github` currently fails for `io.github.nasa/*` due to a known
+   registry bug (modelcontextprotocol/registry#1537) where org membership isn't picked up correctly.
+   Use the workflow instead of logging in locally.
+
+Publishing Steps:
+
+1. Since we are supporting multiple MCP servers, first bump the `version` in `server.json` — each release
+   is immutable, so increment to a new version number, e.g. `"version": "2.0.0"`, and add a new remote, e.g.
+
+```json
+   {
+     "type": "streamable-http",
+     "url": "https://cmr.earthdata.nasa.gov/mcp/v2"
+   }
+```
+
+Note: you cannot update the registry entry without bumping the version number, as the registry is immutable.
+
+2. Commit and get your changes for `server.json` merged into to `main` after the PR.
+
+3. Trigger the **Publish to MCP Registry** workflow from the Actions tab (or `gh workflow run publish-mcp.yml`).
+   This authenticates via GitHub OIDC and runs `mcp-publisher publish` automatically — by default this
+   publishes to the MCP registry at https://registry.modelcontextprotocol.io/servers and is publicly
+   available to all MCP clients.

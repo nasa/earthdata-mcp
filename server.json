@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nasa/earthdata-mcp",
+  "title": "NASA Earthdata MCP",
+  "description": "Discover, verify, and access NASA Earth science datasets via the Common Metadata Repository (CMR)",
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://cmr.earthdata.nasa.gov/mcp/v1"
+    }
+  ]
+}

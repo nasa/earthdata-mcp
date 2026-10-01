@@ -1,6 +1,7 @@
 """Server File - FastMCP server for CMR tools."""
 
 import importlib.metadata
+import json
 import logging
 import os
 import sys
@@ -106,6 +107,22 @@ metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{CMR_HOST}{MCP_PATH}"))
 middleware.append(ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url))
 middleware.append(cors)
 
+# Serve ard.json from .well-known path
+async def serve_ard(_request):
+    """Serve ard.json registry entry document with CORS headers."""
+    ard_path = os.path.join(os.path.dirname(__file__), "ard.json")
+    try:
+        with open(ard_path) as f:
+            ard_data = json.load(f)
+        response = JSONResponse(ard_data)
+    except FileNotFoundError:
+        response = JSONResponse({"error": "ard.json not found"}, status_code=404)
+    except json.JSONDecodeError:
+        response = JSONResponse({"error": "Invalid ard.json format"}, status_code=500)
+
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
 # Build the app with middleware and the intended path
 app = mcp.http_app(path=MCP_PATH, middleware=middleware)
 
@@ -125,6 +142,10 @@ app.routes.append(Mount(MCP_PATH, routes=operational))
 
 # Add health check route
 app.routes.append(Route("/mcp/health", health))
+
+# Add .well-known/ard.json route
+app.routes.append(Route("/.well-known/ard.json", serve_ard))
+
 
 def main():
     """
