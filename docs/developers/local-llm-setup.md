@@ -13,5 +13,3 @@
 12. Run the python startup command for earthdata-mcp: `uv run server.py http` (Make sure everything starts OK)
 13. Under "MCP SERVERS - INSTALLED" in the "Extensions" side bar, click on earthdata-mcp's gear icon and click "Start Server"
 14. You now have earthdata-mcp running, connected to VS Code through VS Code's MCP server config. VS Code knows about Ollama models, such as the one you're running, because you added it to Agent Mode's model table. Prompts can now be entered in the prompt field using your currently running model once you select it from the model dropdown (the button that says "Auto"), and that model can use earthdata-mcp
-
-## Note: I've found that models in the 2b - 4b size range are the best balance of speed and accuracy. I tested `gemma4:e2b`, `granite4.2:3b`
