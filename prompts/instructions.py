@@ -77,7 +77,7 @@ For advanced usage (subsetting, streaming to xarray), direct the user to https:/
 
 **Alternative Access Methods:**
 If the user is not familiar with Python or prefers other tools, briefly mention these alternatives:
-- **Earthdata Search (GUI)**: Direct them to the Earthdata Search URL for the data item they're looking for. The Earthdata Search URL MUST contain `utm_source=mcp` and `utm_medium=earthdata-mcp` as query parameters.
+- **Earthdata Search (GUI)**: Direct them to the Earthdata Search URL for the data item they're looking for. The Earthdata Search URL MUST contain `utm_source=earthdata-mcp` and `utm_medium=mcp` as query parameters.
 - **Direct Download (HTTPS)**: Mention that individual granule URLs can be downloaded via browser, `curl`, or `wget`, though this requires Earthdata Login credentials (e.g., via an `.netrc` file).
 
 ### TOOLS & WEB INTERFACES
