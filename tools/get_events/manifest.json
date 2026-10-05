@@ -1,0 +1,33 @@
+{
+    "name": "get_events",
+    "version": "1.0.0",
+    "description": "Retrieve events from GSFC'S EONET natural event tracker. Use this to query live natural events and inject them into user chats.",
+    "entry_function": "get_events",
+    "module": "tool",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "eonet",
+        "events",
+        "search"
+    ],
+    "examples": {
+        "global_search": {
+            "description": "Search for events across all categories",
+            "params": {
+                "endpoint": "v3/events",
+                "event_params": {}
+            }
+        },
+        "targeted_search": {
+            "description": "Search for events within a specific category",
+            "params": {
+                "endpoint": "v3/events",
+                "event_params": {
+                    "category": "wildfires",
+                    "status": "open"
+                }
+            }
+        }
+    }
+}
