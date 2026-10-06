@@ -1,0 +1,224 @@
+{
+  "description": "Golden MCP tool-selection and argument regression cases for the Earthdata server.",
+  "items": [
+    {
+      "id": "keywords-wildfires",
+      "input": {
+        "question": "Find the official Earthdata keyword for wildfires."
+      },
+      "metadata": {
+        "expected_tool_call": "get_keywords",
+        "expected_tool_arguments": {
+          "query": "wildfires"
+        }
+      }
+    },
+    {
+      "id": "collections-sst",
+      "input": {
+        "question": "Find sea surface temperature collections with data."
+      },
+      "metadata": {
+        "expected_tool_call": "get_keywords",
+        "expected_tool_arguments": {
+          "query": "sea surface temperature"
+        },
+        "expected_tool_sequence": ["get_keywords", "get_collections"]
+      }
+    },
+    {
+      "id": "granules-sst",
+      "input": {
+        "question": "Verify January 2024 granules for the GHRSST sea surface temperature collection."
+      },
+      "metadata": {
+        "expected_tool_call": "get_granules",
+        "expected_tool_arguments": {
+          "temporal_start_date": "2024-01-01T00:00:00Z",
+          "temporal_end_date": "2024-01-31T23:59:59Z"
+        },
+        "expected_tool_sequence": ["get_collections", "get_granules"]
+      }
+    },
+    {
+      "id": "services-sst",
+      "input": {
+        "question": "Find data access services for the GHRSST collection."
+      },
+      "metadata": {
+        "expected_tool_call": "get_services",
+        "expected_tool_sequence": ["get_collections", "get_services"]
+      }
+    },
+    {
+      "id": "tools-sst",
+      "input": {
+        "question": "Find web tools associated with the GHRSST collection."
+      },
+      "metadata": {
+        "expected_tool_call": "get_tools",
+        "expected_tool_sequence": ["get_collections", "get_tools"]
+      }
+    },
+    {
+      "id": "variables-sst",
+      "input": {
+        "question": "Find variables associated with the GHRSST collection."
+      },
+      "metadata": {
+        "expected_tool_call": "get_variables",
+        "expected_tool_sequence": ["get_collections", "get_variables"]
+      }
+    },
+    {
+      "id": "citations-collection",
+      "input": {
+        "question": "Find papers citing the GHRSST collection."
+      },
+      "metadata": {
+        "expected_tool_call": "get_citations",
+        "expected_tool_sequence": ["get_collections", "get_citations"]
+      }
+    },
+    {
+      "id": "args-services-collection-id",
+      "input": {
+        "question": "What data access services exist for collection C2036881712-POCLOUD?"
+      },
+      "metadata": {
+        "expected_tool_call": "get_services",
+        "expected_tool_arguments": {
+          "collection_concept_id": "C2036881712-POCLOUD"
+        }
+      }
+    },
+    {
+      "id": "args-collections-has-granules",
+      "input": {
+        "question": "Search for sea surface temperature collections that have actual data files available, not metadata-only records."
+      },
+      "metadata": {
+        "expected_tool_call": "get_collections",
+        "expected_tool_arguments": {
+          "has_granules": true
+        },
+        "expected_tool_sequence": ["get_keywords", "get_collections"]
+      }
+    },
+    {
+      "id": "args-granules-temporal",
+      "input": {
+        "question": "Get granules from collection C2036881712-POCLOUD for January 2024."
+      },
+      "metadata": {
+        "expected_tool_call": "get_granules",
+        "expected_tool_arguments": {
+          "collection_concept_id": "C2036881712-POCLOUD",
+          "temporal_start_date": "2024-01-01T00:00:00Z",
+          "temporal_end_date": "2024-01-31T23:59:59Z"
+        }
+      }
+    },
+    {
+      "id": "sequence-keywords-then-collections",
+      "input": {
+        "question": "I want to find sea surface temperature datasets. Please discover what's available."
+      },
+      "metadata": {
+        "expected_tool_call": "get_keywords",
+        "expected_tool_arguments": {
+          "query": "sea surface temperature"
+        },
+        "expected_tool_sequence": ["get_keywords", "get_collections"]
+      }
+    },
+    {
+      "id": "sequence-full-workflow",
+      "input": {
+        "question": "Help me find and verify precipitation data: look up the right keyword, find collections with data, then confirm granules exist."
+      },
+      "metadata": {
+        "expected_tool_call": "get_keywords",
+        "expected_tool_arguments": {
+          "query": "precipitation"
+        },
+        "expected_tool_sequence": ["get_keywords", "get_collections", "get_granules"]
+      }
+    },
+
+    {
+      "id": "abstain-off-topic",
+      "input": {
+        "question": "How do I make sourdough bread at home?"
+      },
+      "metadata": {
+        "expected_no_tool_calls": true
+      }
+    },
+    {
+      "id": "abstain-no-tools-requested",
+      "input": {
+        "question": "Without calling any tools, briefly explain what types of scientific data NASA's Common Metadata Repository indexes."
+      },
+      "metadata": {
+        "expected_no_tool_calls": true
+      }
+    },
+    {
+      "id": "out-of-bounds-weather-forecast",
+      "input": {
+        "question": "What will the weather be like in Miami tomorrow? Give me a forecast."
+      },
+      "metadata": {
+        "expected_no_tool_calls": true
+      }
+    },
+    {
+      "id": "out-of-bounds-realtime-tracking",
+      "input": {
+        "question": "Where is the International Space Station right now? Give me its live GPS coordinates."
+      },
+      "metadata": {
+        "expected_no_tool_calls": true
+      }
+    },
+    {
+      "id": "hallucination-nonexistent-sort-param",
+      "input": {
+        "question": "Find the official Earthdata keyword for wildfires, sorted alphabetically by relevance score."
+      },
+      "metadata": {
+        "expected_tool_call": "get_keywords",
+        "expected_tool_arguments": {
+          "query": "wildfires"
+        },
+        "check_no_hallucinated_args": true
+      }
+    },
+    {
+      "id": "schema-boolean-coercion",
+      "input": {
+        "question": "Find sea surface temperature collections. The has_granules field should be the boolean true, not the string 'true'."
+      },
+      "metadata": {
+        "expected_tool_call": "get_collections",
+        "expected_tool_arguments": {
+          "has_granules": true
+        },
+        "check_no_hallucinated_args": true
+      }
+    },
+    {
+      "id": "correction-trajectory-invalid-collection",
+      "input": {
+        "question": "Find all data access services for collection C0000000000-INVALID."
+      },
+      "metadata": {
+        "expected_tool_call": "get_services",
+        "expected_tool_arguments": {
+          "collection_concept_id": "C0000000000-INVALID"
+        }
+      }
+    }
+  ]
+}
