@@ -28,6 +28,17 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     Raises:
         requests.RequestException: If the EONET API events endpoint request fails.
     """
+    empty_result = {
+	    "title": "EONET Events",
+	    "description": "Natural events from EONET.",
+	    "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+	    "events": []
+    }
+    empty_geojson_result = {
+	    "type": "FeatureCollection",
+	    "features": []
+    }
+
     if is_geojson:
         url = f"{EONET_BASE_URL}/v3/events/geojson"
     else:
@@ -36,7 +47,7 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     response.raise_for_status()
     results = response.json()
 
-    if len(results["events"]) == 0:
+    if results == empty_result or results == empty_geojson_result:
         return {}
 
     return results
@@ -66,7 +77,12 @@ def categories(category: str, params: dict | None = None) -> dict:
     results = response.json()
 
     if len(results["events"]) == 0:
-        return {}
+        return {
+	        "title": f"EONET Events: {category}",
+	        "description": f"{results["description"]}",
+	        "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/{category}",
+	        "events": []
+        }
 
     return results
 
@@ -93,14 +109,18 @@ def layers(category_id: str) -> dict:
     response.raise_for_status()
     results = response.json()
 
-    non_empty_layers = []
-
-    # Filter out all empty layers lists from the results
-    for layer in results["categories"]:
-        if layer["layers"] != "":
-            non_empty_layers.append(layer)
-
-    if len(non_empty_layers) == 0:
-        return {}
+    if len(results["categories"][0]["layers"]) == 0:
+        return {
+            "title": f"{results["title"]}",
+            "description": f"{results["description"]}",
+            "link": f"https://eonet.gsfc.nasa.gov/api/v3/layers/{category_id}",
+            "categories": [
+                { 
+                    "id": f"{results["categories"][0]["id"]}",
+                    "title": f"{results["categories"][0]["title"]}",
+                    "layers": []
+                }
+            ]
+        }
 
     return results
