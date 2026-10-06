@@ -10,8 +10,17 @@ This reference maps Earthdata MCP tool parameters to their corresponding CMR API
 - [`get_services`](#get_services)
 - [`get_keywords`](#get_keywords)
 - [`get_citations`](#get_citations) (Needs documentation)
+- **Harmony Transformation Tools**
+- [`get_transformation_options`](#get_transformation_options)
+- [`submit_transformation_job`](#submit_transformation_job)
+- [`get_transformation_job_status`](#get_transformation_job_status)
+- [`control_transformation_job`](#control_transformation_job)
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
+
+> **Note on Harmony tools:** Unlike the CMR-backed tools above, the four Harmony transformation tools below do not query CMR's `/search` endpoints or use UMM schemas. They call the [Harmony](https://harmony.earthdata.nasa.gov/) API directly via the official [harmony-py](https://github.com/nasa/harmony-py) client library. Parameter/field tables for these tools reference harmony-py and the Harmony API's own JSON response shapes instead of CMR API parameters and UMM JSON paths. All four share a common `BaseHarmonyToolOutput` base model contributing `code` and `description` fields, populated only when a request fails.
+>
+> **Authentication required:** Unlike the CMR-backed discovery tools, all four Harmony tools require an authenticated Earthdata Login access token (retrieved via `get_access_token()`) to call Harmony's API on the user's behalf.
 
 ---
 
@@ -270,3 +279,130 @@ Discovers official Earthdata scientific vocabulary terms to translate colloquial
 | ✅ | `prefLabel` | `prefLabel` | | The preferred label of the KMS concept |
 | ✅ | `scheme` | `scheme` | | The scheme the concept belongs to |
 | ✅ | `definition` | `definition` | | The primary definition of the concept, if available |
+
+---
+
+### `get_transformation_options`
+Looks up which Harmony operations a collection supports (subsetting, reprojection, averaging, concatenation), which services implement them, supported output formats, and variables.
+- **Underlying API:** Harmony [`/capabilities`](https://github.com/nasa/harmony/blob/main/services/harmony/app/markdown/capabilities.md) endpoint
+- **Response Format:** Capabilities response version 3 (pinned server-side; not exposed as a tool input)
+
+#### Input Parameters
+| Status | MCP Argument | Harmony API Parameter | Description |
+|---|---|---|---|
+| ✅ | `collection_concept_id` | `collectionId` | Concept ID of the collection (format: C\<number\>-\<PROVIDER\>). Exactly one of `collection_id` or `short_name` must be provided. |
+| ✅ | `short_name` | `shortName` | Short name of the collection. Exactly one of `collection_id` or `short_name` must be provided. If multiple collections share the short name, Harmony prefers the one configured for use in Harmony. |
+| ❌ | N/A | `version` | Capabilities response format version — pinned to '3' server-side, not user-configurable |
+
+#### Output Fields
+| Status | MCP Response Field | Harmony Capabilities Field | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `concept_id` | `conceptId` | | Concept ID of the collection |
+| ✅ | `short_name` | `shortName` | | Short name of the collection |
+| ✅ | `summary` | *(top-level capability fields)* | ✅ | Collection-level summary object combining: |
+| ↳ | `summary.subsetting.bbox` | `subsetting.bbox` | | True if bounding box subsetting is supported |
+| ↳ | `summary.subsetting.dimension` | `subsetting.dimension` | | True if dimension subsetting is supported |
+| ↳ | `summary.subsetting.shape` | `subsetting.shape` | | True if shape (polygon) subsetting is supported |
+| ↳ | `summary.subsetting.temporal` | `subsetting.temporal` | | True if temporal subsetting is supported |
+| ↳ | `summary.subsetting.variable` | `subsetting.variable` | | True if variable subsetting is supported |
+| ↳ | `summary.reprojection.supported` | `reprojection.supported` | | True if reprojection is supported |
+| ↳ | `summary.reprojection.supported_projections` | `reprojection.supportedProjections` | ✅ | Output projections supported across applicable services — each with `name` and `crs` (e.g., 'EPSG:4326') |
+| ↳ | `summary.reprojection.interpolation_methods` | `reprojection.interpolationMethods` | ✅ | Interpolation methods supported for resampling during reprojection |
+| ↳ | `summary.averaging.time` | `averaging.time` | | True if time averaging is supported |
+| ↳ | `summary.averaging.area` | `averaging.area` | | True if area averaging is supported |
+| ↳ | `summary.concatenation` | `concatenation` | | True if concatenation is supported |
+| ↳ | `summary.output_formats` | `outputFormats` | ✅ | Output formats supported across all applicable services — each with `name` and `mime_type` |
+| ✅ | `services` | `services` | ✅ | Harmony services applicable to the collection, each with `name`, `href` (link to the service's UMM-S record in CMR), and a per-service `capabilities` object (same shape as `summary`) — some capability combinations are only valid on specific services, so check here to determine which combinations a given service supports |
+| ✅ | `variables` | `variables` | ✅ | Variables associated with the collection, each with `name`, `long_name`, `href` (link to the variable's UMM-Var record in CMR), `units`, and `science_keywords` (GCMD Category/Topic/Term/VariableLevel1-3/DetailedVariable) |
+| ✅ | `capabilities_version` | `capabilitiesVersion` | | Version identifier of this capabilities response format (currently pinned to '3') |
+| ✅ | `code` | *(from Harmony error response)* | | Error code if the request failed (inherited from `BaseHarmonyToolOutput`) |
+| ✅ | `description` | *(from Harmony error response)* | | Error description if the request failed (inherited from `BaseHarmonyToolOutput`) |
+
+---
+
+### `submit_transformation_job`
+Submits a Harmony data processing request (subset/reformat/reproject).
+- **Underlying Library:** [harmony-py](https://github.com/nasa/harmony-py) — `Request` + `Client.submit()`
+- **Underlying Endpoint:** Harmony job submission API (OGC Coverages-based)
+
+#### Input Parameters
+| Status | MCP Argument | harmony-py `Request` Parameter | Description |
+|---|---|---|---|
+| ✅ | `collection_concept_id` | `collection` (via `Collection(id=...)`) | CMR concept ID of the collection (e.g., C1234567-PROV). |
+| ✅ | `bbox` | `spatial` (via `BBox(west, south, east, north)`) | Bounding box array in degrees: [west, south, east, north]. |
+| ✅ | `shape` | `shape` | Local path to a supported Harmony shapefile-subsetting file (.zip/.shz/.json/.geojson/.kml). |
+| ✅ | `temporal_start` / `temporal_stop` | `temporal` (dict: `{'start': ..., 'stop': ...}`) | ISO 8601 start/stop timestamps for temporal subsetting. |
+| ✅ | `variables` | `variables` | List of specific variable names to subset. |
+| ✅ | `format` | `format` | Desired output MIME type (e.g., 'image/tiff', 'application/x-netcdf4'). |
+| ✅ | `crs` | `crs` | Target Coordinate Reference System for reprojection (e.g., 'EPSG:4326'). |
+| ✅ | `width` | `width` | Target width in pixels for spatial reprojection/resampling. |
+| ✅ | `height` | `height` | Target height in pixels for spatial reprojection/resampling. |
+| ✅ | `max_results` | `max_results` | Maximum number of granules/results to process. |
+| ✅ | `granule_ids` | `granule_id` | Optional list of specific CMR granule concept IDs to process. |
+| ❌ | N/A | `concatenate` | Concatenate outputs into a single file |
+| ❌ | N/A | `grid` | Named output grid |
+| ❌ | N/A | `extend` | Dimension(s) to extend |
+| ❌ | N/A | `average` | Spatial/temporal averaging method |
+| ❌ | N/A | `skip_preview` | Skip generation of preview images |
+| ❌ | N/A | `destination_url` | Custom output destination (e.g., user's own S3 bucket) |
+| ❌ | N/A | `ignore_errors` | Continue job even if some granules fail |
+| ❌ | N/A | `labels` | Job labels for organization/tracking |
+
+#### Output Fields
+Same output model as [`get_transformation_job_status`](#get_transformation_job_status) below (`GetTransformationJobStatusOutput`, which itself extends `BaseHarmonyToolOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). Immediately after submission, `status` typically reflects the job's initial state (e.g., `running` or `accepted`) rather than a terminal state, and `links` will typically be empty until the job completes. `code`/`description` are populated only if the submission itself failed.
+
+---
+
+### `get_transformation_job_status`
+Gets the current status, progress percentage, and metadata for a Harmony job.
+- **Underlying Library:** [harmony-py](https://github.com/nasa/harmony-py) — `Client.status()`
+- **Underlying Endpoint:** Harmony `GET /jobs/{jobID}` API
+
+> **Note:** Like other search tools, this tool also supports `limit`, `cursor`, and `fields` — but unlike CMR-backed tools, pagination here is applied **in-memory** to the job's `links` array after Harmony returns the full job record, rather than being passed through to an upstream API page parameter. Cursors are job-scoped and lock in the original `job_id`.
+
+#### Input Parameters
+| Status | MCP Argument | harmony-py Parameter | Description |
+|---|---|---|---|
+| ✅ | `job_id` | `job_id` | The ID of the Harmony job to check. |
+| ✅ | `limit` | N/A (in-memory slicing, MCP-side) | Max number of `links` to return per page (default 10). |
+| ✅ | `cursor` | N/A (in-memory slicing, MCP-side) | Job-scoped pagination token over the `links` array. |
+| ✅ | `fields` | N/A (MCP-side response filtering) | Restrict which output fields are returned. |
+
+#### Output Fields
+| Status | MCP Response Field | harmony-py / Job JSON Field | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `job_id` | `jobID` | | Unique identifier (UUID) for the job |
+| ✅ | `status` | `status` | | Current status (`running`, `successful`, `failed`, `canceled`, etc.) |
+| ✅ | `message` | `message` | | Human-readable message regarding the job status |
+| ✅ | `progress` | `progress` | | Progress percentage of the job (0–100) |
+| ✅ | `created_at` | `createdAt` | | UTC timestamp (ISO 8601) when the job was created |
+| ✅ | `updated_at` | `updatedAt` | | UTC timestamp (ISO 8601) when the job was last updated |
+| ✅ | `created_at_local` | `createdAt` | ✅ | Local timestamp equivalent of `created_at` |
+| ✅ | `updated_at_local` | `updatedAt` | ✅ | Local timestamp equivalent of `updated_at` |
+| ✅ | `request` | `request` | | The original Harmony request URL with parameters |
+| ✅ | `num_input_granules` | `numInputGranules` | | Total number of input granules processed by the job |
+| ✅ | `data_expiration` | `dataExpiration` | | UTC timestamp (ISO 8601) when the job's data will expire |
+| ✅ | `data_expiration_local` | `dataExpiration` | ✅ | Local timestamp equivalent of `data_expiration` |
+| ✅ | `links` | `links` | ✅ | Result/download links for the current page, sliced in-memory from the full job link list once terminal |
+| ✅ | `total_hits` | N/A (computed from full `links` count) | ✅ | Full link count for the job |
+| ✅ | `next_cursor` | N/A (computed, MCP-side) | ✅ | Opaque, job-scoped pagination token for the next page of `links`; `None` when no more results |
+| ✅ | `code` | *(from Harmony error response)* | | Error code if the request failed (inherited from `BaseHarmonyToolOutput`) |
+| ✅ | `description` | *(from Harmony error response)* | | Error description if the request failed (inherited from `BaseHarmonyToolOutput`) |
+
+---
+
+### `control_transformation_job`
+Cancels, pauses, or resumes a running or paused Harmony transformation job.
+- **Underlying Library:** [harmony-py](https://github.com/nasa/harmony-py) — `Client.cancel()` / `Client.pause()` / `Client.resume()`, followed by `Client.status()`
+- **Underlying Endpoint:** Harmony job control API (`PUT /jobs/{jobID}/cancel`, `/pause`, `/resume`)
+
+> **Note — valid state transitions:** `resume` on a job that isn't paused, or `pause`/`cancel` on a job that's already in a terminal state (e.g., `successful`, `failed`, `canceled`), will return an error from Harmony. Callers are encouraged to check `get_transformation_job_status` first if the job's current state is uncertain.
+
+#### Input Parameters
+| Status | MCP Argument | harmony-py Parameter | Description |
+|---|---|---|---|
+| ✅ | `job_id` | `job_id` | The ID of the Harmony job to control. |
+| ✅ | `action` | N/A (dispatches to `cancel()` / `pause()` / `resume()`) | One of `"cancel"`, `"pause"`, or `"resume"`. |
+
+#### Output Fields
+Same output model as [`get_transformation_job_status`](#get_transformation_job_status) (`GetTransformationJobStatusOutput`, which itself extends `BaseHarmonyToolOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). The returned `status` reflects the job's state **immediately after** the requested action is applied (e.g., `canceled`, `paused`, `running`), not a final/terminal outcome if the action triggers further async processing. `code`/`description` are populated if input validation fails, if the control action itself fails (e.g., invalid state transition), or if Harmony's status response doesn't match the expected schema.
