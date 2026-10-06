@@ -111,6 +111,37 @@ uv run pytest -v
 uv run pytest tests/test_server.py
 ```
 
+### Regression Testing
+
+The regression suite runs a golden dataset through a live Bedrock agentic loop and scores results in Langfuse. It requires a running MCP server, AWS credentials, and Langfuse env vars (see `.env.example`).
+
+**Commands**
+
+```bash
+# Push the golden dataset to Langfuse (run once, or after editing mcp_regression_dataset.json)
+uv run python evals/regression_test.py publish
+
+# Run experiments against the live dataset and print scores
+uv run python evals/regression_test.py run
+
+# Publish then run in one shot
+uv run python evals/regression_test.py publish-and-run
+```
+
+**Key files**
+
+| File | Purpose |
+|---|---|
+| `evals/mcp_regression_dataset.json` | Golden test cases (questions + expected tool calls / sequences) |
+| `evals/evaluators.py` | Langfuse evaluator functions (tool coverage, argument quality, sequence, abstention, hallucination) |
+| `evals/sandbox_agent.py` | Bedrock + MCP agentic loop; results are `cache`-backed so evaluators reuse the same run |
+
+**CI gate**: set `RUN_MCP_REGRESSION=1` to include the regression experiment in `pytest`.
+
+```bash
+RUN_MCP_REGRESSION=1 uv run pytest tests/regression/test_regression.py -v
+```
+
 ### MCP Inspector (Interactive Testing)
 
 1. Start the server:
