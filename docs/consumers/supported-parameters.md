@@ -1,5 +1,5 @@
 ---
-title: Supported Parameters
+title: Parameters
 head:
   - tag: style
     content: ':root { --sl-content-width: 70rem; }'
