@@ -8,12 +8,12 @@ This reference maps Earthdata MCP tool parameters to the upstream API arguments 
 
 ---
 
-### `get_collections`
+## `get_collections`
 Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
 - **CMR Endpoint:** [`/search/collections`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#collection-search)
 - **Schema:** [UMM-C (v1.18.3)](https://cdn.earthdata.nasa.gov/umm/collection/v1.18.3)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `keyword` | `keyword` | Free-text keyword search. Case insensitive. IMPORTANT — CMR uses AND logic: each space-separated word is matched independently and ALL words must appear somewhere in a collection's indexed fields (title, summary, short name, GCMD science keywords, platform and instrument names, project names, processing level, archive centers, additional attributes, etc.). Words do NOT need to appear in the same field or as a contiguous phrase. Because every word must match, adding more words makes the search STRICTER, not broader — the opposite of typical web search engines. Prefer 2–4 precise terms over long queries. Example: 'soil moisture' (2 terms, broad) vs 'soil moisture SMAP L3' (4 terms, narrow). Phrase search: wrap the entire value in escaped double quotes to require an exact phrase (e.g., '\"sea surface temperature\"'). Only a single phrase is supported; you cannot mix a phrase with additional standalone words. Wildcards supported: * (zero or more chars), ? (any single char). Use scientific terms: geophysical variable names ('sea surface temperature', 'soil moisture'), instrument names (MODIS, ASCAT, VIIRS, AIRS, Landsat, etc.), or platform names (Terra, Aqua, SMAP, Sentinel-1, etc.). For known product short names use the short_name parameter instead. |
@@ -33,7 +33,7 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 | ❌ | N/A | `science_keywords` | Search by GCMD science keywords hierarchy |
 | ❌ | N/A | `updated_since` | Filter by recently updated collections |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `abstract` | `Abstract` | | Collection summary or abstract |
@@ -68,12 +68,12 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 
 ---
 
-### `get_granules`
+## `get_granules`
 Searches for specific data files (granules) within a collection to verify actual data availability for a given time and location.
 - **CMR Endpoint:** [`/search/granules`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#granule-search)
 - **Schema:** [UMM-G (v1.6.5)](https://cdn.earthdata.nasa.gov/umm/granule/v1.6.5)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection concept ID (format: `C<number>-<PROVIDER>`, e.g., C2723758340-GES_DISC). Required to scope granule search. |
@@ -90,7 +90,7 @@ Searches for specific data files (granules) within a collection to verify actual
 | ❌ | N/A | `orbit_number` | Filter granules by orbit number |
 | ❌ | N/A | `updated_since` | Filter by recently updated granules |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_urls` | `RelatedUrls` | ✅ | Actionable data access URLs (Note: Access requires Earthdata Login authentication) |
@@ -119,12 +119,12 @@ Searches for specific data files (granules) within a collection to verify actual
 
 ---
 
-### `get_variables`
+## `get_variables`
 Discovers scientific variables and measurements associated with a collection, or looks up variables by keyword.
 - **CMR Endpoint:** [`/search/variables`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#variable-search)
 - **Schema:** [UMM-V (v1.9.0)](https://cdn.earthdata.nasa.gov/umm/variable/v1.9.0)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `concept_id` | The CMR concept ID of the collection to find variables for (e.g., 'C12345-PROV'). |
@@ -132,7 +132,7 @@ Discovers scientific variables and measurements associated with a collection, or
 | ❌ | N/A | `name` | Exact match on variable name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `concept_id` | `meta.concept-id` | | CMR variable concept ID |
@@ -160,12 +160,12 @@ Discovers scientific variables and measurements associated with a collection, or
 
 ---
 
-### `get_tools`
+## `get_tools`
 Finds web portals and downloadable software associated with a collection, returning URLs and deep-linking templates.
 - **CMR Endpoint:** [`/search/tools`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#tool-search)
 - **Schema:** [UMM-T (v1.2.0)](https://cdn.earthdata.nasa.gov/umm/tool/v1.2.0)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID (format: `C<number>-<PROVIDER>`, e.g., C2723758340-GES_DISC). When provided, searches for tools associated with this collection. |
@@ -173,7 +173,7 @@ Finds web portals and downloadable software associated with a collection, return
 | ❌ | N/A | `name` | Exact match on tool name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_constraints` | `AccessConstraints` | | Constraints for accessing the tool |
@@ -205,12 +205,12 @@ Finds web portals and downloadable software associated with a collection, return
 
 ---
 
-### `get_services`
+## `get_services`
 Discovers data access endpoints and visualization layers associated with a collection.
 - **CMR Endpoint:** [`/search/services`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#service-search)
 - **Schema:** [UMM-S (v1.5.3)](https://cdn.earthdata.nasa.gov/umm/service/v1.5.3)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID. |
@@ -219,7 +219,7 @@ Discovers data access endpoints and visualization layers associated with a colle
 | ❌ | N/A | `name` | Exact match on service name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_constraints` | `AccessConstraints` | | Authentication or authorization requirements |
@@ -245,18 +245,18 @@ Discovers data access endpoints and visualization layers associated with a colle
 
 ---
 
-### `get_keywords`
+## `get_keywords`
 Discovers official Earthdata scientific vocabulary terms to translate colloquial user inputs into precise search labels.
 - **CMR Endpoint:** [`/search/keywords`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#keyword-search)
 - **Schema:** [KMS Concept (v2.0)](https://wiki.earthdata.nasa.gov/x/aYX0Gg)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `query` | `pattern` | The term to search for across KMS schemes (e.g. 'moisture'). |
 | ✅ | `scheme` | `keyword_scheme` | Optional. A single KMS scheme to narrow the search (e.g., 'sciencekeywords', 'platforms', 'instruments', 'projects', 'providers', 'locations'). If omitted, searches across all schemes globally. A complete list of valid scheme names can be fetched from https://cmr.earthdata.nasa.gov/kms/concept_schemes |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `uuid` | `uuid` | | The unique UUID of the KMS concept |
@@ -266,7 +266,7 @@ Discovers official Earthdata scientific vocabulary terms to translate colloquial
 
 ---
 
-### `get_citations`
+## `get_citations`
 Discovers citation records (publications, DOIs) associated with a collection, or looks up a citation directly by identifier.
 - **CMR Endpoint:** [`/search/citations`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#searching-for-citations)
 - **Schema:** Citation (v1.0.0), a CMR generic document type. Citations have not been adopted into UMM yet, so there is no published schema to link.
@@ -275,7 +275,7 @@ Exactly one of `collection_concept_id` or `identifier` is required. Supplying bo
 
 `collection_concept_id` is not a CMR citation search parameter. The tool first reads the collection record's citation associations, then searches citations by the concept IDs it found, so a collection with no associations returns no results without a second request.
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `concept_id[]` | The CMR concept ID of the collection to find citations for (format: `C<number>-<PROVIDER>`, e.g., C2763266360-LPCLOUD). Resolved to citation concept IDs through the collection's associations before searching. |
@@ -298,7 +298,7 @@ Exactly one of `collection_concept_id` or `identifier` is required. Supplying bo
 | ❌ | N/A | `id` | Lookup by citation ID |
 | ❌ | N/A | `keyword` | Search by science keyword. Accepted by CMR but returns no matches for citation records. |
 
-#### Output Fields
+### Output Fields
 Every field in the Citation schema is surfaced.
 
 | Status | MCP Response Field | Record JSON Path | Transformed | Description |
