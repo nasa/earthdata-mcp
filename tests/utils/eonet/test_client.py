@@ -1,6 +1,6 @@
 """Tests for EONET API client."""
 
-from unittest.mock import Mock
+from unittest.mock import Mock, ANY
 
 import re
 
@@ -112,10 +112,9 @@ class TestEvents:
 
     def test_returns_no_events_from_category(self, monkeypatch):
         """Test that categories returns no events for a category without events."""
-        pattern = re.compile(r".+")
         expected = {
-	        "title": f"{pattern.pattern}",
-	        "description": f"{pattern.pattern}",
+	        "title": ANY,
+	        "description": ANY,
 	        "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
 	        "events": []
         }
@@ -163,15 +162,14 @@ class TestEvents:
 
     def test_returns_no_layers_from_category(self, monkeypatch):
         """Test that layers returns no layers for a category without layers."""
-        pattern = re.compile(r".+")
         expected = {
-            "title": f"{pattern.pattern}",
-            "description": f"{pattern.pattern}",
+            "title": ANY,
+            "description": ANY,
             "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
             "categories": [
                 { 
-                    "id": f"{pattern.pattern}",
-                    "title": f"{pattern.pattern}",
+                    "id": ANY,
+                    "title": ANY,
                     "layers": []
                 }
             ]
