@@ -2,16 +2,7 @@
 title: Supported Parameters
 ---
 
-This reference maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths. It provides consumers with a clear picture of current API integration depth and search capabilities.
-
-## Table of Contents
-- [`get_collections`](#get_collections)
-- [`get_granules`](#get_granules)
-- [`get_variables`](#get_variables)
-- [`get_tools`](#get_tools)
-- [`get_services`](#get_services)
-- [`get_keywords`](#get_keywords)
-- `get_citations` (Needs documentation)
+This reference maps Earthdata MCP tool parameters to the upstream API arguments and schema fields behind them. It provides consumers with a clear picture of current API integration depth and search capabilities. Each tool's section names the endpoint and schema it is built on.
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
 
@@ -257,7 +248,7 @@ Discovers data access endpoints and visualization layers associated with a colle
 ### `get_keywords`
 Discovers official Earthdata scientific vocabulary terms to translate colloquial user inputs into precise search labels.
 - **CMR Endpoint:** [`/search/keywords`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#keyword-search)
-- **Schema:** [KMS Concept (v2.0)](https://wiki.earthdata.nasa.gov/display/CMR/KMS+2.0+User%27s+Guide)
+- **Schema:** [KMS Concept (v2.0)](https://wiki.earthdata.nasa.gov/x/aYX0Gg)
 
 #### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
@@ -272,3 +263,56 @@ Discovers official Earthdata scientific vocabulary terms to translate colloquial
 | ✅ | `prefLabel` | `prefLabel` | | The preferred label of the KMS concept |
 | ✅ | `scheme` | `scheme` | | The scheme the concept belongs to |
 | ✅ | `definition` | `definition` | | The primary definition of the concept, if available |
+
+---
+
+### `get_citations`
+Discovers citation records (publications, DOIs) associated with a collection, or looks up a citation directly by identifier.
+- **CMR Endpoint:** [`/search/citations`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#searching-for-citations)
+- **Schema:** Citation (v1.0.0), a CMR generic document type. Citations have not been adopted into UMM yet, so there is no published schema to link.
+
+Exactly one of `collection_concept_id` or `identifier` is required. Supplying both, or neither, is a validation error.
+
+`collection_concept_id` is not a CMR citation search parameter. The tool first reads the collection record's citation associations, then searches citations by the concept IDs it found, so a collection with no associations returns no results without a second request.
+
+#### Input Parameters
+| Status | MCP Argument | CMR API Parameter | Description |
+|---|---|---|---|
+| ✅ | `collection_concept_id` | `concept_id[]` | The CMR concept ID of the collection to find citations for (format: `C<number>-<PROVIDER>`, e.g., C2763266360-LPCLOUD). Resolved to citation concept IDs through the collection's associations before searching. |
+| ✅ | `identifier` | `identifier` | A DOI or other citation identifier used to look up a citation directly (e.g., 10.24193/AWC2022_05). |
+| ✅ | `provider` | `provider` | Restricts results to citations from a single CMR provider (e.g., ESDIS). Combines with either of the above. |
+| ❌ | N/A | `name` | Search by citation name. Exact match, not free text. |
+| ❌ | N/A | `title` | Search by title. Exact match, not free text. |
+| ❌ | N/A | `year` | Filter by publication year |
+| ❌ | N/A | `author-name` | Search by author name |
+| ❌ | N/A | `author-orcid` | Search by author ORCID |
+| ❌ | N/A | `container` | Search by container or journal name |
+| ❌ | N/A | `type` | Search by citation type (e.g., journal-article, proceedings-article) |
+| ❌ | N/A | `identifier-type` | Filter by identifier type (e.g., DOI) |
+| ❌ | N/A | `resolution-authority` | Filter by the authority that resolves the identifier |
+| ❌ | N/A | `relationship-type` | Filter by relationship to the cited work (e.g., Cites, Refers) |
+| ❌ | N/A | `related-identifier` | Search by an identifier the citation relates to |
+| ❌ | N/A | `related-identifier-with-type` | Search relationship and identifier as a pair (e.g., `Cites:10.5067/SAMPLE/DATA`) |
+| ❌ | N/A | `concept-id` | Direct lookup by citation concept ID |
+| ❌ | N/A | `native-id` | Lookup by native ID |
+| ❌ | N/A | `id` | Lookup by citation ID |
+| ❌ | N/A | `keyword` | Search by science keyword. Accepted by CMR but returns no matches for citation records. |
+
+#### Output Fields
+Every field in the Citation schema is surfaced.
+
+| Status | MCP Response Field | Record JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `abstract` | `Abstract` | | Abstract or description of the cited work |
+| ✅ | `associated_collections` | `meta.associations.collections` | ✅ | Concept IDs of collections this citation is associated with. Pass these to `get_collections` for the dataset details. |
+| ✅ | `citation_metadata` | `CitationMetadata` | | Nested bibliographic metadata (Author, Year, Publisher, Title, Container, Volume, Pages, and related fields) |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR citation concept ID |
+| ✅ | `identifier` | `Identifier` | | The primary identifier, usually a DOI |
+| ✅ | `identifier_type` | `IdentifierType` | | Type of the identifier (e.g., DOI) |
+| ✅ | `metadata_specification` | `MetadataSpecification` | | Schema name, version, and URL for the citation record |
+| ✅ | `name` | `Name` | | The name or title of the citation |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the citation record |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the citation |
+| ✅ | `related_identifiers` | `RelatedIdentifiers` | | Related works and datasets, each with a relationship type (e.g., Cites, Refers) |
+| ✅ | `resolution_authority` | `ResolutionAuthority` | | Authority that resolves the identifier (e.g., https://doi.org) |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the citation metadata |
