@@ -43,12 +43,16 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
         url = f"{EONET_BASE_URL}/v3/events/geojson"
     else:
         url = f"{EONET_BASE_URL}/v3/events"
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    results = response.json()
 
-    if results == empty_result or results == empty_geojson_result:
-        return {}
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        results = response.json()
+
+        if results == empty_result or results == empty_geojson_result:
+            return {}
+    except Exception as e:
+        return e
 
     return results
 
@@ -72,20 +76,24 @@ def categories(category: str, params: dict | None = None) -> dict:
         requests.RequestException: If the EONET API category endpoint request fails.
     """
     url = f"{EONET_BASE_URL}/v3/categories/{category}"
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    results = response.json()
 
-    if params == {}:
-        return results
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        results = response.json()
 
-    if len(results["events"]) == 0:
-        return {
-	        "title": f"EONET Events: {category}",
-	        "description": f"{results["description"]}",
-	        "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/{category}",
-	        "events": []
-        }
+        if params == {}:
+            return results
+
+        if len(results["events"]) == 0:
+            return {
+	            "title": f"EONET Events: {category}",
+	            "description": f"{results["description"]}",
+	            "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/{category}",
+	            "events": []
+            }
+    except Exception as e:
+        return e
 
     return results
 
@@ -108,22 +116,26 @@ def layers(category_id: str) -> dict:
         requests.RequestException: If the EONET API layers endpoint request fails.
     """
     url = f"{EONET_BASE_URL}/v3/layers/{category_id}"
-    response = requests.get(url, params={}, timeout=10)
-    response.raise_for_status()
-    results = response.json()
 
-    if len(results["categories"][0]["layers"]) == 0:
-        return {
-            "title": f"{results["title"]}",
-            "description": f"{results["description"]}",
-            "link": f"https://eonet.gsfc.nasa.gov/api/v3/layers/{category_id}",
-            "categories": [
-                { 
-                    "id": f"{results["categories"][0]["id"]}",
-                    "title": f"{results["categories"][0]["title"]}",
-                    "layers": []
-                }
-            ]
-        }
+    try:
+        response = requests.get(url, params={}, timeout=10)
+        response.raise_for_status()
+        results = response.json()
+
+        if len(results["categories"][0]["layers"]) == 0:
+            return {
+                "title": f"{results["title"]}",
+                "description": f"{results["description"]}",
+                "link": f"https://eonet.gsfc.nasa.gov/api/v3/layers/{category_id}",
+                "categories": [
+                    { 
+                        "id": f"{results["categories"][0]["id"]}",
+                        "title": f"{results["categories"][0]["title"]}",
+                        "layers": []
+                    }
+                ]
+            }
+    except Exception as e:
+        return e
 
     return results

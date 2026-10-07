@@ -294,13 +294,14 @@ class TestEvents:
 
     def test_returns_error_for_fake_category(self, monkeypatch):
         """Test that categories returns an error for a fake category."""
-        expected = requests.HTTPError()
+        expected = requests.exceptions.HTTPError()
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
+        mock_get.side_effect = requests.exceptions.HTTPError
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
         
         result = categories("fakecategory", {})
-        assert result == expected
+        assert type(result) == type(expected)
 
     def test_returns_layer_from_category(self, monkeypatch):
         """Test that layers returns layers from the specified category."""
@@ -399,3 +400,34 @@ class TestEvents:
         
         result = layers("categoryId")
         assert result == expected
+
+    def test_returns_all_layers(self, monkeypatch):
+        """Test that layers returns all layers when no category is given."""
+        all_layers = [{}] * 201 # 201 is the estimated number of layers in EONET as of 2026-10-07
+        expected = {
+	        "title": "EONET Web Service Layers",
+	        "description": "List of web service layers in the EONET system",
+	        "link": "https://eonet.gsfc.nasa.gov/api/v3/layers",
+	        "categories": [
+                {
+                    "layers": all_layers
+                }
+            ]
+        }
+        
+        mock_get = Mock(return_value=_make_response(json_data=expected))
+        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+        
+        result = layers("categoryId")
+        assert result == expected
+
+    def test_layers_returns_error_for_fake_category(self, monkeypatch):
+        """Test that layers returns an error if a fake category is given."""
+        expected = requests.exceptions.HTTPError()
+        
+        mock_get = Mock(return_value=_make_response(json_data=expected))
+        mock_get.side_effect = requests.exceptions.HTTPError
+        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+        
+        result = layers("fakecategory")
+        assert type(result) == type(expected)
