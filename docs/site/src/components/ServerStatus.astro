@@ -1,0 +1,61 @@
+---
+/*
+ * Reports whether the Earthdata MCP server answers its health check, polled
+ * from the visitor's browser when the page loads.
+ *
+ * This only proves the server is reachable. The endpoint returns a hardcoded
+ * ok, so it says nothing about whether the tools behind it are working, and the
+ * wording stays deliberately narrow because of that.
+ */
+interface Props {
+	endpoint?: string;
+}
+
+/*
+ * `astro dev` points at a server started with `python server.py`, which binds
+ * 127.0.0.1:5001. Vite replaces import.meta.env.DEV with a literal false during
+ * `astro build` and drops the dead branch, so the localhost URL cannot reach a
+ * deployed page.
+ */
+const DEFAULT_ENDPOINT = import.meta.env.DEV
+	? 'http://127.0.0.1:5001/mcp/health'
+	: 'https://cmr.earthdata.nasa.gov/mcp/health';
+
+const { endpoint = DEFAULT_ENDPOINT } = Astro.props;
+---
+
+<p class="server-status" data-endpoint={endpoint}>
+	<terra-status-indicator variant="completed">Checking</terra-status-indicator>
+	<span class="server-status-detail">
+		Querying <a href={endpoint}>the health endpoint</a>
+	</span>
+</p>
+
+<script>
+	import { describeHealth } from '../lib/health';
+
+	// How long to wait before calling the server unreachable. Without this a
+	// hung connection leaves the indicator on "Checking" indefinitely.
+	const TIMEOUT_MS = 5000;
+
+	for (const status of document.querySelectorAll<HTMLElement>('.server-status')) {
+		const endpoint = status.dataset.endpoint;
+		if (!endpoint) continue;
+
+		const indicator = status.querySelector('terra-status-indicator');
+		const detail = status.querySelector('.server-status-detail');
+		if (!indicator || !detail) continue;
+
+		// A thrown fetch covers network failure, CORS rejection, and the timeout
+		// above. The browser does not distinguish these, so neither can we.
+		const response = await fetch(endpoint, {
+			signal: AbortSignal.timeout(TIMEOUT_MS),
+			cache: 'no-store',
+		}).catch(() => null);
+
+		const report = describeHealth(response);
+		indicator.setAttribute('variant', report.variant);
+		indicator.textContent = report.label;
+		detail.textContent = report.detail;
+	}
+</script>

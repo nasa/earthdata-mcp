@@ -5,3 +5,7 @@
 .site-title:where(.astro-6rvad3va) {
     color: var(--sl-color-text);
 }
+
+a:where(.astro-b5raizh3)  {
+    box-shadow: none;
+}

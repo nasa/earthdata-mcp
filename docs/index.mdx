@@ -1,5 +1,5 @@
 ---
-title: Earthdata MCP documentation
+title: Earthdata MCP
 template: splash
 hero:
   tagline: >
@@ -8,13 +8,29 @@ hero:
     access methods.
 ---
 
+import ServerStatus from './site/src/components/ServerStatus.astro';
+
+<ServerStatus />
+
 ## Start here
 
-The [user guide](/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/) covers client setup,
-example queries, authentication, limitations, and troubleshooting.
+<div class="card-row">
+  <terra-card>
+    <h3 slot="header">User guide</h3>
+    Client setup, example queries, authentication, limitations, and troubleshooting.
+    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/">
+      Read the user guide
+    </terra-button>
+  </terra-card>
 
-The [parameter reference](/earthdata-mcp/consumers/supported-parameters/) describes supported
-tool inputs and their mapping to CMR metadata.
+  <terra-card>
+    <h3 slot="header">Parameter reference</h3>
+    Supported tool inputs, outputs, and how they map to CMR metadata.
+    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/supported-parameters/">
+      Read the reference
+    </terra-button>
+  </terra-card>
+</div>
 
 ## Connection details
 
@@ -27,9 +43,21 @@ tool inputs and their mapping to CMR metadata.
 Downloading data can require a separate Earthdata Login account. See the
 [user guide's authentication section](/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/#authentication).
 
-## Development and feedback
+## Development
 
-[Developer guides](https://github.com/nasa/earthdata-mcp/blob/main/docs/README.md)
-cover local setup, adding tools, and maintaining the service.
+The server is maintained at
+[nasa/earthdata-mcp](https://github.com/nasa/earthdata-mcp). The
+[developer guides](https://github.com/nasa/earthdata-mcp/blob/main/docs/README.md)
+cover local setup, adding tools, and maintaining the server.
 
-[Report problems or suggest improvements](https://github.com/nasa/earthdata-mcp/issues).
+<terra-button variant="default" outline href="https://github.com/nasa/earthdata-mcp">
+  See Earthdata MCP in Github
+</terra-button>
+
+## Feedback
+
+Bug reports, questions, and feature requests go in the issue tracker.
+
+<terra-button variant="default" outline href="https://github.com/nasa/earthdata-mcp/issues">
+  Report a problem
+</terra-button>
