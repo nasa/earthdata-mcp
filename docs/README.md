@@ -4,7 +4,7 @@ This directory contains detailed documentation for both consumers of the MCP ser
 
 ## For Consumers (`docs/consumers/`)
 
-This section will contain examples, sample prompts, and advanced guides for LLM agents and human developers querying the Common Metadata Repository (CMR) via this MCP server.
+This section contains examples, sample prompts, and advanced guides for LLM agents and human developers querying the Common Metadata Repository (CMR) via this MCP server.
 
 - **[User Guide](consumers/earthdata-mcp-server-user-guide.md)**: How to connect to the MCP server using variety of harnesses, example walkthrough, troubleshooting, and feedback reporting.
 - **[Currently Supported Parameters](consumers/supported-parameters.md)**: maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths.
@@ -18,3 +18,30 @@ Developer guidelines and procedures for contributing to and maintaining the appl
 - **[Versioning Methodology](developers/versioning.md)**: Explains the decoupled versioning strategy between the MCP Server (`pyproject.toml`) and individual tools (`manifest.json`).
 - **[Troubleshooting Deployments](developers/troubleshooting-deployments.md)**: Step-by-step instructions for debugging a `503 Service Unavailable` error, finding AWS CloudWatch logs, and fixing crash loops.
 - **[Integration Testing](developers/integration-testing.md)**: Instructions for running the manual integration test script against live CMR environments.
+
+## Public documentation site
+
+The public site is an Astro + Starlight project at `docs/site/`. It renders the
+existing consumer Markdown files (`docs/consumers/*.md`) and `docs/index.mdx`
+directly, so there's no duplication: the same files that render in the GitHub
+repo view also render on the site. Update those source files rather than
+copying the guide into a second format. Developer and infrastructure guides
+remain available on GitHub and are not included in the public site build.
+
+Run from `docs/site`:
+
+```sh
+cd docs/site && npm install && npm run dev
+# Build without starting a dev server:
+npm run build
+```
+
+New pages need Starlight frontmatter, which requires a `title:` field, rather
+than Quarto's `pagetitle:`.
+
+Pull requests build a downloadable `github-pages` artifact without deploying.
+After merge, changes to documentation or the package version rebuild and publish
+from `main`. A maintainer must first select **GitHub Actions** as the source under
+**Settings > Pages**. The deployment then publishes to
+`https://nasa.github.io/earthdata-mcp/`; the workflow does not change repository
+settings or publish from forks.

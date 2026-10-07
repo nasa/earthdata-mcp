@@ -1,4 +1,6 @@
-# Earthdata MCP Server User Guide
+---
+title: Earthdata MCP Server User Guide
+---
 
 The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
 

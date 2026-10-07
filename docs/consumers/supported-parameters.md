@@ -1,4 +1,6 @@
-# Earthdata MCP Parameter Support Reference
+---
+title: Supported Parameters
+---
 
 This reference maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths. It provides consumers with a clear picture of current API integration depth and search capabilities.
 
@@ -9,7 +11,7 @@ This reference maps Earthdata MCP tool parameters to their corresponding CMR API
 - [`get_tools`](#get_tools)
 - [`get_services`](#get_services)
 - [`get_keywords`](#get_keywords)
-- [`get_citations`](#get_citations) (Needs documentation)
+- `get_citations` (Needs documentation)
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
 
@@ -24,7 +26,7 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `keyword` | `keyword` | Free-text keyword search. Case insensitive. IMPORTANT — CMR uses AND logic: each space-separated word is matched independently and ALL words must appear somewhere in a collection's indexed fields (title, summary, short name, GCMD science keywords, platform and instrument names, project names, processing level, archive centers, additional attributes, etc.). Words do NOT need to appear in the same field or as a contiguous phrase. Because every word must match, adding more words makes the search STRICTER, not broader — the opposite of typical web search engines. Prefer 2–4 precise terms over long queries. Example: 'soil moisture' (2 terms, broad) vs 'soil moisture SMAP L3' (4 terms, narrow). Phrase search: wrap the entire value in escaped double quotes to require an exact phrase (e.g., '\"sea surface temperature\"'). Only a single phrase is supported; you cannot mix a phrase with additional standalone words. Wildcards supported: * (zero or more chars), ? (any single char). Use scientific terms: geophysical variable names ('sea surface temperature', 'soil moisture'), instrument names (MODIS, ASCAT, VIIRS, AIRS, Landsat, etc.), or platform names (Terra, Aqua, SMAP, Sentinel-1, etc.). For known product short names use the short_name parameter instead. |
-| ✅ | `concept_id` | `concept_id` | Exact CMR concept ID (format: C<number>-<PROVIDER>, e.g., C2036882064-POCLOUD). Use for direct lookup of a known collection. |
+| ✅ | `concept_id` | `concept_id` | Exact CMR concept ID (format: `C<number>-<PROVIDER>`, e.g., C2036882064-POCLOUD). Use for direct lookup of a known collection. |
 | ✅ | `short_name` | `short_name` | Collection short name (e.g., MOD11A1, SPL3SMP, MUR-JPL-L4-GLOB-v4.1). Exact match by default; wildcards * and ? are supported. |
 | ✅ | `provider` | `provider` | Data provider short name (e.g., PODAAC, NSIDC_ECS, GES_DISC, ORNL_DAAC, LAADS, GHRC_DAAC, ASDC). Restricts results to collections from that provider. WARNING: NASA DAACs are actively migrating assets to the cloud under new provider IDs (e.g., LPDAAC_ECS → LPCLOUD, PODAAC → POCLOUD). If you know the exact short_name of a product, do NOT include the provider parameter — a stale provider ID will silently return 0 results. Use provider only when the user explicitly filters by archive center. |
 | ✅ | `temporal_start_date` | `temporal` | Start of temporal filter in ISO 8601 format (e.g., 2020-01-01T00:00:00Z). Restricts results to collections whose declared temporal range overlaps this window. Set this whenever the user specifies a time period — omitting it returns collections regardless of when their data was collected. |
@@ -83,7 +85,7 @@ Searches for specific data files (granules) within a collection to verify actual
 #### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection concept ID (format: C<number>-<PROVIDER>, e.g., C2723758340-GES_DISC). Required to scope granule search. |
+| ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection concept ID (format: `C<number>-<PROVIDER>`, e.g., C2723758340-GES_DISC). Required to scope granule search. |
 | ✅ | `temporal_start_date` | `temporal` | Start of temporal filter in ISO 8601 format (e.g., 2024-01-01T00:00:00Z). Finds granules whose temporal extent overlaps this window. Set this whenever the user specifies a time period — omitting it returns granules from the entire collection archive regardless of date. |
 | ✅ | `temporal_end_date` | `temporal` | End of temporal filter in ISO 8601 format (e.g., 2024-01-31T23:59:59Z). Finds granules whose temporal extent overlaps this window. Set this whenever the user specifies a time period — omitting it returns granules from the entire collection archive regardless of date. |
 | ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Spatial filter as WKT geometry. Supported types: POLYGON((lon lat, ...)), POINT(lon lat), or LINESTRING(lon lat, ...). Finds granules with spatial extent intersecting this area. CMR returns any granule that touches this shape, so precise geometries are preferred to prevent false positives. Set this whenever the user specifies a geographic region — omitting it returns granules from the entire globe regardless of location. |
@@ -175,7 +177,7 @@ Finds web portals and downloadable software associated with a collection, return
 #### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID (format: C<number>-<PROVIDER>, e.g., C2723758340-GES_DISC). When provided, searches for tools associated with this collection. |
+| ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID (format: `C<number>-<PROVIDER>`, e.g., C2723758340-GES_DISC). When provided, searches for tools associated with this collection. |
 | ✅ | `keyword` | `keyword` | Free-text keyword to discover tools without a collection ID. |
 | ❌ | N/A | `name` | Exact match on tool name |
 | ❌ | N/A | `provider` | Filter by provider ID |
