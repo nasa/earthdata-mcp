@@ -1,8 +1,6 @@
 """Langfuse evaluator functions for MCP regression tests."""
 
 import os
-from concurrent.futures import ThreadPoolExecutor
-
 from deepeval.metrics import MCPUseMetric
 from deepeval.models import AmazonBedrockModel
 from deepeval.test_case import LLMTestCase, MCPServer, MCPToolCall
@@ -58,7 +56,7 @@ def _make_eval_context(**kwargs) -> tuple[EvaluatorContext, list[ToolCall]]:
     return ctx, raw_calls
 
 
-# --- EVALUATOR 1: DeepEval Conversational Multi-Turn Judge ---
+# --- EVALUATOR 1: DeepEval LLM Test Case Judge ---
 def deepeval_mcp_use_judge(**kwargs):
     """Evaluates multi-turn tool usage using AWS Bedrock as an LLM judge."""
     agent_result = _get_agent_result(**kwargs)
@@ -90,13 +88,13 @@ def deepeval_mcp_use_judge(**kwargs):
         threshold=0.5,
         model=bedrock_model,
         include_reason=True,
-        async_mode=False,
+        async_mode=True,
     )
-
+    metric.measure(convo_test_case)
     # Run in a fresh thread to avoid "event loop already running" when Langfuse's
     # experiment runner calls evaluators from a thread that already has a loop.
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        pool.submit(metric.measure, convo_test_case).result()
+    # with ThreadPoolExecutor(max_workers=1) as pool:
+    #     pool.submit(metric.measure, convo_test_case).result()
 
     return Evaluation(
         name="deepeval_mcp_alignment", value=metric.score, comment=metric.reason
