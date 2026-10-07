@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 
 from evals.sandbox_agent import _AgentResult, _bedrock_agent_task
 
-
 # ---------------------------------------------------------------------------
 # Inlined from mcpevals (mcp-agent is incompatible with mcp>=2; server.py
 # requires mcp>=2 for build_resource_metadata_url added in that release)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ToolCall:
@@ -77,12 +77,14 @@ class ToolCalledWith(ToolWasCalled):
     def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult:
         calls = [c for c in ctx.tool_calls if c.name == self.tool_name]
         matching = [
-            c for c in calls
+            c
+            for c in calls
             if all(c.arguments.get(k) == v for k, v in self.expected_args.items())
         ]
         actual = (
             ", ".join(f"{self.tool_name}({c.arguments})" for c in calls)
-            if calls else f"tool '{self.tool_name}' not called"
+            if calls
+            else f"tool '{self.tool_name}' not called"
         )
         return EvaluatorResult(
             passed=bool(matching),
@@ -103,7 +105,10 @@ class ToolSequence(_SyncEvaluator):
             passed = all(item in it for item in self.expected_sequence)
         else:
             passed = actual == self.expected_sequence
-        return EvaluatorResult(passed=passed, expected=self.expected_sequence, actual=actual)
+        return EvaluatorResult(
+            passed=passed, expected=self.expected_sequence, actual=actual
+        )
+
 
 DEFAULT_MODEL_ID = "amazon.nova-pro-v1:0"
 
@@ -182,10 +187,14 @@ def deepeval_mcp_use_judge(**kwargs):
         model=bedrock_model,
         include_reason=True,
         async_mode=True,
+        async_mode=True,
     )
+    metric.measure(convo_test_case)
     metric.measure(convo_test_case)
     # Run in a fresh thread to avoid "event loop already running" when Langfuse's
     # experiment runner calls evaluators from a thread that already has a loop.
+    # with ThreadPoolExecutor(max_workers=1) as pool:
+    #     pool.submit(metric.measure, convo_test_case).result()
     # with ThreadPoolExecutor(max_workers=1) as pool:
     #     pool.submit(metric.measure, convo_test_case).result()
 
