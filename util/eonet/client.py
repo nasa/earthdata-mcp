@@ -76,6 +76,9 @@ def categories(category: str, params: dict | None = None) -> dict:
     response.raise_for_status()
     results = response.json()
 
+    if params == {}:
+        return results
+
     if len(results["events"]) == 0:
         return {
 	        "title": f"EONET Events: {category}",
