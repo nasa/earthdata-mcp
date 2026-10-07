@@ -14,6 +14,7 @@ This section will contain examples, sample prompts, and advanced guides for LLM 
 Developer guidelines and procedures for contributing to and maintaining the application.
 
 - **[Adding a New Tool](developers/adding-a-new-tool.md)**: How to build and register a new tool, configure `manifest.json`, follow Semantic Versioning, and update Dockerfiles.
+- **[Adding Authentication to a Tool](developers/adding-authentication-to-a-tool.md)**: How to configure a tool to require authentication, including updating the manifest and handling OAuth scopes.
 - **[Adding an Environment Variable](developers/adding-an-env-var.md)**: The exact files to touch in Terraform, Docker, and Bamboo when adding a new environment variable to the ECS container.
 - **[Versioning Methodology](developers/versioning.md)**: Explains the decoupled versioning strategy between the MCP Server (`pyproject.toml`) and individual tools (`manifest.json`).
 - **[Troubleshooting Deployments](developers/troubleshooting-deployments.md)**: Step-by-step instructions for debugging a `503 Service Unavailable` error, finding AWS CloudWatch logs, and fixing crash loops.
