@@ -1,40 +1,8 @@
-# Earthdata MCP Server User Guide
-
-The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
-
-## Table of Contents
-* [Glossary](#glossary)
-* [Connecting a client to the MCP Server](#connecting-a-client-to-the-mcp-server)
-  * [ChatGPT.com](#chatgptcom)
-  * [Claude.ai](#claudeai)
-  * [Claude Code](#claude-code)
-  * [Cursor](#cursor)
-  * [Github Copilot Chat](#github-copilot-chat)
-  * [Connecting Other MCP Clients](#connecting-other-mcp-clients)
-* [What tools are available?](#what-tools-are-available)
-* [How should I use the MCP server in my client?](#how-should-i-use-the-mcp-server-in-my-client)
-* [Tips for Better Queries](#tips-for-better-queries)
-* [Example Walkthrough](#example-walkthrough)
-* [Authentication](#authentication)
-* [Limitations](#limitations)
-* [Programmatic Access and End-to-end Workflows](#programmatic-access-and-end-to-end-workflows)
-* [Troubleshooting](#troubleshooting)
-* [Feedback and Issues](#feedback-and-issues)
-
+---
+title: Earthdata MCP Server User Guide
 ---
 
-## Glossary
-NASA's Common Metadata Repository (CMR) organizes Earth science data into a hierarchy of concepts. Understanding these terms will help you interpret the results from the MCP server.
-
-| CMR Term | What it means | Example |
-| :--- | :--- | :--- |
-| **Collection** | A dataset (a named, versioned group of related data files produced by an instrument or model) | "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m" |
-| **Granule** | Data files within a collection, covering a specific time and location | `MOD13Q1.A2026161.h13v08.061` |
-| **Variable** | A measured quantity stored inside a granule file, with its own units, scale, and dimensions | `_250m_16_days_NDVI` |
-| **Service** | A data access or visualization endpoint associated with a collection | OPeNDAP, Harmony subsetting |
-| **Tool** | A web application or downloadable software that works with a collection | AppEEARS, Worldview, Panoply |
-| **Citation** | A published paper or DOI that references a collection's data | A journal article citing GRACE mascon data |
-| **Keyword** | An official term from NASA's controlled vocabulary (GCMD) used to categorize collections | `DEFORESTATION`, `SEA SURFACE TEMPERATURE` |
+The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Earth science data APIs, currently the Common Metadata Repository (CMR). This integration enables consumers to agentically discover, verify, and access Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
 
 ---
 
@@ -109,8 +77,8 @@ Consult your client's documentation for where to configure remote MCP server con
 
 ---
 
-# What tools are available?
-The Earthdata MCP Server configures the following tools to search across the CMR concept types:
+## What tools are available?
+The Earthdata MCP Server currently configures the following tools, which search across the CMR concept types:
 
 *   **`get_keywords`**: Discovers official Earthdata scientific vocabulary terms (from NASA KMS) to translate colloquial user inputs (e.g. "rain") into precise search labels (e.g. "PRECIPITATION AMOUNT").
 *   **`get_collections`**: Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
@@ -122,7 +90,7 @@ The Earthdata MCP Server configures the following tools to search across the CMR
 
 ---
 
-# How should I use the MCP server in my client?
+## How should I use the MCP server in my client?
 When a client is connected to the MCP server, it receives instructions for how it should interact with the tools. In a chat client, a query like "I want to find the sea surface temperature in the gulf yesterday" will be orchestrated into a series of tool calls and their parameters as determined by the client. The clients are encouraged to follow a **Discover → Verify → Access** pattern, in which keywords, citations, variables, and collections are used to discover appropriate collections, then granules are used to confirm data availability within the selected region, and finally services, tools are used to guide the consumer to the data.
 
 You can ask for data using queries like:
@@ -133,7 +101,7 @@ You can ask for data using queries like:
 
 ---
 
-# Tips for Better Queries
+## Tips for Better Queries
 These tips help your AI client produce more accurate, relevant results from the Earthdata MCP server.
 
 **Be specific about where and when**
@@ -159,7 +127,7 @@ These tips help your AI client produce more accurate, relevant results from the 
 
 ---
 
-# Example Walkthrough
+## Example Walkthrough
 This example shows the full **Discover -> Verify -> Access** workflow in action. The user asks a single natural-language question, and the agent orchestrates multiple tool calls behind the scenes.
 
 ### User prompt
@@ -242,7 +210,7 @@ The agent synthesizes everything into a clear answer:
 
 ---
 
-# Authentication
+## Authentication
 The Earthdata MCP server is open for discovery. No authentication is required to search for collections, granules, keywords, or any other metadata.
 
 However, downloading data files requires a free Earthdata Login account. When the agent provides download URLs or generates access code, you will need to be authenticated before the files will transfer. If you're using earthaccess, it handles login automatically via stored credentials or an interactive prompt.
@@ -251,7 +219,7 @@ Collections that require authentication to view their metadata (e.g., restricted
 
 ---
 
-# Limitations
+## Limitations
 The Earthdata MCP server is a **discovery** tool. It helps you find and learn about data — it does not process, transform, or deliver data files directly.
 
 *   **No direct file download or streaming.** The server returns metadata and URLs. Downloading requires Earthdata Login and a separate client (browser, `earthaccess`, `wget`).
@@ -262,7 +230,7 @@ The Earthdata MCP server is a **discovery** tool. It helps you find and learn ab
 
 ---
 
-# Programmatic Access and End-to-end Workflows
+## Programmatic Access and End-to-end Workflows
 Connected clients are instructed to suggest [earthaccess](https://github.com/nsidc/earthaccess) for programmatic data access. When you ask "how do I download this?", the agent will typically generate working Python code using the collection and granule information it already discovered. You don't need to manually translate MCP results into code yourself.
 
 ### Combining MCP servers for end-to-end workflows
@@ -280,7 +248,7 @@ Learn more: [earthaccess documentation](https://earthaccess.readthedocs.io/)
 
 ---
 
-# Troubleshooting
+## Troubleshooting
 
 | Symptom | Likely cause | Solution |
 | :--- | :--- | :--- |
@@ -294,7 +262,22 @@ Learn more: [earthaccess documentation](https://earthaccess.readthedocs.io/)
 
 ---
 
-# Feedback and Issues
+## Feedback and Issues
 If you encounter problems with the Earthdata MCP server (incorrect results, missing data, tool errors, or unexpected behavior), please report them:
 *   **MCP server issues:** File an issue in the [Earthdata MCP Github repository](https://github.com/nasa/earthdata-mcp/issues) or contact the Earthdata support team at [support@earthdata.nasa.gov](mailto:support@earthdata.nasa.gov)
 *   **Client-specific issues:** If the problem is with how a specific client (ChatGPT, Claude, etc.) interprets results, check that client's documentation or community forums.
+
+---
+
+## Glossary
+NASA's Common Metadata Repository (CMR) organizes Earth science data into a hierarchy of concepts. Understanding these terms will help you interpret the results from the MCP server.
+
+| CMR Term | What it means | Example |
+| :--- | :--- | :--- |
+| **Collection** | A dataset (a named, versioned group of related data files produced by an instrument or model) | "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m" |
+| **Granule** | Data files within a collection, covering a specific time and location | `MOD13Q1.A2026161.h13v08.061` |
+| **Variable** | A measured quantity stored inside a granule file, with its own units, scale, and dimensions | `_250m_16_days_NDVI` |
+| **Service** | A data access or visualization endpoint associated with a collection | OPeNDAP, Harmony subsetting |
+| **Tool** | A web application or downloadable software that works with a collection | AppEEARS, Worldview, Panoply |
+| **Citation** | A published paper or DOI that references a collection's data | A journal article citing GRACE mascon data |
+| **Keyword** | An official term from NASA's controlled vocabulary (GCMD) used to categorize collections | `DEFORESTATION`, `SEA SURFACE TEMPERATURE` |

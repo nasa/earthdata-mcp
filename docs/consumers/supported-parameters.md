@@ -1,46 +1,45 @@
-# Earthdata MCP Parameter Support Reference
+---
+title: Parameters
+head:
+  - tag: style
+    content: ':root { --sl-content-width: 70rem; }'
+---
 
-This reference maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths. It provides consumers with a clear picture of current API integration depth and search capabilities.
+This reference maps Earthdata MCP tool parameters to the upstream API arguments and schema fields behind them. It provides consumers with a clear picture of current API integration depth and search capabilities. Each tool's section names the endpoint and schema it is built on.
 
-## Table of Contents
-- [`get_collections`](#get_collections)
-- [`get_granules`](#get_granules)
-- [`get_variables`](#get_variables)
-- [`get_tools`](#get_tools)
-- [`get_services`](#get_services)
-- [`get_keywords`](#get_keywords)
-- [`get_citations`](#get_citations) (Needs documentation)
-
-> **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
+<terra-alert open variant="information" appearance="subtle">
+	<terra-icon slot="icon" name="solid-information-circle" library="heroicons"></terra-icon>
+	All search tools globally support the <strong>limit</strong>, <strong>cursor</strong>, and <strong>fields</strong> parameters for pagination and response filtering. These are omitted from the tables below for brevity.
+</terra-alert>
 
 ---
 
-### `get_collections`
+## `get_collections`
 Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
 - **CMR Endpoint:** [`/search/collections`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#collection-search)
 - **Schema:** [UMM-C (v1.18.3)](https://cdn.earthdata.nasa.gov/umm/collection/v1.18.3)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `keyword` | `keyword` | Free-text keyword search. Case insensitive. IMPORTANT — CMR uses AND logic: each space-separated word is matched independently and ALL words must appear somewhere in a collection's indexed fields (title, summary, short name, GCMD science keywords, platform and instrument names, project names, processing level, archive centers, additional attributes, etc.). Words do NOT need to appear in the same field or as a contiguous phrase. Because every word must match, adding more words makes the search STRICTER, not broader — the opposite of typical web search engines. Prefer 2–4 precise terms over long queries. Example: 'soil moisture' (2 terms, broad) vs 'soil moisture SMAP L3' (4 terms, narrow). Phrase search: wrap the entire value in escaped double quotes to require an exact phrase (e.g., '\"sea surface temperature\"'). Only a single phrase is supported; you cannot mix a phrase with additional standalone words. Wildcards supported: * (zero or more chars), ? (any single char). Use scientific terms: geophysical variable names ('sea surface temperature', 'soil moisture'), instrument names (MODIS, ASCAT, VIIRS, AIRS, Landsat, etc.), or platform names (Terra, Aqua, SMAP, Sentinel-1, etc.). For known product short names use the short_name parameter instead. |
-| ✅ | `concept_id` | `concept_id` | Exact CMR concept ID (format: C<number>-<PROVIDER>, e.g., C2036882064-POCLOUD). Use for direct lookup of a known collection. |
-| ✅ | `short_name` | `short_name` | Collection short name (e.g., MOD11A1, SPL3SMP, MUR-JPL-L4-GLOB-v4.1). Exact match by default; wildcards * and ? are supported. |
-| ✅ | `provider` | `provider` | Data provider short name (e.g., PODAAC, NSIDC_ECS, GES_DISC, ORNL_DAAC, LAADS, GHRC_DAAC, ASDC). Restricts results to collections from that provider. WARNING: NASA DAACs are actively migrating assets to the cloud under new provider IDs (e.g., LPDAAC_ECS → LPCLOUD, PODAAC → POCLOUD). If you know the exact short_name of a product, do NOT include the provider parameter — a stale provider ID will silently return 0 results. Use provider only when the user explicitly filters by archive center. |
-| ✅ | `temporal_start_date` | `temporal` | Start of temporal filter in ISO 8601 format (e.g., 2020-01-01T00:00:00Z). Restricts results to collections whose declared temporal range overlaps this window. Set this whenever the user specifies a time period — omitting it returns collections regardless of when their data was collected. |
-| ✅ | `temporal_end_date` | `temporal` | End of temporal filter in ISO 8601 format (e.g., 2020-12-31T23:59:59Z). Restricts results to collections whose declared temporal range overlaps this window. Set this whenever the user specifies a time period — omitting it returns collections regardless of when their data was collected. |
-| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Spatial filter as WKT geometry. Supported types: POLYGON((lon lat, ...)), POINT(lon lat), or LINESTRING(lon lat, ...). Restricts results to collections whose declared extent intersects this area. CMR returns any collection that touches this shape, so precise geometries are preferred to prevent false positives. Set this whenever the user specifies a geographic region — omitting it returns collections with global or unspecified coverage. |
-| ✅ | `platform` | `platform` | Platform short names to filter by (e.g., ['Terra', 'Aqua']). Most common scientific filter after temporal/spatial. |
-| ✅ | `instrument` | `instrument` | Instrument short names to filter by (e.g., ['MODIS', 'VIIRS']). More precise than keyword for instrument filtering. |
-| ✅ | `processing_level_id` | `processing_level_id` | Processing level IDs to filter by (e.g., ['3', '3A']). Essential for choosing between L2 swath and L3 gridded products. |
-| ✅ | `has_granules` | `has_granules` | When True, filters to collections that have actual granule data. Prevents returning metadata-only shells. |
+| ✅ | `keyword` | `keyword` | Free-text search across a collection's indexed metadata, case insensitive. All words must match, so extra terms narrow the search rather than widen it. |
+| ✅ | `concept_id` | `concept_id` | Exact CMR concept ID, e.g. `C2036882064-POCLOUD`. Direct lookup of a known collection. |
+| ✅ | `short_name` | `short_name` | Collection short name, e.g. `MOD11A1`. Exact match unless the `*` or `?` wildcards are used. |
+| ✅ | `provider` | `provider` | Archive center that published the collection, e.g. `PODAAC`, `GES_DISC`. Cloud migration has renamed some providers, and a stale ID returns no results rather than an error. |
+| ✅ | `temporal_start_date` | `temporal` | Start of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
+| ✅ | `temporal_end_date` | `temporal` | End of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
+| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches collections whose declared extent intersects it, so a precise shape avoids false positives. |
+| ✅ | `platform` | `platform` | Platform short names to filter by, e.g. `Terra`, `Aqua`. Narrows a search to one mission's instruments. |
+| ✅ | `instrument` | `instrument` | Instrument short names to filter by, e.g. `MODIS`, `VIIRS`. Matches the instrument field rather than the whole record, so it is tighter than the same name as a keyword. |
+| ✅ | `processing_level_id` | `processing_level_id` | Processing levels to filter by, e.g. `3`, `3A`. Distinguishes L2 swath from L3 gridded products. |
+| ✅ | `has_granules` | `has_granules` | When true, limits results to collections that hold granules. CMR also carries metadata-only records for planned missions and datasets archived elsewhere. |
 | ❌ | N/A | `doi` | Search by digital object identifier |
 | ❌ | N/A | `project` | Search by project/campaign name |
 | ❌ | N/A | `data_center` | Search by data center/archive center |
 | ❌ | N/A | `science_keywords` | Search by GCMD science keywords hierarchy |
 | ❌ | N/A | `updated_since` | Filter by recently updated collections |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `abstract` | `Abstract` | | Collection summary or abstract |
@@ -75,34 +74,34 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 
 ---
 
-### `get_granules`
+## `get_granules`
 Searches for specific data files (granules) within a collection to verify actual data availability for a given time and location.
 - **CMR Endpoint:** [`/search/granules`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#granule-search)
 - **Schema:** [UMM-G (v1.6.5)](https://cdn.earthdata.nasa.gov/umm/granule/v1.6.5)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection concept ID (format: C<number>-<PROVIDER>, e.g., C2723758340-GES_DISC). Required to scope granule search. |
-| ✅ | `temporal_start_date` | `temporal` | Start of temporal filter in ISO 8601 format (e.g., 2024-01-01T00:00:00Z). Finds granules whose temporal extent overlaps this window. Set this whenever the user specifies a time period — omitting it returns granules from the entire collection archive regardless of date. |
-| ✅ | `temporal_end_date` | `temporal` | End of temporal filter in ISO 8601 format (e.g., 2024-01-31T23:59:59Z). Finds granules whose temporal extent overlaps this window. Set this whenever the user specifies a time period — omitting it returns granules from the entire collection archive regardless of date. |
-| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Spatial filter as WKT geometry. Supported types: POLYGON((lon lat, ...)), POINT(lon lat), or LINESTRING(lon lat, ...). Finds granules with spatial extent intersecting this area. CMR returns any granule that touches this shape, so precise geometries are preferred to prevent false positives. Set this whenever the user specifies a geographic region — omitting it returns granules from the entire globe regardless of location. |
-| ✅ | `cloud_cover_min` | `cloud_cover` | Minimum cloud cover percentage (0–100, inclusive). Use with cloud_cover_max to filter optical/visible imagery granules by cloud cover. Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, etc). Omit for non-optical data (SAR, altimetry, etc.). |
-| ✅ | `cloud_cover_max` | `cloud_cover` | Maximum cloud cover percentage (0–100, inclusive). Use with cloud_cover_min to filter optical/visible imagery granules by cloud cover. For example, set cloud_cover_max=20 to find mostly clear scenes. Only applicable to collections that report cloud cover (e.g., Landsat, MODIS, etc). Omit for non-optical data (SAR, altimetry, etc.). |
-| ✅ | `day_night_flag` | `day_night_flag` | Filter granules by day/night acquisition flag. Values: 'DAY', 'NIGHT', 'UNSPECIFIED'. |
-| ✅ | `sort_key` | `sort_key` | Sort key for granule results. e.g., '-start_date' (newest first), 'start_date' (oldest first). CMR default is relevance score. For ongoing or near-real-time (NRT) missions where the user wants the most recent data, always use '-start_date' — CMR's default relevance scoring may return historical data first if sort_key is not explicitly set. |
+| ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection to search within, e.g. `C2723758340-GES_DISC`. Required. |
+| ✅ | `temporal_start_date` | `temporal` | Start of the temporal window, ISO 8601. Matches granules whose coverage overlaps it. |
+| ✅ | `temporal_end_date` | `temporal` | End of the temporal window, ISO 8601. Matches granules whose coverage overlaps it. |
+| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches granules whose footprint intersects it, so a precise shape avoids false positives. |
+| ✅ | `cloud_cover_min` | `cloud_cover` | Lower bound on cloud cover, 0 to 100. Optical imagery only; SAR and altimetry do not report it. |
+| ✅ | `cloud_cover_max` | `cloud_cover` | Upper bound on cloud cover, 0 to 100. Use `20` or lower for mostly clear scenes. Optical imagery only. |
+| ✅ | `day_night_flag` | `day_night_flag` | Acquisition lighting, one of `DAY`, `NIGHT`, or `UNSPECIFIED`. |
+| ✅ | `sort_key` | `sort_key` | Result ordering, e.g. `-start_date` for newest first. Defaults to relevance, not recency, so recent data is not returned first unless asked for. |
 | ❌ | N/A | `granule_ur` | Search by exact granule UR |
 | ❌ | N/A | `producer_granule_id` | Search by producer granule ID |
 | ❌ | N/A | `readable_granule_name` | Search by either granule UR or producer ID |
 | ❌ | N/A | `orbit_number` | Filter granules by orbit number |
 | ❌ | N/A | `updated_since` | Filter by recently updated granules |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_urls` | `RelatedUrls` | ✅ | Actionable data access URLs (Note: Access requires Earthdata Login authentication) |
 | ✅ | `additional_attributes` | `AdditionalAttributes` | ✅ | Provider-specific attributes (e.g., tile coords, quality flags) — array of {name, values[]} |
-| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | ✅ | [West, South, East, North] Minimum Bounding Rectangle (MBR). Note: For swath data or irregular polygons, this bounding box fully encloses the data but may contain empty space at the corners. |
+| ✅ | `bounding_box` | `SpatialExtent.HorizontalSpatialDomain.Geometry.BoundingRectangles` | ✅ | `[West, South, East, North]` minimum bounding rectangle. Encloses swath and irregular footprints, so the corners may hold no data. |
 | ✅ | `cloud_cover` | `CloudCover` | | Cloud cover percentage |
 | ✅ | `collection_concept_id` | `CollectionReference.ShortName/Version` | | Parent collection concept ID |
 | ✅ | `concept_id` | `meta.concept-id` | | CMR granule concept ID |
@@ -126,20 +125,20 @@ Searches for specific data files (granules) within a collection to verify actual
 
 ---
 
-### `get_variables`
+## `get_variables`
 Discovers scientific variables and measurements associated with a collection, or looks up variables by keyword.
 - **CMR Endpoint:** [`/search/variables`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#variable-search)
 - **Schema:** [UMM-V (v1.9.0)](https://cdn.earthdata.nasa.gov/umm/variable/v1.9.0)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | The CMR concept ID of the collection to find variables for (e.g., 'C12345-PROV'). |
-| ✅ | `keyword` | `keyword` | A free-text search keyword to find variables. |
+| ✅ | `collection_concept_id` | `concept_id` | Collection to find variables for, e.g. `C2763266360-LPCLOUD`. |
+| ✅ | `keyword` | `keyword` | Free-text keyword to discover variables without a collection ID. |
 | ❌ | N/A | `name` | Exact match on variable name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `concept_id` | `meta.concept-id` | | CMR variable concept ID |
@@ -167,20 +166,20 @@ Discovers scientific variables and measurements associated with a collection, or
 
 ---
 
-### `get_tools`
+## `get_tools`
 Finds web portals and downloadable software associated with a collection, returning URLs and deep-linking templates.
 - **CMR Endpoint:** [`/search/tools`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#tool-search)
 - **Schema:** [UMM-T (v1.2.0)](https://cdn.earthdata.nasa.gov/umm/tool/v1.2.0)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID (format: C<number>-<PROVIDER>, e.g., C2723758340-GES_DISC). When provided, searches for tools associated with this collection. |
+| ✅ | `collection_concept_id` | `concept_id` | Collection to find associated tools for, e.g. `C2723758340-GES_DISC`. |
 | ✅ | `keyword` | `keyword` | Free-text keyword to discover tools without a collection ID. |
 | ❌ | N/A | `name` | Exact match on tool name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_constraints` | `AccessConstraints` | | Constraints for accessing the tool |
@@ -212,21 +211,21 @@ Finds web portals and downloadable software associated with a collection, return
 
 ---
 
-### `get_services`
+## `get_services`
 Discovers data access endpoints and visualization layers associated with a collection.
 - **CMR Endpoint:** [`/search/services`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#service-search)
 - **Schema:** [UMM-S (v1.5.3)](https://cdn.earthdata.nasa.gov/umm/service/v1.5.3)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID. |
-| ✅ | `keyword` | `keyword` | Free-text keyword. |
-| ✅ | `type` | `type` | Filter by service type. |
+| ✅ | `collection_concept_id` | `concept_id` | Collection to find associated services for, e.g. `C2723758340-GES_DISC`. |
+| ✅ | `keyword` | `keyword` | Free-text keyword to discover services without a collection ID. |
+| ✅ | `type` | `type` | Service type to filter by, e.g. `OPeNDAP`, `WMS`, `Harmony`. |
 | ❌ | N/A | `name` | Exact match on service name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `access_constraints` | `AccessConstraints` | | Authentication or authorization requirements |
@@ -252,21 +251,74 @@ Discovers data access endpoints and visualization layers associated with a colle
 
 ---
 
-### `get_keywords`
+## `get_keywords`
 Discovers official Earthdata scientific vocabulary terms to translate colloquial user inputs into precise search labels.
 - **CMR Endpoint:** [`/search/keywords`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#keyword-search)
-- **Schema:** [KMS Concept (v2.0)](https://wiki.earthdata.nasa.gov/display/CMR/KMS+2.0+User%27s+Guide)
+- **Schema:** [KMS Concept (v2.0)](https://wiki.earthdata.nasa.gov/x/aYX0Gg)
 
-#### Input Parameters
+### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `query` | `pattern` | The term to search for across KMS schemes (e.g. 'moisture'). |
-| ✅ | `scheme` | `keyword_scheme` | Optional. A single KMS scheme to narrow the search (e.g., 'sciencekeywords', 'platforms', 'instruments', 'projects', 'providers', 'locations'). If omitted, searches across all schemes globally. A complete list of valid scheme names can be fetched from https://cmr.earthdata.nasa.gov/kms/concept_schemes |
+| ✅ | `query` | `pattern` | Term to search for across KMS schemes, e.g. `moisture`. |
+| ✅ | `scheme` | `keyword_scheme` | A single KMS scheme to search, e.g. `sciencekeywords`, `platforms`, `instruments`. Searches every scheme if omitted. [Full list](https://cmr.earthdata.nasa.gov/kms/concept_schemes). |
 
-#### Output Fields
+### Output Fields
 | Status | MCP Response Field | UMM JSON Path | Transformed | Description |
 |---|---|---|---|---|
 | ✅ | `uuid` | `uuid` | | The unique UUID of the KMS concept |
 | ✅ | `prefLabel` | `prefLabel` | | The preferred label of the KMS concept |
 | ✅ | `scheme` | `scheme` | | The scheme the concept belongs to |
 | ✅ | `definition` | `definition` | | The primary definition of the concept, if available |
+
+---
+
+## `get_citations`
+Discovers citation records (publications, DOIs) associated with a collection, or looks up a citation directly by identifier.
+- **CMR Endpoint:** [`/search/citations`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#searching-for-citations)
+- **Schema:** Citation (v1.0.0), a CMR generic document type. Citations have not been adopted into UMM yet, so there is no published schema to link.
+
+Exactly one of `collection_concept_id` or `identifier` is required. Supplying both, or neither, is a validation error.
+
+`collection_concept_id` is not a CMR citation search parameter. The tool first reads the collection record's citation associations, then searches citations by the concept IDs it found, so a collection with no associations returns no results without a second request.
+
+### Input Parameters
+| Status | MCP Argument | CMR API Parameter | Description |
+|---|---|---|---|
+| ✅ | `collection_concept_id` | `concept_id[]` | Collection to find citations for, e.g. `C2763266360-LPCLOUD`. Resolved through the collection's citation associations. |
+| ✅ | `identifier` | `identifier` | DOI or other citation identifier, e.g. `10.24193/AWC2022_05`. Looks up a single citation directly. |
+| ✅ | `provider` | `provider` | CMR provider that published the citation, e.g. `ESDIS`. Combines with a collection or identifier lookup. |
+| ❌ | N/A | `name` | Search by citation name. Exact match, not free text. |
+| ❌ | N/A | `title` | Search by title. Exact match, not free text. |
+| ❌ | N/A | `year` | Filter by publication year |
+| ❌ | N/A | `author-name` | Search by author name |
+| ❌ | N/A | `author-orcid` | Search by author ORCID |
+| ❌ | N/A | `container` | Search by container or journal name |
+| ❌ | N/A | `type` | Search by citation type (e.g., journal-article, proceedings-article) |
+| ❌ | N/A | `identifier-type` | Filter by identifier type (e.g., DOI) |
+| ❌ | N/A | `resolution-authority` | Filter by the authority that resolves the identifier |
+| ❌ | N/A | `relationship-type` | Filter by relationship to the cited work (e.g., Cites, Refers) |
+| ❌ | N/A | `related-identifier` | Search by an identifier the citation relates to |
+| ❌ | N/A | `related-identifier-with-type` | Search relationship and identifier as a pair (e.g., `Cites:10.5067/SAMPLE/DATA`) |
+| ❌ | N/A | `concept-id` | Direct lookup by citation concept ID |
+| ❌ | N/A | `native-id` | Lookup by native ID |
+| ❌ | N/A | `id` | Lookup by citation ID |
+| ❌ | N/A | `keyword` | Search by science keyword. Accepted by CMR but returns no matches for citation records. |
+
+### Output Fields
+Every field in the Citation schema is surfaced.
+
+| Status | MCP Response Field | Record JSON Path | Transformed | Description |
+|---|---|---|---|---|
+| ✅ | `abstract` | `Abstract` | | Abstract or description of the cited work |
+| ✅ | `associated_collections` | `meta.associations.collections` | ✅ | Concept IDs of collections this citation is associated with. Pass these to `get_collections` for the dataset details. |
+| ✅ | `citation_metadata` | `CitationMetadata` | | Nested bibliographic metadata (Author, Year, Publisher, Title, Container, Volume, Pages, and related fields) |
+| ✅ | `concept_id` | `meta.concept-id` | | CMR citation concept ID |
+| ✅ | `identifier` | `Identifier` | | The primary identifier, usually a DOI |
+| ✅ | `identifier_type` | `IdentifierType` | | Type of the identifier (e.g., DOI) |
+| ✅ | `metadata_specification` | `MetadataSpecification` | | Schema name, version, and URL for the citation record |
+| ✅ | `name` | `Name` | | The name or title of the citation |
+| ✅ | `native_id` | `meta.native-id` | | The native ID of the citation record |
+| ✅ | `provider_id` | `meta.provider-id` | | The provider ID of the citation |
+| ✅ | `related_identifiers` | `RelatedIdentifiers` | | Related works and datasets, each with a relationship type (e.g., Cites, Refers) |
+| ✅ | `resolution_authority` | `ResolutionAuthority` | | Authority that resolves the identifier (e.g., https://doi.org) |
+| ✅ | `revision_id` | `meta.revision-id` | | The revision ID of the citation metadata |
