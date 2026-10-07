@@ -1,10 +1,10 @@
 # earthdata-mcp
 
-An MCP (Model Context Protocol) server providing LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables users to agentically discover, verify, and access Earth science datasets through natural language interfaces.
+An MCP (Model Context Protocol) server providing LLM agents with direct access to NASA's Earth science data APIs, currently the Common Metadata Repository (CMR). This integration enables users to agentically discover, verify, and access Earth science datasets through natural language interfaces.
 
 To start querying Earthdata immediately, see **[Connecting to the Server](#for-consumers-connecting-to-the-server)** below, or the **[user guide](https://nasa.github.io/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/)** on the documentation site for client setup, example queries, and troubleshooting.
 The public consumer documentation is published at **[nasa.github.io/earthdata-mcp](https://nasa.github.io/earthdata-mcp/)** and maintained in [docs/](docs/README.md#public-documentation-site).
-For a detailed breakdown of how tool inputs and outputs map to the underlying CMR APIs and UMM schemas, see the **[Parameter Support Reference](docs/consumers/supported-parameters.md)**.
+For a detailed breakdown of how tool inputs and outputs map to the APIs and schemas behind them, see the **[Parameter Support Reference](docs/consumers/supported-parameters.md)**.
 
 ### Available Tools
 
@@ -34,8 +34,6 @@ The repository is structured around a few core domains:
 - **`models/`**: Pydantic models for tool input validation and standardized CMR API responses.
 - **`tests/`**: Comprehensive test suite (using `pytest`) covering server initialization, tool logic, and mocked CMR API responses.
 - **`docs/`**: Project documentation separated into `consumers/` and `developers/`.
-
-> **Note on Legacy Code**: The ingestion and embedding pipelines (including the `discover_data` tool, `lambdas/` directory, and associated infrastructure) are currently being deprecated. The architecture is transitioning to rely purely on direct, real-time CMR API integrations.
 
 ## For Consumers: Connecting to the Server
 

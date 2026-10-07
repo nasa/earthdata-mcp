@@ -4,10 +4,10 @@ This directory contains detailed documentation for both consumers of the MCP ser
 
 ## For Consumers (`docs/consumers/`)
 
-This section contains examples, sample prompts, and advanced guides for LLM agents and human developers querying the Common Metadata Repository (CMR) via this MCP server.
+This section contains examples, sample prompts, and advanced guides for LLM agents and human developers querying NASA's Earth science data APIs via this MCP server. Every tool available today is backed by the Common Metadata Repository (CMR).
 
 - **[User Guide](consumers/earthdata-mcp-server-user-guide.md)**: How to connect to the MCP server using variety of harnesses, example walkthrough, troubleshooting, and feedback reporting.
-- **[Currently Supported Parameters](consumers/supported-parameters.md)**: maps Earthdata MCP tool parameters to their corresponding CMR API arguments and underlying UMM schema paths.
+- **[Currently Supported Parameters](consumers/supported-parameters.md)**: maps Earthdata MCP tool parameters to the upstream API arguments and schema fields behind them.
 
 ## For Developers (`docs/developers/`)
 
