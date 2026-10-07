@@ -4,7 +4,7 @@ import os
 from deepeval.metrics import MCPUseMetric
 from deepeval.models import AmazonBedrockModel
 from deepeval.test_case import LLMTestCase, MCPServer, MCPToolCall
-from langfuse import Evaluation
+from langfuse import Evaluation, observe
 from mcp_eval.evaluators.base import EvaluatorContext
 from mcp_eval.evaluators.tool_called_with import ToolCalledWith
 from mcp_eval.evaluators.tool_sequence import ToolSequence
@@ -57,6 +57,7 @@ def _make_eval_context(**kwargs) -> tuple[EvaluatorContext, list[ToolCall]]:
 
 
 # --- EVALUATOR 1: DeepEval LLM Test Case Judge ---
+@observe(as_type="evaluator")
 def deepeval_mcp_use_judge(**kwargs):
     """Evaluates multi-turn tool usage using AWS Bedrock as an LLM judge."""
     agent_result = _get_agent_result(**kwargs)

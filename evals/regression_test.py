@@ -36,6 +36,8 @@ def my_mcp_agent_task(*, item, **kwargs):
     agent_result = _bedrock_agent_task(question, url, model_id)
 
     item.metadata["model_used"] = model_id
+    item.metadata["input_tokens"] = agent_result.input_tokens
+    item.metadata["output_tokens"] = agent_result.output_tokens
     item.metadata.setdefault(
         "expected_tool_call",
         agent_result.invocations[0].name if agent_result.invocations else None,

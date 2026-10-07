@@ -15,6 +15,7 @@ from typing import Any
 import boto3
 import httpx
 from dotenv import load_dotenv
+from langfuse import get_client, observe
 from mcp.types import CallToolResult, TextContent
 
 load_dotenv()
@@ -38,6 +39,8 @@ class _AgentResult:
     final_output: Any
     invocations: list[_ToolInvocation] = field(default_factory=list)
     available_tools: list[dict[str, Any]] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 def _read_mcp_response(response: httpx.Response) -> dict:
@@ -65,6 +68,7 @@ def _make_call_tool_result(content: list[dict], is_error: bool) -> CallToolResul
 
 
 @cache
+@observe(as_type="generation")
 def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
     """Synchronous agentic loop: Bedrock picks tools, httpx calls the MCP server."""
     max_turns = int(os.getenv("BEDROCK_MAX_TURNS", str(DEFAULT_MAX_TURNS)))
@@ -129,6 +133,8 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
         messages: list[dict] = [{"role": "user", "content": [{"text": question}]}]
         invocations: list[_ToolInvocation] = []
         call_id = 10
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for _ in range(max_turns):
             response = bedrock.converse(
@@ -145,6 +151,9 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
             stop_reason = response["stopReason"]
             assistant_message = response["output"]["message"]
             messages.append(assistant_message)
+            usage = response.get("usage", {})
+            total_input_tokens += usage.get("inputTokens", 0)
+            total_output_tokens += usage.get("outputTokens", 0)
 
             if stop_reason != "tool_use":
                 break
@@ -213,8 +222,15 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
             if texts:
                 final_output = " ".join(texts)
 
+        get_client().update_current_generation(
+            model=model_id,
+            usage_details={"input": total_input_tokens, "output": total_output_tokens},
+        )
+
         return _AgentResult(
             final_output=final_output,
             invocations=invocations,
             available_tools=available_tools,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
         )

@@ -87,7 +87,7 @@ Evaluators are plain functions passed to `dataset.run_experiment`. Each receives
 | `mcp_eval_tool_assertion` | `mcp_eval_tool_coverage` | Hard binary check: was `expected_tool_call` called at least once? |
 | `mcp_eval_argument_assertion` | `mcp_eval_argument_quality` | Were the expected argument key/value pairs present in the call to `expected_tool_call`? |
 | `mcp_eval_sequence_assertion` | `mcp_eval_tool_sequence` | Did the tools appear in the expected order (non-contiguous matches allowed)? |
-| `mcp_eval_tool_call_counts` | `mcp_eval_tool_call_max_counts` | Observability only — records per-tool call counts. Never pass/fail. |
+| `mcp_eval_tool_call_counts` | `mcp_eval_tool_call_max_counts` | Observability only — records max per-tool call counts. |
 | `mcp_eval_abstention` | `mcp_eval_abstention` | For off-topic items: did the model correctly make zero tool calls? |
 | `mcp_eval_no_hallucinated_args` | `mcp_eval_no_hallucinated_args` | Did the model pass any argument keys not declared in the tool's `inputSchema`? |
 
@@ -98,6 +98,8 @@ mcp-eval: (https://mcp-eval.ai/quickstart)
 * https://github.com/lastmile-ai/mcp-eval/tree/main/src/mcp_eval/evaluators
 (https://docs.confident-ai.com/)
 * https://deepeval.com/docs/metrics-mcp-use 
+
+Note: We can use only the mcp-eval framework - it also has a llm as a judge eval. The deepeval is more popular and well known. 
 
 ---
 
