@@ -25,9 +25,24 @@ import Default from '@astrojs/starlight/components/Head.astro';
 <script>
 	// Register the Horizon web components used on this site. Imported explicitly
 	// rather than through the Terra autoloader so Vite can bundle them statically.
+	import '@nasa-terra/components/dist/components/alert/alert.js';
 	import '@nasa-terra/components/dist/components/button/button.js';
 	import '@nasa-terra/components/dist/components/card/card.js';
 	import '@nasa-terra/components/dist/components/icon/icon.js';
 	import '@nasa-terra/components/dist/components/site-header/site-header.js';
 	import '@nasa-terra/components/dist/components/status-indicator/status-indicator.js';
+
+	// Terra's heroicons resolver builds a URL relative to the autoloader script,
+	// which only exists in the CDN build. We bundle instead, so it resolves against
+	// the current page and 404s. Re-point it at the assets Vite emits, naming each
+	// icon we use so nothing is pulled in that we do not render.
+	import { registerIconLibrary } from '@nasa-terra/components/dist/components/icon/library.js';
+	// Reached by path because the package does not export dist/assets.
+	import informationCircle from '../../node_modules/@nasa-terra/components/dist/assets/icons/solid-information-circle.svg?url';
+
+	const icons: Record<string, string> = {
+		'solid-information-circle': informationCircle,
+	};
+
+	registerIconLibrary('heroicons', { resolver: (name) => icons[name] ?? '' });
 </script>
