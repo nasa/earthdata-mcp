@@ -1,24 +1,15 @@
 /*
- * Bridges NASA's Horizon design system onto Starlight's own theming variables.
+ * Maps Starlight's theming variables onto Horizon tokens.
  *
- * Horizon ships two layers: horizon.css holds the unscoped primitive palette and
- * component tokens, terra-ui-tokens.css holds semantic tokens scoped to
- * :root[data-mode="Light"|"Dark"]. src/components/Head.astro mirrors Starlight's
- * data-theme onto data-mode, so everything below resolves to the right scheme
- * automatically and does not need to be duplicated per theme.
+ * Horizon's semantic tokens are scoped to :root[data-mode="Light"|"Dark"], and
+ * Head.astro mirrors Starlight's data-theme onto data-mode, so these resolve to
+ * the right scheme on their own and need no per-theme duplication.
  */
 
-/*
- * Starlight puts its dark values on :root and its light values on
- * :root[data-theme='light']. Matching both selectors here keeps specificity on
- * par with the light rule so these win in either scheme. The values themselves
- * flip through Horizon's data-mode tokens, so one block covers both.
- */
+/* Starlight puts dark values on :root and light ones on :root[data-theme='light'].
+   Both selectors are needed to match its specificity in either scheme. */
 :root,
 :root[data-theme='light'] {
-	/* Typography. Headings inherit --sl-font rather than getting their own
-	   family, and their sizes come off Horizon's type scale instead of
-	   Starlight's. */
 	--sl-font: var(--terra-font-family--public-sans);
 	--sl-font-mono: var(--terra-font-family--dm-mono);
 
@@ -28,27 +19,26 @@
 	--sl-text-h4: var(--terra-font-size-medium);
 	--sl-text-h5: var(--terra-font-size-small);
 
-	/* Surfaces and text. Starlight treats --sl-color-white as its highest
-	   contrast foreground (headings, active nav) and --sl-color-black as the page
-	   surface, so both map to whichever Horizon token suits the current scheme
-	   rather than to a literal white or black. */
+	/* Starlight uses --sl-color-white for its strongest
+	   foreground and --sl-color-black for the page surface. */
 	--sl-color-white: var(--terra-text-primary);
 	--sl-color-black: var(--terra-color-bg-surface-neutral-primary);
 	--sl-color-text: var(--terra-text-secondary);
-	/* Text drawn on top of the accent fill. The accent is a saturated blue in
-	   both schemes, so this stays white instead of following data-mode. */
+	/* Sits on the accent fill, which is blue in both schemes, so it stays white. */
 	--sl-color-text-invert: var(--terra-color-spacesuit-white);
 	--sl-color-text-accent: var(--terra-text-link-default);
 	--sl-color-gray-1: var(--terra-text-primary);
 	--sl-color-gray-2: var(--terra-text-secondary);
-	--sl-color-gray-3: var(--terra-text-tertiary);
+	/* Starlight uses gray-3 for the table of contents, at --sl-text-xs. Horizon's
+	   tertiary text is 2.75:1 there and fails AA; neutral-600 is the lightest
+	   step that passes in both schemes. */
+	--sl-color-gray-3: var(--terra-color-neutral-600);
 	--sl-color-gray-4: var(--terra-border-neutral-strong);
 	--sl-color-gray-5: var(--terra-border-neutral-default);
 	--sl-color-gray-6: var(--terra-color-bg-surface-neutral-secondary);
 	--sl-color-gray-7: var(--terra-color-bg-surface-neutral-tertiary);
 
-	/* Accent, taken from Horizon's functional link blues so hover states match
-	   the buttons rendered by terra-button. */
+	/* Horizon's link blues, so hover states match terra-button. */
 	--sl-color-accent-low: var(--terra-color-blue-100);
 	--sl-color-accent: var(--terra-text-link-default);
 	--sl-color-accent-high: var(--terra-text-link-hover);
@@ -58,13 +48,10 @@
 	--sl-color-hairline-shade: var(--terra-border-neutral-default);
 
 	--sl-color-bg: var(--terra-color-bg-surface-neutral-primary);
-	/* The nav bar is terra-site-header, which is carbon black in both schemes.
-	   Matching the wrapper behind it avoids a flash before the custom element
-	   upgrades. */
+	/* Matches terra-site-header, so there is no flash before it upgrades. */
 	--sl-color-bg-nav: var(--terra-color-carbon-black);
 
-	/* Horizon's header is taller than Starlight's 3.5rem default: a 4rem logo
-	   plus --terra-spacing-small above and below. */
+	/* Terra's header height: a 4rem logo plus --terra-spacing-small either side. */
 	--sl-nav-height: 5.5rem;
 	--sl-color-bg-sidebar: var(--terra-color-bg-surface-neutral-primary);
 	--sl-color-bg-inline-code: var(--terra-color-bg-surface-neutral-secondary);
@@ -82,19 +69,15 @@ h6 {
 	letter-spacing: var(--terra-letter-spacing-dense);
 }
 
-/*
- * Horizon's components hardcode font-family: var(--terra-font-family--inter).
- * Custom properties inherit through shadow DOM, so redefining the token on the
- * host swaps those components onto Public Sans without changing what Inter
- * means anywhere else.
- */
+/* Horizon's components hardcode Inter. Custom properties cross the shadow
+   boundary, so redefining the token on the host swaps the font for these two
+   without changing what Inter means elsewhere. */
 terra-button,
 terra-card {
 	--terra-font-family--inter: var(--terra-font-family--public-sans);
 }
 
-/* Two-up layout for the terra-card pair on the home page. Collapses to a single
-   column below Starlight's small breakpoint. */
+/* Two-up on the home page, one column on narrow screens. */
 .card-row {
 	display: grid;
 	align-items: start;
@@ -114,7 +97,9 @@ terra-card {
 	margin-top: 0;
 }
 
-.card-row terra-card terra-button {
+/* Slots reorder these children, so Starlight's sibling-based spacing lands in
+   the wrong place. The card handles its own spacing. */
+.card-row terra-card > * {
 	margin-top: 0;
 }
 
@@ -126,9 +111,8 @@ terra-card {
 /* ---------------------------------------------------------------------------
  * Header
  *
- * Starlight mounts header content inside a fixed-position wrapper that carries
- * its own padding and border. terra-site-header brings both of those itself, so
- * the wrapper is stripped back to a positioning shell.
+ * terra-site-header brings its own padding and border, so Starlight's fixed
+ * wrapper is stripped back to a positioning shell.
  * ------------------------------------------------------------------------- */
 
 header.header {
@@ -154,19 +138,15 @@ terra-site-header::part(base) {
 .header-brand {
 	display: flex;
 	align-items: center;
-	gap: var(--terra-spacing-medium);
+	gap: var(--terra-spacing-x-large);
 }
 
-/*
- * Terra's left container is flex: 0 0 auto and unreachable from here, so the
- * search box cannot shrink to fit. Size it explicitly per breakpoint instead.
- * Starlight's trigger is width: 100% of its container above 50rem and an
- * icon-only button below, which is why the narrow case drops to auto.
- */
+/* Terra's left container is flex: 0 0 auto inside the shadow root, so the search
+   box cannot shrink on its own and is sized per breakpoint. Starlight's trigger
+   fills its container above 50rem and is icon-only below. */
 .header-search {
 	width: 20rem;
-	/* Terra styles the title slot as bold x-large. That suits the site name
-	   beside it but not a form control, so the search opts back out. */
+	/* Terra sets the title slot bold; right for the site name, not for a control. */
 	font-weight: var(--terra-font-weight-normal);
 }
 
@@ -209,12 +189,9 @@ terra-site-header::part(base) {
 	gap: var(--terra-spacing-large);
 }
 
-/*
- * The header stays black in light mode, so the search trigger and theme toggle
- * need the dark-scheme palette regardless of data-theme. Scoped to the controls
- * themselves rather than the whole header, so the search modal keeps following
- * the page theme.
- */
+/* The header is black in both schemes, so these controls need dark-scheme
+   colours even in light mode. Scoped to the controls so the search modal still
+   follows the page theme. */
 terra-site-header :is(site-search > button, .header-tools-group) {
 	--sl-color-gray-1: var(--terra-color-spacesuit-white);
 	--sl-color-gray-2: var(--terra-color-carbon-20);
@@ -228,14 +205,13 @@ terra-site-header :is(site-search > button, .header-tools-group) {
 	color: var(--terra-color-carbon-20);
 }
 
-/* Social icons inherit currentColor, so this whitens the GitHub mark. */
+/* Social icons inherit currentColor, which keeps the GitHub mark white. */
 .header-tools-group a {
 	color: var(--terra-color-spacesuit-white);
 }
 
-/* Below Starlight's wide breakpoint the mobile menu button overlays the header,
-   so give the right-hand controls room and drop the centre nav, which the
-   sidebar already covers. */
+/* The mobile menu button overlays the header below this width, so the right
+   slot reserves room for it and the nav gives way to the sidebar. */
 @media (max-width: 50rem) {
 	.header-nav {
 		display: none;
@@ -258,14 +234,9 @@ terra-site-header :is(site-search > button, .header-tools-group) {
 	margin-block: 1.5rem 0;
 }
 
-/*
- * Read the status as part of the hero rather than as the first thing after it.
- * Starlight's .hero carries padding-block: clamp(2.5rem, calc(1rem + 10vmin),
- * 10rem) above this breakpoint, which otherwise strands the status well below
- * the tagline. Cancel that bottom padding with a negative margin, leaving a
- * deliberate 1.5rem, then restore the same measure underneath so the gap before
- * the next section is unchanged.
- */
+/* Keeps the status with the hero instead of stranding it below .hero's large
+   bottom padding. Cancel that padding, then restore it underneath so the gap
+   before the next section is unchanged. */
 @media (min-width: 50rem) {
 	.server-status {
 		--hero-pad-block: clamp(2.5rem, calc(1rem + 10vmin), 10rem);
@@ -274,15 +245,14 @@ terra-site-header :is(site-search > button, .header-tools-group) {
 }
 
 .server-status-detail {
-	color: var(--terra-text-tertiary);
+	/* Same AA problem as --sl-color-gray-3 above. */
+	color: var(--terra-color-neutral-600);
 	font-size: var(--terra-font-size-small);
 }
 
-/*
- * Horizon's variants are lifecycle states, so there is no failure colour to
- * reach for. "unreachable" is ours; the attribute reflects onto the host, which
- * makes the exposed dot part selectable from here.
- */
+/* Horizon's variants are all lifecycle states, so none of them read as failure.
+   "unreachable" is an unrecognised variant; it still reflects onto the host,
+   which exposes the dot. */
 terra-status-indicator[variant='unreachable']::part(dot) {
 	background-color: var(--terra-color-bg-error-bold);
 }

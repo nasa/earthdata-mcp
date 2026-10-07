@@ -47,7 +47,7 @@ const { endpoint = DEFAULT_ENDPOINT } = Astro.props;
 		if (!indicator || !detail) continue;
 
 		// A thrown fetch covers network failure, CORS rejection, and the timeout
-		// above. The browser does not distinguish these, so neither can we.
+		// above. The browser reports all three the same way.
 		const response = await fetch(endpoint, {
 			signal: AbortSignal.timeout(TIMEOUT_MS),
 			cache: 'no-store',

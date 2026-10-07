@@ -15,20 +15,22 @@ import ServerStatus from './site/src/components/ServerStatus.astro';
 ## Start here
 
 <div class="card-row">
+  {/*
+    Every child is an explicit element and every label sits on one line with its
+    tags. Bare text beside the heading makes MDX merge both into one paragraph,
+    and an <h3> inside a <p> is invalid, so the parser closes the paragraph early
+    and leaves an empty one behind.
+  */}
   <terra-card>
     <h3 slot="header">User guide</h3>
-    Client setup, example queries, authentication, limitations, and troubleshooting.
-    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/">
-      Read the user guide
-    </terra-button>
+    <p>Client setup, example queries, authentication, limitations, and troubleshooting.</p>
+    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/earthdata-mcp-server-user-guide/">Read the user guide</terra-button>
   </terra-card>
 
   <terra-card>
     <h3 slot="header">Parameter reference</h3>
-    Supported tool inputs, outputs, and how they map to CMR metadata.
-    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/supported-parameters/">
-      Read the reference
-    </terra-button>
+    <p>Supported tool inputs, outputs, and how they map to CMR metadata.</p>
+    <terra-button slot="footer" variant="primary" href="/earthdata-mcp/consumers/supported-parameters/">Read the reference</terra-button>
   </terra-card>
 </div>
 

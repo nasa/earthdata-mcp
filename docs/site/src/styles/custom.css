@@ -1,11 +1,8 @@
-.title-wrapper {
-    --sl-nav-gap: 0.25rem;
-}
+/*
+ * Overrides of Starlight's own component styling.
+ */
 
-.site-title:where(.astro-6rvad3va) {
-    color: var(--sl-color-text);
-}
-
-a:where(.astro-b5raizh3)  {
-    box-shadow: none;
+/* Starlight gives the prev/next cards a shadow that does not work well with Horizon's flat design. */
+.pagination-links a {
+	box-shadow: none;
 }
