@@ -2,7 +2,7 @@
   "entries": [
     {
       "identifier": "urn:mcp:earthdata:server:cmr-search",
-      "displayName": "Earthdata CMR Search and Discovery",
+      "displayName": "NASA Earthdata Search and Discovery",
       "type": "application/mcp-server+json",
       "capabilities": [
         "get_collections",
@@ -13,15 +13,15 @@
         "get_keywords",
         "get_citations"
       ],
-      "description": "An MCP server providing access to NASA Earthdata's Common Metadata Repository (CMR) for discovering and searching collections, granules, services, tools, variables, keywords, and citations.",
+      "description": "An MCP server for discovering NASA Earth science data. Its tools search the Common Metadata Repository (CMR) for collections, granules, services, tools, variables, and citations, and NASA's Keyword Management System (KMS) for official GCMD vocabulary, so an agent can find a dataset, confirm data exists for a given time and place, and identify how to access it.",
       "representativeQueries": [
-        "find Landsat 8 collections",
-        "search for granules in the MODIS Terra collection",
-        "what services are available for the GEDI L2A collection",
-        "What are the official science keywords related to Earth's climate and environment?",
-        "find tools that support subsetting for ASTER collections",
-        "search for temperature-related variables in climate data",
-        "get citations for a specific collection"
+        "find Landsat 8 surface reflectance collections",
+        "is there MODIS data covering Iceland for July 2023",
+        "what is the official GCMD keyword for rainfall",
+        "what subsetting or OPeNDAP services are available for the GEDI L2A collection",
+        "which variables are in the SMAP L3 soil moisture product, and what are their fill values",
+        "what tools can visualize MODIS vegetation indices",
+        "what papers cite the GRACE mascon dataset"
       ]
     }
   ]
