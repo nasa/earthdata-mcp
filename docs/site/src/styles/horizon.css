@@ -48,14 +48,29 @@
 	--sl-color-hairline-shade: var(--terra-border-neutral-default);
 
 	--sl-color-bg: var(--terra-color-bg-surface-neutral-primary);
-	/* Matches terra-site-header, so there is no flash before it upgrades. */
-	--sl-color-bg-nav: var(--terra-color-carbon-black);
+	/* Starlight uses this for the mobile table of contents, not the header.
+	   One step off the page surface, so the "On this page" control, which sits
+	   at the page surface, still reads as raised against it. */
+	--sl-color-bg-nav: var(--terra-color-bg-surface-neutral-secondary);
 
 	/* Terra's header height: a 4rem logo plus --terra-spacing-small either side. */
 	--sl-nav-height: 5.5rem;
 	--sl-color-bg-sidebar: var(--terra-color-bg-surface-neutral-primary);
 	--sl-color-bg-inline-code: var(--terra-color-bg-surface-neutral-secondary);
 	--sl-color-bg-accent: var(--terra-text-link-default);
+}
+
+/* Expressive Code backs code blocks with gray-7, two steps off the page. One
+   step is enough separation given the frame already has a border, and it keeps
+   the blocks from reading as the heaviest thing on the page.
+
+   Scoped to .expressive-code because that is the element Expressive Code sets
+   these on. A custom property set on a nearer element always beats one
+   inherited from :root, whatever the cascade layers say, so overriding this
+   from :root has no effect. */
+.expressive-code {
+	--ec-frm-edBg: var(--terra-color-bg-surface-neutral-secondary);
+	--ec-frm-trmBg: var(--terra-color-bg-surface-neutral-secondary);
 }
 
 h1,
@@ -72,6 +87,7 @@ h6 {
 /* Horizon's components hardcode Inter. Custom properties cross the shadow
    boundary, so redefining the token on the host swaps the font for these two
    without changing what Inter means elsewhere. */
+terra-alert,
 terra-button,
 terra-card {
 	--terra-font-family--inter: var(--terra-font-family--public-sans);
@@ -115,9 +131,12 @@ terra-card {
  * wrapper is stripped back to a positioning shell.
  * ------------------------------------------------------------------------- */
 
+/* Painted here rather than on --sl-color-bg-nav, which Starlight also uses for
+   the mobile table of contents. That bar belongs to the page, not the header. */
 header.header {
 	padding: 0;
 	border-bottom: none;
+	background-color: var(--terra-color-carbon-black);
 }
 
 terra-site-header {
@@ -190,7 +209,7 @@ terra-site-header::part(base) {
 }
 
 /* The header is black in both schemes, so these controls need dark-scheme
-   colours even in light mode. Scoped to the controls so the search modal still
+   colors even in light mode. Scoped to the controls so the search modal still
    follows the page theme. */
 terra-site-header :is(site-search > button, .header-tools-group) {
 	--sl-color-gray-1: var(--terra-color-spacesuit-white);
@@ -202,6 +221,8 @@ terra-site-header :is(site-search > button, .header-tools-group) {
 	--sl-color-text: var(--terra-color-carbon-20);
 	--sl-color-white: var(--terra-color-spacesuit-white);
 	--sl-color-black: var(--terra-color-carbon-black);
+	/* Backs the theme select's options. */
+	--sl-color-bg-nav: var(--terra-color-carbon-black);
 	color: var(--terra-color-carbon-20);
 }
 
@@ -251,7 +272,7 @@ terra-site-header :is(site-search > button, .header-tools-group) {
 }
 
 /* Horizon's variants are all lifecycle states, so none of them read as failure.
-   "unreachable" is an unrecognised variant; it still reflects onto the host,
+   "unreachable" is an unrecognized variant; it still reflects onto the host,
    which exposes the dot. */
 terra-status-indicator[variant='unreachable']::part(dot) {
 	background-color: var(--terra-color-bg-error-bold);

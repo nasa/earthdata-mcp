@@ -6,3 +6,64 @@
 .pagination-links a {
 	box-shadow: none;
 }
+
+/* Both the nav and the page table of contents are sized by this. Three short
+   links and a handful of headings do not need Starlight's 18.75rem default,
+   and the space is better spent on the content column. */
+:root {
+	--sl-sidebar-width: 14rem;
+}
+
+/* Reference tables are dense, so they read better a step down from body text. */
+.sl-markdown-content table {
+	font-size: var(--sl-text-sm);
+}
+
+/* Identifiers have no spaces, so a long UMM path would otherwise push its
+   column past the table. "anywhere" only breaks a value that does not fit,
+   leaving ordinary parameter names whole. */
+.sl-markdown-content :is(th, td) code {
+	overflow-wrap: anywhere;
+}
+
+/* Everything but the description is a short value in a pinned column, so it
+   centers under its heading. The description is prose and stays ranged left. */
+.sl-markdown-content table:has(th:nth-child(4)) :is(th, td):not(:last-child) {
+	text-align: center;
+}
+
+/* Starlight drops the first cell's start padding to sit flush with the prose,
+   which pulls a centered value off center. */
+.sl-markdown-content table:has(th:nth-child(4)) :is(th, td):first-child {
+	padding-inline-start: 1rem;
+}
+
+/* The parameter tables run four and five columns. Sized by content they come
+   out a different shape under every heading, so the columns are pinned and the
+   description takes whatever is left. Below this width there is not enough
+   room to divide up, and Starlight's scrolling block is the better answer. */
+@media (min-width: 50rem) {
+	.sl-markdown-content table:has(th:nth-child(4)) {
+		display: table;
+		width: 100%;
+		table-layout: fixed;
+	}
+
+	/* Under a fixed layout the header row decides the columns. */
+	.sl-markdown-content table:has(th:nth-child(4)) th:nth-child(1) {
+		width: 4.5rem;
+	}
+
+	.sl-markdown-content table:has(th:nth-child(4)) th:nth-child(2) {
+		width: 13rem;
+	}
+
+	.sl-markdown-content table:has(th:nth-child(4)) th:nth-child(3) {
+		width: 16rem;
+	}
+
+	/* Only the output tables have a fifth column; their fourth is a yes or no. */
+	.sl-markdown-content table:has(th:nth-child(5)) th:nth-child(4) {
+		width: 7rem;
+	}
+}
