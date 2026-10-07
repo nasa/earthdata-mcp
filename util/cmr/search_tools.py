@@ -281,6 +281,12 @@ def extract_granule_temporal_extent(umm: dict[str, Any]) -> tuple[datetime | Non
             parse_iso_datetime(range_date_time.get("EndingDateTime", "")),
         )
 
+    single_date_time = temporal_extent.get("SingleDateTime")
+    if isinstance(single_date_time, str):
+        timestamp = parse_iso_datetime(single_date_time)
+        if timestamp is not None:
+            return timestamp, timestamp
+
     range_date_times = temporal_extent.get("RangeDateTimes")
     if not isinstance(range_date_times, list):
         range_date_times = []
