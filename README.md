@@ -35,6 +35,8 @@ The repository is structured around a few core domains:
 - **`tests/`**: Comprehensive test suite (using `pytest`) covering server initialization, tool logic, and mocked CMR API responses.
 - **`docs/`**: Project documentation separated into `consumers/` and `developers/`.
 
+> **Note on Legacy Code**: The ingestion and embedding pipelines (including the `discover_data` tool, `lambdas/` directory, and associated infrastructure) are currently being deprecated. The architecture is transitioning to rely purely on direct, real-time CMR API integrations.
+
 ## For Consumers: Connecting to the Server
 
 The Earthdata MCP server is deployed remotely and communicates via the official Model Context Protocol **Streamable HTTP** transport. To use the server, configure your MCP-compatible client to point to our endpoint.
