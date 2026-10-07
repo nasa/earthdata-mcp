@@ -35,10 +35,12 @@ import Default from '@astrojs/starlight/components/Head.astro';
 	// Terra's heroicons resolver builds a URL relative to the autoloader script,
 	// which only exists in the CDN build. We bundle instead, so it resolves against
 	// the current page and 404s. Re-point it at the assets Vite emits, naming each
-	// icon we use so nothing is pulled in that we do not render.
+	// icon we use so nothing is pulled in that we do not render. An unmapped name
+	// resolves to nothing and terra-icon renders empty.
 	import { registerIconLibrary } from '@nasa-terra/components/dist/components/icon/library.js';
-	// Reached by path because the package does not export dist/assets.
-	import informationCircle from '../../node_modules/@nasa-terra/components/dist/assets/icons/solid-information-circle.svg?url';
+	// Copied from @nasa-terra/components/dist/assets/icons, which the package does
+	// not export, so it cannot be imported by specifier. Upstream is heroicons.
+	import informationCircle from '../assets/solid-information-circle.svg?url';
 
 	const icons: Record<string, string> = {
 		'solid-information-circle': informationCircle,
