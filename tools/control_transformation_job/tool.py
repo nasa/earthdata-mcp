@@ -44,7 +44,7 @@ def control_transformation_job(
         ControlTransformationJobInput(job_id=job_id, action=action)
     except (ValueError, TypeError) as exc:
         logger.warning("control_transformation_job input validation failed: %s", exc)
-        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     # Execute Harmony Control Action
     try:
@@ -56,7 +56,7 @@ def control_transformation_job(
         logger.error(
             "Error performing '%s' on Harmony job %s: %s", action, job_id, exc, exc_info=True
         )
-        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     # Parse/validate the Harmony status response
     try:
@@ -68,6 +68,6 @@ def control_transformation_job(
             exc,
             exc_info=True,
         )
-        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     return parsed.model_dump(mode="json", by_alias=True)
