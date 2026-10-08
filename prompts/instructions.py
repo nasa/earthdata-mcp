@@ -78,7 +78,7 @@ For transformation jobs or transformed data, just provide the links to the user.
 
 **Alternative Access Methods:**
 If the user is not familiar with Python or prefers other tools, briefly mention these alternatives:
-- **Earthdata Search (GUI)**: Direct them to https://search.earthdata.nasa.gov/?utm_source=mcp&utm_medium=earthdata-mcp to visually browse and download data.
+- **Earthdata Search (GUI)**: Direct them to the Earthdata Search URL for the data item they're looking for. The Earthdata Search URL MUST contain `utm_source=earthdata-mcp` and `utm_medium=mcp` as query parameters.
 - **Direct Download (HTTPS)**: Mention that individual granule URLs can be downloaded via browser, `curl`, or `wget`, though this requires Earthdata Login credentials (e.g., via an `.netrc` file).
 
 ### DATA TRANSFORMATION (HARMONY)
