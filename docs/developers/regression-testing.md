@@ -91,15 +91,10 @@ Evaluators are plain functions passed to `dataset.run_experiment`. Each receives
 | `mcp_eval_abstention` | `mcp_eval_abstention` | For off-topic items: did the model correctly make zero tool calls? |
 | `mcp_eval_no_hallucinated_args` | `mcp_eval_no_hallucinated_args` | Did the model pass any argument keys not declared in the tool's `inputSchema`? |
 
-The `mcp_eval_*` evaluators (2–7) use the [`mcp-eval`](https://mcp-eval.ai/quickstart) library. The `deepeval_mcp_use_judge` evaluator uses [DeepEval](https://docs.confident-ai.com/).
+The `mcp_eval_*` evaluators (2–7) are implemented directly in `evals/evaluators.py` using inlined dataclass logic (previously the `mcpevals` library — removed because `mcp-agent`, its transitive dependency, is incompatible with `mcp>=2` which the server requires). The `deepeval_mcp_use_judge` evaluator uses [DeepEval](https://docs.confident-ai.com/).
 
-Useful references: 
-mcp-eval: (https://mcp-eval.ai/quickstart) 
-* https://github.com/lastmile-ai/mcp-eval/tree/main/src/mcp_eval/evaluators
-(https://docs.confident-ai.com/)
-* https://deepeval.com/docs/metrics-mcp-use 
-
-Note: We can use only the mcp-eval framework - it also has a llm as a judge eval. The deepeval is more popular and well known. 
+Useful references:
+* [DeepEval MCPUseMetric](https://deepeval.com/docs/metrics-mcp-use)
 
 ---
 

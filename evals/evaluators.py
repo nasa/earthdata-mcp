@@ -1,17 +1,109 @@
 """Langfuse evaluator functions for MCP regression tests."""
 
 import os
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any
+
 from deepeval.metrics import MCPUseMetric
 from deepeval.models import AmazonBedrockModel
 from deepeval.test_case import LLMTestCase, MCPServer, MCPToolCall
 from langfuse import Evaluation, observe
-from mcp_eval.evaluators.base import EvaluatorContext
-from mcp_eval.evaluators.tool_called_with import ToolCalledWith
-from mcp_eval.evaluators.tool_sequence import ToolSequence
-from mcp_eval.evaluators.tool_was_called import ToolWasCalled
-from mcp_eval.metrics import TestMetrics, ToolCall
+from pydantic import BaseModel, Field
 
 from evals.sandbox_agent import _AgentResult, _bedrock_agent_task
+
+
+# ---------------------------------------------------------------------------
+# Inlined from mcpevals (mcp-agent is incompatible with mcp>=2; server.py
+# requires mcp>=2 for build_resource_metadata_url added in that release)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ToolCall:
+    name: str
+    arguments: dict[str, Any]
+    result: Any
+    start_time: float
+    end_time: float
+    is_error: bool = False
+
+
+@dataclass
+class TestMetrics:
+    tool_calls: list[ToolCall] = field(default_factory=list)
+
+
+@dataclass
+class EvaluatorContext:
+    inputs: Any
+    output: Any
+    expected_output: Any
+    metadata: dict[str, Any] | None
+    metrics: TestMetrics
+
+    @property
+    def tool_calls(self) -> list[ToolCall]:
+        return self.metrics.tool_calls
+
+
+class EvaluatorResult(BaseModel):
+    passed: bool
+    expected: Any = Field(default=None)
+    actual: Any = Field(default=None)
+    details: dict[str, Any] | None = Field(default=None)
+
+
+class _SyncEvaluator(ABC):
+    @abstractmethod
+    def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult: ...
+
+
+@dataclass
+class ToolWasCalled(_SyncEvaluator):
+    tool_name: str
+    min_times: int = 1
+
+    def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult:
+        calls = [c for c in ctx.tool_calls if c.name == self.tool_name]
+        return EvaluatorResult(passed=len(calls) >= self.min_times, actual=len(calls))
+
+
+class ToolCalledWith(ToolWasCalled):
+    def __init__(self, tool_name: str, expected_args: dict):
+        super().__init__(tool_name)
+        self.expected_args = expected_args
+
+    def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult:
+        calls = [c for c in ctx.tool_calls if c.name == self.tool_name]
+        matching = [
+            c for c in calls
+            if all(c.arguments.get(k) == v for k, v in self.expected_args.items())
+        ]
+        actual = (
+            ", ".join(f"{self.tool_name}({c.arguments})" for c in calls)
+            if calls else f"tool '{self.tool_name}' not called"
+        )
+        return EvaluatorResult(
+            passed=bool(matching),
+            expected=f"tool '{self.tool_name}' called with {self.expected_args}",
+            actual=actual,
+        )
+
+
+@dataclass
+class ToolSequence(_SyncEvaluator):
+    expected_sequence: list[str]
+    allow_other_calls: bool = True
+
+    def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult:
+        actual = [c.name for c in ctx.tool_calls]
+        if self.allow_other_calls:
+            it = iter(actual)
+            passed = all(item in it for item in self.expected_sequence)
+        else:
+            passed = actual == self.expected_sequence
+        return EvaluatorResult(passed=passed, expected=self.expected_sequence, actual=actual)
 
 DEFAULT_MODEL_ID = "amazon.nova-pro-v1:0"
 
