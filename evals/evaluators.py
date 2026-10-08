@@ -187,16 +187,8 @@ def deepeval_mcp_use_judge(**kwargs):
         model=bedrock_model,
         include_reason=True,
         async_mode=True,
-        async_mode=True,
     )
     metric.measure(convo_test_case)
-    metric.measure(convo_test_case)
-    # Run in a fresh thread to avoid "event loop already running" when Langfuse's
-    # experiment runner calls evaluators from a thread that already has a loop.
-    # with ThreadPoolExecutor(max_workers=1) as pool:
-    #     pool.submit(metric.measure, convo_test_case).result()
-    # with ThreadPoolExecutor(max_workers=1) as pool:
-    #     pool.submit(metric.measure, convo_test_case).result()
 
     return Evaluation(
         name="deepeval_mcp_alignment", value=metric.score, comment=metric.reason
