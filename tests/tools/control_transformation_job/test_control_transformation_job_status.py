@@ -6,6 +6,7 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
 
@@ -99,20 +100,24 @@ def test_control_transformation_job_invalid_action() -> None:
     """
     tool = _load_tool()
 
-    result = tool.control_transformation_job(job_id=MOCK_JOB_ID, action="delete")
+    with pytest.raises(ToolError) as exc_info:
+        tool.control_transformation_job(job_id=MOCK_JOB_ID, action="delete")
 
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "action" in result.get("description", "").lower()
+    message = str(exc_info.value).lower()
+    assert "control_transformation_job" in message
+    assert "action" in message
 
 
 def test_control_transformation_job_missing_job_id() -> None:
     """Test behavior when input validation fails due to missing required job_id."""
     tool = _load_tool()
 
-    result = tool.control_transformation_job(job_id=None, action="cancel")
+    with pytest.raises(ToolError) as exc_info:
+        tool.control_transformation_job(job_id=None, action="cancel")
 
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "job_id" in result.get("description", "").lower()
+    message = str(exc_info.value).lower()
+    assert "control_transformation_job" in message
+    assert "job_id" in message
 
 
 def test_control_transformation_job_client_error(
@@ -129,12 +134,11 @@ def test_control_transformation_job_client_error(
     # (e.g., invalid state transition, job not found, etc.)
     mock_client_instance.cancel.side_effect = Exception("Job is already in a terminal state")
 
-    result = tool.control_transformation_job(job_id=MOCK_JOB_ID, action="cancel")
+    with pytest.raises(ToolError) as exc_info:
+        tool.control_transformation_job(job_id=MOCK_JOB_ID, action="cancel")
 
-    assert result.get("code") == "Exception"
-    assert (
-        "Failed to cancel Harmony job: Job is already in a terminal state"
-        in result.get("description", "")
+    assert str(exc_info.value) == (
+        "control_transformation_job Exception: Job is already in a terminal state"
     )
 
 
@@ -149,11 +153,35 @@ def test_control_transformation_job_status_fetch_error(
     mock_get_client.return_value = mock_client_instance
     mock_client_instance.status.side_effect = Exception("Service Unavailable")
 
-    result = tool.control_transformation_job(job_id=MOCK_JOB_ID, action="pause")
+    with pytest.raises(ToolError) as exc_info:
+        tool.control_transformation_job(job_id=MOCK_JOB_ID, action="pause")
 
     mock_client_instance.pause.assert_called_once_with(MOCK_JOB_ID)
-    assert result.get("code") == "Exception"
-    assert "Failed to pause Harmony job: Service Unavailable" in result.get("description", "")
+    assert str(exc_info.value) == "control_transformation_job Exception: Service Unavailable"
+
+
+def test_control_transformation_job_status_schema_mismatch(
+    mock_get_client: MagicMock,
+    mock_get_access_token: MagicMock,
+) -> None:
+    """Test behavior when the action succeeds but the status response doesn't
+    match the expected output schema (e.g. malformed field from Harmony)."""
+    tool = _load_tool()
+
+    mock_client_instance = MagicMock()
+    mock_get_client.return_value = mock_client_instance
+    # progress is typed as int | float | None -- an unparseable string causes
+    # GetTransformationJobStatusOutput(**status) to raise a Pydantic
+    # ValidationError (a subclass of ValueError in Pydantic v2, so it's caught
+    # by the tool's `except (ValueError, TypeError)` block).
+    mock_client_instance.status.return_value = {"progress": "not-a-number"}
+
+    with pytest.raises(ToolError) as exc_info:
+        tool.control_transformation_job(job_id=MOCK_JOB_ID, action="cancel")
+
+    mock_client_instance.cancel.assert_called_once_with(MOCK_JOB_ID)
+    message = str(exc_info.value)
+    assert message.startswith("control_transformation_job ValidationError:")
 
 
 def test_control_transformation_job_calls_trace_update(
@@ -171,25 +199,3 @@ def test_control_transformation_job_calls_trace_update(
         tool.control_transformation_job(job_id=MOCK_JOB_ID, action="resume")
 
     assert mock_trace_update.called
-
-def test_control_transformation_job_status_schema_mismatch(
-    mock_get_client: MagicMock,
-    mock_get_access_token: MagicMock,
-) -> None:
-    """Test behavior when the action succeeds but the status response doesn't
-    match the expected output schema (e.g. malformed field from Harmony)."""
-    tool = _load_tool()
-
-    mock_client_instance = MagicMock()
-    mock_get_client.return_value = mock_client_instance
-    malformed_status = {
-        **MOCK_STATUS_RESPONSE,
-        "progress": "not-a-number",
-    }
-    mock_client_instance.status.return_value = malformed_status
-
-    result = tool.control_transformation_job(job_id=MOCK_JOB_ID, action="cancel")
-
-    mock_client_instance.cancel.assert_called_once_with(MOCK_JOB_ID)
-    assert result.get("code") == "ValidationError"
-    assert "unexpected response shape from harmony" in result.get("description", "").lower()

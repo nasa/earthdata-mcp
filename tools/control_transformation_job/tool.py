@@ -5,6 +5,7 @@ from typing import Literal
 
 from langfuse import observe
 from fastmcp.server.dependencies import get_access_token
+from fastmcp.exceptions import ToolError
 from models.tools.control_transformation_job import ControlTransformationJobInput
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
 from util.harmony.client import get_client
@@ -43,10 +44,7 @@ def control_transformation_job(
         ControlTransformationJobInput(job_id=job_id, action=action)
     except (ValueError, TypeError) as exc:
         logger.warning("control_transformation_job input validation failed: %s", exc)
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=str(exc),
-        ).model_dump()
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
 
     # Execute Harmony Control Action
     try:
@@ -58,10 +56,7 @@ def control_transformation_job(
         logger.error(
             "Error performing '%s' on Harmony job %s: %s", action, job_id, exc, exc_info=True
         )
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Failed to {action} Harmony job: {str(exc)}",
-        ).model_dump()
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
 
     # Parse/validate the Harmony status response
     try:
@@ -73,9 +68,6 @@ def control_transformation_job(
             exc,
             exc_info=True,
         )
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Unexpected response shape from Harmony: {exc}",
-        ).model_dump()
+        raise ToolError(f"control_transformation_job {type(exc).__name__}: {str(exc)}")
 
     return parsed.model_dump(mode="json", by_alias=True)
