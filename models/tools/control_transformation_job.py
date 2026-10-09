@@ -1,4 +1,4 @@
-"""Input model for the submit_transformation_job MCP tool."""
+"""Input model for the control_transformation_job MCP tool."""
 
 from typing import Literal
 
