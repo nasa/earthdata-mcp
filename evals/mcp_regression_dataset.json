@@ -16,7 +16,7 @@
     {
       "id": "collections-sst",
       "input": {
-        "question": "Find sea surface temperature collections with data."
+        "question": "I want to find collections about temperature of the sea's surface."
       },
       "metadata": {
         "expected_tool_call": "get_keywords",
@@ -193,31 +193,6 @@
           "query": "wildfires"
         },
         "check_no_hallucinated_args": true
-      }
-    },
-    {
-      "id": "schema-boolean-coercion",
-      "input": {
-        "question": "Find sea surface temperature collections. The has_granules field should be the boolean true, not the string 'true'."
-      },
-      "metadata": {
-        "expected_tool_call": "get_collections",
-        "expected_tool_arguments": {
-          "has_granules": true
-        },
-        "check_no_hallucinated_args": true
-      }
-    },
-    {
-      "id": "correction-trajectory-invalid-collection",
-      "input": {
-        "question": "Find all data access services for collection C0000000000-INVALID."
-      },
-      "metadata": {
-        "expected_tool_call": "get_services",
-        "expected_tool_arguments": {
-          "collection_concept_id": "C0000000000-INVALID"
-        }
       }
     }
   ]

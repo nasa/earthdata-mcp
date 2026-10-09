@@ -20,7 +20,7 @@ from mcp.types import CallToolResult, TextContent
 
 load_dotenv()
 
-DEFAULT_MAX_TURNS = 5
+DEFAULT_BEDROCK_MAX_TURNS = 5
 
 
 @dataclass
@@ -71,7 +71,7 @@ def _make_call_tool_result(content: list[dict], is_error: bool) -> CallToolResul
 @observe(as_type="generation")
 def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
     """Synchronous agentic loop: Bedrock picks tools, httpx calls the MCP server."""
-    max_turns = int(os.getenv("BEDROCK_MAX_TURNS", str(DEFAULT_MAX_TURNS)))
+    max_turns = int(os.getenv("BEDROCK_MAX_TURNS", str(DEFAULT_BEDROCK_MAX_TURNS)))
     region = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
 
     req_headers = {
