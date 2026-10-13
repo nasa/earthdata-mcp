@@ -6,7 +6,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-EONET_BASE_URL = "https://eonet.gsfc.nasa.gov/api"
+EONET_BASE_URL = "https://eonet.gsfc.nasa.gov/api/v3"
 
 
 def events(params: dict | None = None, is_geojson: bool = False) -> dict:
@@ -31,7 +31,7 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     empty_result = {
 	    "title": "EONET Events",
 	    "description": "Natural events from EONET.",
-	    "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+	    "link": f"{EONET_BASE_URL}/events",
 	    "events": []
     }
     empty_geojson_result = {
@@ -40,9 +40,9 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     }
 
     if is_geojson:
-        url = f"{EONET_BASE_URL}/v3/events/geojson"
+        url = f"{EONET_BASE_URL}/events/geojson"
     else:
-        url = f"{EONET_BASE_URL}/v3/events"
+        url = f"{EONET_BASE_URL}/events"
 
     try:
         response = requests.get(url, params=params, timeout=10)
@@ -75,7 +75,7 @@ def categories(category: str, params: dict | None = None) -> dict:
     Raises:
         requests.RequestException: If the EONET API category endpoint request fails.
     """
-    url = f"{EONET_BASE_URL}/v3/categories/{category}"
+    url = f"{EONET_BASE_URL}/categories/{category}"
 
     try:
         response = requests.get(url, params=params, timeout=10)
@@ -89,7 +89,7 @@ def categories(category: str, params: dict | None = None) -> dict:
             return {
 	            "title": f"EONET Events: {category}",
 	            "description": f"{results["description"]}",
-	            "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/{category}",
+	            "link": f"{EONET_BASE_URL}/categories/{category}",
 	            "events": []
             }
     except Exception as e:
@@ -115,7 +115,7 @@ def layers(category_id: str) -> dict:
     Raises:
         requests.RequestException: If the EONET API layers endpoint request fails.
     """
-    url = f"{EONET_BASE_URL}/v3/layers/{category_id}"
+    url = f"{EONET_BASE_URL}/layers/{category_id}"
 
     try:
         response = requests.get(url, params={}, timeout=10)
@@ -126,7 +126,7 @@ def layers(category_id: str) -> dict:
             return {
                 "title": f"{results["title"]}",
                 "description": f"{results["description"]}",
-                "link": f"https://eonet.gsfc.nasa.gov/api/v3/layers/{category_id}",
+                "link": f"{EONET_BASE_URL}/layers/{category_id}",
                 "categories": [
                     { 
                         "id": f"{results["categories"][0]["id"]}",
