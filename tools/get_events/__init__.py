@@ -1,1 +1,0 @@
-"""The get_events MCP tool package."""
