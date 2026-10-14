@@ -1,12 +1,13 @@
 """NASA EONET (Earth Observatory Natural Event Tracker) API client."""
 
 import logging
-
 import requests
+from util.environment import get_client_id
 
 logger = logging.getLogger(__name__)
 
 EONET_BASE_URL = "https://eonet.gsfc.nasa.gov/api/v3"
+CLIENT_ID = get_client_id()
 
 
 def events(params: dict | None = None, is_geojson: bool = False) -> dict:
@@ -45,7 +46,7 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
         url = f"{EONET_BASE_URL}/events"
 
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=10)
         response.raise_for_status()
         results = response.json()
 
