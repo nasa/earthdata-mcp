@@ -56,7 +56,12 @@ class TestEvents:
 
     def test_returns_no_events(self, monkeypatch):
         """Test that events can return no results successfully."""
-        expected = {}
+        expected = {
+	        "title": "EONET Events",
+	        "description": "Natural events from EONET.",
+	        "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+	        "events": []
+        }
     
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
@@ -146,7 +151,10 @@ class TestEvents:
 
     def test_returns_no_events_geojson(self, monkeypatch):
         """Test that events can return no geojson results successfully."""
-        expected = {}
+        expected = {
+	        "type": "FeatureCollection",
+	        "features": []
+        }
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
@@ -171,6 +179,19 @@ class TestEvents:
         
         result = events(params, False)
         assert result == expected
+
+    def test_events_returns_error_for_fake_category(self, monkeypatch):
+        """Test that layers returns an error if a fake category is given."""
+        expected = requests.exceptions.HTTPError()
+        
+        mock_get = Mock(return_value=_make_response(json_data=expected))
+        mock_get.side_effect = requests.exceptions.HTTPError
+        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+
+        params = {"category": "fakecategory"}
+        
+        result = events(params, False)
+        assert type(result) == type(expected)
 
     def test_returns_event_from_category(self, monkeypatch):
         """Test that categories returns events from the specified category."""

@@ -29,17 +29,6 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     Raises:
         requests.RequestException: If the EONET API events endpoint request fails.
     """
-    empty_result = {
-	    "title": "EONET Events",
-	    "description": "Natural events from EONET.",
-	    "link": f"{EONET_BASE_URL}/events",
-	    "events": []
-    }
-    empty_geojson_result = {
-	    "type": "FeatureCollection",
-	    "features": []
-    }
-
     if is_geojson:
         url = f"{EONET_BASE_URL}/events/geojson"
     else:
@@ -49,9 +38,6 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
         response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=10)
         response.raise_for_status()
         results = response.json()
-
-        if results == empty_result or results == empty_geojson_result:
-            return {}
     except Exception as e:
         return e
 
