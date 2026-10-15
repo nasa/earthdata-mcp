@@ -29,7 +29,7 @@ describe('describeHealth', () => {
 
 	// The red dot is styled off this exact attribute value in horizon.css, via
 	// terra-status-indicator[variant='unreachable']::part(dot). Renaming it here
-	// silently drops the failure colour, so pin it.
+	// silently drops the failure color, so pin it.
 	it('uses the variant the stylesheet hooks onto for failures', () => {
 		expect(describeHealth(null).variant).toBe('unreachable');
 	});

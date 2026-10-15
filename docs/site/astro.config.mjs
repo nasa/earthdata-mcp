@@ -15,11 +15,14 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Earthdata MCP',
+			// Starlight's remark plugins, asides among them, only run on files under
+			// src/content/docs. The pages are loaded from ../ instead, so point it there.
+			markdown: { processedDirs: ['../'] },
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/nasa/earthdata-mcp' }],
 			sidebar: [
 				{ label: 'Home', slug: 'index' },
-				{ label: 'User guide', slug: 'consumers/earthdata-mcp-server-user-guide' },
-				{ label: 'Parameter reference', slug: 'consumers/supported-parameters' },
+				{ label: 'User Guide', slug: 'consumers/earthdata-mcp-server-user-guide' },
+				{ label: 'Parameters', slug: 'consumers/supported-parameters' },
 			],
 			components: {
 				Head: './src/components/Head.astro',
