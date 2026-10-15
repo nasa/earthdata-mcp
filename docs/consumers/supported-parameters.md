@@ -1,5 +1,8 @@
 ---
 title: Supported Parameters
+head:
+  - tag: style
+    content: ':root { --sl-content-width: 70rem; }'
 ---
 
 This reference maps Earthdata MCP tool parameters to the upstream API arguments and schema fields behind them. It provides consumers with a clear picture of current API integration depth and search capabilities. Each tool's section names the endpoint and schema it is built on.
