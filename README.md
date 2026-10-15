@@ -3,7 +3,8 @@
 An MCP (Model Context Protocol) server providing LLM agents with direct access to NASA's Common Metadata Repository (CMR). This integration enables users to agentically discover, verify, and access Earth science datasets through natural language interfaces.
 
 To start querying Earthdata immediately, see **[Connecting to the Server](#for-consumers-connecting-to-the-server)**.
-For a detailed breakdown of how tool inputs and outputs map to the underlying CMR APIs and UMM schemas, see the **[Parameter Support Reference](docs/consumers/SUPPORTED_PARAMETERS.md)**.
+The public consumer documentation is maintained in [docs/](docs/README.md#public-documentation-site).
+For a detailed breakdown of how tool inputs and outputs map to the underlying CMR APIs and UMM schemas, see the **[Parameter Support Reference](docs/consumers/supported-parameters.md)**.
 
 ### Available Tools
 

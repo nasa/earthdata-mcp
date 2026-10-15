@@ -1,0 +1,7 @@
+.title-wrapper {
+    --sl-nav-gap: 0.25rem;
+}
+
+.site-title:where(.astro-6rvad3va) {
+    color: var(--sl-color-text);
+}
