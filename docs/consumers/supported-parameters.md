@@ -29,10 +29,10 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 | ✅ | `temporal_start_date` | `temporal` | Start of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
 | ✅ | `temporal_end_date` | `temporal` | End of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
 | ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches collections whose declared extent intersects it, so a precise shape avoids false positives. |
-| ✅ | `platform` | `platform` | Platform short names to filter by (e.g., ['Terra', 'Aqua']). Most common scientific filter after temporal/spatial. |
-| ✅ | `instrument` | `instrument` | Instrument short names to filter by (e.g., ['MODIS', 'VIIRS']). More precise than keyword for instrument filtering. |
+| ✅ | `platform` | `platform` | Platform short names to filter by, e.g. `Terra`, `Aqua`. Narrows a search to one mission's instruments. |
+| ✅ | `instrument` | `instrument` | Instrument short names to filter by, e.g. `MODIS`, `VIIRS`. Matches the instrument field rather than the whole record, so it is tighter than the same name as a keyword. |
 | ✅ | `processing_level_id` | `processing_level_id` | Processing levels to filter by, e.g. `3`, `3A`. Distinguishes L2 swath from L3 gridded products. |
-| ✅ | `has_granules` | `has_granules` | When True, filters to collections that have actual granule data. Prevents returning metadata-only shells. |
+| ✅ | `has_granules` | `has_granules` | When true, limits results to collections that hold granules. CMR also carries metadata-only records for planned missions and datasets archived elsewhere. |
 | ❌ | N/A | `doi` | Search by digital object identifier |
 | ❌ | N/A | `project` | Search by project/campaign name |
 | ❌ | N/A | `data_center` | Search by data center/archive center |
@@ -88,7 +88,7 @@ Searches for specific data files (granules) within a collection to verify actual
 | ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches granules whose footprint intersects it, so a precise shape avoids false positives. |
 | ✅ | `cloud_cover_min` | `cloud_cover` | Lower bound on cloud cover, 0 to 100. Optical imagery only; SAR and altimetry do not report it. |
 | ✅ | `cloud_cover_max` | `cloud_cover` | Upper bound on cloud cover, 0 to 100. Use `20` or lower for mostly clear scenes. Optical imagery only. |
-| ✅ | `day_night_flag` | `day_night_flag` | Filter granules by day/night acquisition flag. Values: 'DAY', 'NIGHT', 'UNSPECIFIED'. |
+| ✅ | `day_night_flag` | `day_night_flag` | Acquisition lighting, one of `DAY`, `NIGHT`, or `UNSPECIFIED`. |
 | ✅ | `sort_key` | `sort_key` | Result ordering, e.g. `-start_date` for newest first. Defaults to relevance, not recency, so recent data is not returned first unless asked for. |
 | ❌ | N/A | `granule_ur` | Search by exact granule UR |
 | ❌ | N/A | `producer_granule_id` | Search by producer granule ID |
@@ -133,8 +133,8 @@ Discovers scientific variables and measurements associated with a collection, or
 ### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | The CMR concept ID of the collection to find variables for (e.g., 'C12345-PROV'). |
-| ✅ | `keyword` | `keyword` | A free-text search keyword to find variables. |
+| ✅ | `collection_concept_id` | `concept_id` | Collection to find variables for, e.g. `C2763266360-LPCLOUD`. |
+| ✅ | `keyword` | `keyword` | Free-text keyword to discover variables without a collection ID. |
 | ❌ | N/A | `name` | Exact match on variable name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
@@ -219,9 +219,9 @@ Discovers data access endpoints and visualization layers associated with a colle
 ### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `collection_concept_id` | `concept_id` | Parent collection concept ID. |
-| ✅ | `keyword` | `keyword` | Free-text keyword. |
-| ✅ | `type` | `type` | Filter by service type. |
+| ✅ | `collection_concept_id` | `concept_id` | Collection to find associated services for, e.g. `C2723758340-GES_DISC`. |
+| ✅ | `keyword` | `keyword` | Free-text keyword to discover services without a collection ID. |
+| ✅ | `type` | `type` | Service type to filter by, e.g. `OPeNDAP`, `WMS`, `Harmony`. |
 | ❌ | N/A | `name` | Exact match on service name |
 | ❌ | N/A | `provider` | Filter by provider ID |
 
@@ -259,7 +259,7 @@ Discovers official Earthdata scientific vocabulary terms to translate colloquial
 ### Input Parameters
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
-| ✅ | `query` | `pattern` | The term to search for across KMS schemes (e.g. 'moisture'). |
+| ✅ | `query` | `pattern` | Term to search for across KMS schemes, e.g. `moisture`. |
 | ✅ | `scheme` | `keyword_scheme` | A single KMS scheme to search, e.g. `sciencekeywords`, `platforms`, `instruments`. Searches every scheme if omitted. [Full list](https://cmr.earthdata.nasa.gov/kms/concept_schemes). |
 
 ### Output Fields
@@ -285,8 +285,8 @@ Exactly one of `collection_concept_id` or `identifier` is required. Supplying bo
 | Status | MCP Argument | CMR API Parameter | Description |
 |---|---|---|---|
 | ✅ | `collection_concept_id` | `concept_id[]` | Collection to find citations for, e.g. `C2763266360-LPCLOUD`. Resolved through the collection's citation associations. |
-| ✅ | `identifier` | `identifier` | A DOI or other citation identifier used to look up a citation directly (e.g., 10.24193/AWC2022_05). |
-| ✅ | `provider` | `provider` | Restricts results to citations from a single CMR provider (e.g., ESDIS). Combines with either of the above. |
+| ✅ | `identifier` | `identifier` | DOI or other citation identifier, e.g. `10.24193/AWC2022_05`. Looks up a single citation directly. |
+| ✅ | `provider` | `provider` | CMR provider that published the citation, e.g. `ESDIS`. Combines with a collection or identifier lookup. |
 | ❌ | N/A | `name` | Search by citation name. Exact match, not free text. |
 | ❌ | N/A | `title` | Search by title. Exact match, not free text. |
 | ❌ | N/A | `year` | Filter by publication year |
