@@ -4,7 +4,8 @@ import importlib
 import importlib.util
 import sys
 from pathlib import Path
-from unittest.mock import mock_open, Mock, patch
+from unittest.mock import Mock, mock_open, patch
+
 import pytest
 
 import server
@@ -77,6 +78,13 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
 
+    @pytest.mark.asyncio
+    async def test_health_allows_any_origin(self):
+        """The docs site polls this cross-origin, so the CORS header must be present."""
+        response = await server.health(None)
+        assert response.headers.get("access-control-allow-origin") == "*"
+
+
 class TestArdEndpoint:
     """Test the .well-known/ard.json endpoint."""
 
@@ -91,6 +99,7 @@ class TestArdEndpoint:
         assert response.status_code == 200
         assert response.headers.get("access-control-allow-origin") == "*"
         assert json.loads(response.body) == {"name": "earthdata-mcp"}
+
 
 class TestMainFunction:
     """Test the main() function with different modes."""

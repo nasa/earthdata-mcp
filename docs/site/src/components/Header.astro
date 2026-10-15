@@ -1,0 +1,51 @@
+---
+/*
+ * Replaces Starlight's stock header with Horizon's terra-site-header so the
+ * site chrome matches terra-ui. Search and the theme toggle are still
+ * Starlight's own components, slotted in rather than reimplemented, so Pagefind
+ * and the colour-scheme switch keep working.
+ *
+ * The search box rides in the `title` slot rather than `center`. Terra renders
+ * `title` inside the same flex container as the logo, so this is the only way
+ * to anchor search to the left group; the empty `center` then acts as the
+ * spacer that pushes the nav and tools right.
+ *
+ * terra-site-navigation is deliberately not used. It renders no slot and
+ * hardcodes placeholder links, so the centre nav is plain markup instead.
+ */
+import { base } from 'astro:config/client';
+
+import Search from 'virtual:starlight/components/Search';
+import SocialIcons from 'virtual:starlight/components/SocialIcons';
+import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
+
+import { withBase } from '../lib/paths';
+
+const href = (path: string) => withBase(base, path);
+
+const navLinks = [
+	{ label: 'User Guide', href: href('/consumers/earthdata-mcp-server-user-guide/') },
+	{ label: 'Parameter Reference', href: href('/consumers/supported-parameters/') },
+	{ label: 'CMR API', href: 'https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html' },
+];
+---
+
+<terra-site-header site-name="Earthdata MCP">
+	<div slot="title" class="header-brand">
+		{/* Terra's logo is inert, so the title carries the link home. */}
+		<a class="site-home" href={href('/')}>Earthdata MCP</a>
+		<div class="header-search">
+			<Search />
+		</div>
+	</div>
+
+	<div slot="right" class="header-tools">
+		<nav class="header-nav" aria-label="Main">
+			{navLinks.map(({ label, href }) => <a href={href}>{label}</a>)}
+		</nav>
+		<div class="header-tools-group print:hidden">
+			<SocialIcons />
+			<ThemeSelect />
+		</div>
+	</div>
+</terra-site-header>

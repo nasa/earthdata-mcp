@@ -54,7 +54,12 @@ except Exception as e:
 # Health check endpoint for ALB (matches CMR health format)
 async def health(_request):
     """Health check endpoint for load balancer."""
-    return JSONResponse({"earthdata-mcp": {"ok?": True}})
+    response = JSONResponse({"earthdata-mcp": {"ok?": True}})
+
+    # Allow any origin so the public documentation site can report server
+    # reachability from the browser. The payload carries no sensitive data.
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 
 # Serve ard.json from .well-known path
@@ -72,6 +77,7 @@ async def serve_ard(_request):
 
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
 
 # Build the app with middleware and the intended path
 app = mcp.http_app(path="/mcp/v1", middleware=[cors])
