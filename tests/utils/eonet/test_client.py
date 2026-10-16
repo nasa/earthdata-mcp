@@ -2,9 +2,8 @@
 
 from unittest.mock import Mock, ANY
 
-import requests
-
 from util.eonet.client import (
+    EONETError,
     events,
     categories,
     layers,
@@ -38,10 +37,10 @@ class TestEvents:
         assert result == expected
 
     def test_returns_multiple_events(self, monkeypatch):
-        """Test that events returns multiple result successfully."""
+        """Test that events returns multiple results successfully."""
         expected = {
             "title": "EONET Event",
-            "description": "Natural event from EONET.",
+            "description": "Natural events from EONET.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
             "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
         }
@@ -73,12 +72,11 @@ class TestEvents:
 
     def test_events_return_failed(self, monkeypatch):
         """Test that events returns all results if an invalid request is made."""
-        all_results = [{}] * 7204 # 7204 is the estimated number of events in EONET as of 2026-10-07
         expected = {
             "title": "EONET Event",
-            "description": "Natural event from EONET.",
+            "description": "Natural events from EONET.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
-            "events": all_results
+            "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
         }
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -92,15 +90,20 @@ class TestEvents:
     def test_returns_event_geojson(self, monkeypatch):
         """Test that events can return a geojson result successfully."""
         expected = {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [0.0, 0.0] 
-            },
-            "properties": {
-              "name": "A Cool Place",
-              "location": "Anytown, USA"
-            }
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                      "type": "Point",
+                      "coordinates": [0.0, 0.0] 
+                    },
+                    "properties": {
+                      "name": "A Cool Place",
+                      "location": "Anytown, USA"
+                    }
+                }
+            ]
         }
     
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -166,10 +169,32 @@ class TestEvents:
 
     def test_events_geojson_return_failed(self, monkeypatch):
         """Test that events returns all results if an invalid geojson request is made."""
-        all_results = [{}] * 8027 # 8027 is the estimated number of geojson events in EONET as of 2026-10-07
         expected = {
             "type": "FeatureCollection",
-            "features": all_results
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                      "type": "Point",
+                      "coordinates": [0.0, 0.0] 
+                    },
+                    "properties": {
+                      "name": "A Cool Place",
+                      "location": "Anytown, USA"
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                      "type": "Point",
+                      "coordinates": [1.0, 1.0] 
+                    },
+                    "properties": {
+                      "name": "Another Cool Place",
+                      "location": "Anothertown, USA"
+                    }
+                }
+            ]
         }
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -177,27 +202,31 @@ class TestEvents:
         
         params = {"limit": "-1"}
         
-        result = events(params, False)
+        result = events(params, True)
         assert result == expected
 
-    def test_events_returns_error_for_fake_category(self, monkeypatch):
-        """Test that layers returns an error if a fake category is given."""
-        expected = requests.exceptions.HTTPError()
-        
+    def test_events_returns_all_events_for_fake_category(self, monkeypatch):
+        """Test that events returns all events if a fake category is given."""
+        expected = {
+            "title": "EONET Event",
+            "description": "Natural events from EONET.",
+            "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+            "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
+        }
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
-        mock_get.side_effect = requests.exceptions.HTTPError
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
         params = {"category": "fakecategory"}
-        
+
         result = events(params, False)
-        assert type(result) == type(expected)
+        assert result == expected
 
     def test_returns_event_from_category(self, monkeypatch):
         """Test that categories returns events from the specified category."""
         expected = {
-            "title": "EONET Event",
-            "description": "Natural event from EONET.",
+            "title": "EONET Events: Category",
+            "description": "Category description.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
             "events": [
                 { 
@@ -223,8 +252,8 @@ class TestEvents:
     def test_returns_multiple_events_from_category(self, monkeypatch):
         """Test that categories returns multiple events from the specified category."""
         expected = {
-            "title": "EONET Event",
-            "description": "Natural event from EONET.",
+            "title": "EONET Events: Category",
+            "description": "Category description.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
             "events": [
                 { 
@@ -276,14 +305,28 @@ class TestEvents:
     def test_returns_all_categories(self, monkeypatch):
         """
         Test that categories returns all categories if just the category 
-        endpoint is called.
+        endpoint itself is passed via the request.
         """
-        all_categories = [{}] * 13 # 13 is the number of categories in EONET as of 2026-10-07
         expected = {
 	        "title": "EONET Event Categories",
 	        "description": "List of all the available event categories in the EONET system",
 	        "link": "https://eonet.gsfc.nasa.gov/api/v3/categories",
-	        "categories": all_categories
+	        "categories": [
+		        {
+		        	"id": "cat_01",
+		        	"title": "category1",
+		        	"link": "https://eonet.gsfc.nasa.gov/api/v3/categories/cat_01",
+		        	"description": "Category 1 description.",
+		        	"layers": "https://eonet.gsfc.nasa.gov/api/v3/layers/cat_01_layers"
+		        },
+		        {
+		        	"id": "cat_02",
+                    "title": "category2",
+                    "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/cat_02",
+                    "description": "Category 2 description.",
+                    "layers": "https://eonet.gsfc.nasa.gov/api/v3/layers/cat_02_layers"
+		        }
+            ]
         }
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -297,12 +340,30 @@ class TestEvents:
         Test that categories returns all events for a given category if just the category's
         endpint is called without any parameters, or with an invalid parameter.
         """
-        all_categories = [{}] * 7132 # 7132 is the estimated number of events for the Wildfires category as of 2026-10-07
         expected = {
-	        "title": "EONET Events: Wildfires",
-	        "description": "Wildland fires includes all nature of fire, in forest and plains, as well as those that spread to become urban and industrial fire events. Fires may be naturally caused or manmade.",
-	        "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/wildfires",
-	        "events": all_categories
+	        "title": "EONET Events: Category Title",
+            "description": "Category description.",
+            "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
+            "events": [
+                { 
+                    "id": "exampleEvent1",
+                    "categories": [
+                        {
+                            "id": "categoryId",
+                            "title": "Category Title"
+                        }
+                    ]
+                },
+                { 
+                    "id": "exampleEvent2",
+                    "categories": [
+                        {
+                            "id": "categoryId",
+                            "title": "Category Title"
+                        }
+                    ]
+                }
+            ]
         }
         
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -315,20 +376,22 @@ class TestEvents:
 
     def test_returns_error_for_fake_category(self, monkeypatch):
         """Test that categories returns an error for a fake category."""
-        expected = requests.exceptions.HTTPError()
-        
-        mock_get = Mock(return_value=_make_response(json_data=expected))
-        mock_get.side_effect = requests.exceptions.HTTPError
-        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-        
-        result = categories("fakecategory", {})
-        assert type(result) == type(expected)
+        expected = EONETError()
+
+        try:
+            mock_get = Mock(return_value=_make_response(json_data=expected))
+            mock_get.side_effect = EONETError
+            monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+
+            result = categories("fakecategory", {})
+        except Exception as e:
+            assert type(e) == type(expected)
 
     def test_returns_layer_from_category(self, monkeypatch):
-        """Test that layers returns layers from the specified category."""
+        """Test that layers can return a single layer from the specified category."""
         expected = {
-            "title": "EONET Layers",
-            "description": "Layers for the specified category.",
+            "title": "EONET Web Service Layers",
+	        "description": "List of web service layers in the EONET system.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
             "categories": [
                 { 
@@ -360,8 +423,8 @@ class TestEvents:
     def test_returns_multiple_layers_from_category(self, monkeypatch):
         """Test that layers returns multiple layers from the specified category."""
         expected = {
-            "title": "EONET Layers",
-            "description": "Layers for the specified category.",
+            "title": "EONET Web Service Layers",
+            "description": "List of web service layers in the EONET system.",
             "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
             "categories": [
                 { 
@@ -424,14 +487,36 @@ class TestEvents:
 
     def test_returns_all_layers(self, monkeypatch):
         """Test that layers returns all layers when no category is given."""
-        all_layers = [{}] * 201 # 201 is the estimated number of layers in EONET as of 2026-10-07
         expected = {
 	        "title": "EONET Web Service Layers",
 	        "description": "List of web service layers in the EONET system",
 	        "link": "https://eonet.gsfc.nasa.gov/api/v3/layers",
 	        "categories": [
-                {
-                    "layers": all_layers
+	        	{
+	        		"layers": [
+	        			{
+	        				"name": "Layer_01",
+	        				"serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_01",
+	        				"serviceTypeId": "Layer_01_ID",
+	        				"parameters": [
+	        					{
+	        						"TILEMATRIXSET": "2km",
+	        						"FORMAT": "image/png"
+	        					}
+	        				]
+	        			},
+	        			{
+	        				"name": "Layer_02",
+	        				"serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_02",
+	        				"serviceTypeId": "Layer_02_ID",
+	        				"parameters": [
+	        					{
+	        						"TILEMATRIXSET": "2km",
+	        						"FORMAT": "image/png"
+	        					}
+	        				]
+	        			}
+                    ]
                 }
             ]
         }
@@ -444,11 +529,12 @@ class TestEvents:
 
     def test_layers_returns_error_for_fake_category(self, monkeypatch):
         """Test that layers returns an error if a fake category is given."""
-        expected = requests.exceptions.HTTPError()
-        
-        mock_get = Mock(return_value=_make_response(json_data=expected))
-        mock_get.side_effect = requests.exceptions.HTTPError
-        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-        
-        result = layers("fakecategory")
-        assert type(result) == type(expected)
+        expected = EONETError()
+
+        try:
+            mock_get = Mock(return_value=_make_response(json_data=expected))
+            mock_get.side_effect = EONETError
+            monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+            result = layers("fakecategory")
+        except Exception as e:
+            assert type(e) == type(expected)
