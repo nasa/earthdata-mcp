@@ -20,6 +20,8 @@ dependencies = [
     "boto3>=1.28.0",
     "jsonpath-ng>=1.7.0",
     "harmony-py>=1.0",
+    "prefab-ui>=0.20.2",
+    "terra-ui-components>=0.0.202",
 ]
 
 [project.optional-dependencies]

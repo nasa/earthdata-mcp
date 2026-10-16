@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Earthdata Search Results</title>
+  <script type='module'>
+
+        const terraStyles = document.createElement('link')
+        terraStyles.rel = 'stylesheet'
+        terraStyles.href = 'https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.202/cdn/themes/horizon.css'
+        //terraStyles.href = "http://localhost:4000/dist/themes/horizon.css"
+        document.head.appendChild(terraStyles)
+
+        const terraAutoloader = document.createElement('script')
+        terraAutoloader.src = "https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.202/cdn/terra-ui-components-autoloader.js"
+        //terraAutoloader.src = "http://localhost:4000/dist/terra-ui-components-autoloader.js"
+        terraAutoloader.type = 'module'
+        document.head.appendChild(terraAutoloader)
+        
+</script>
+  <style>
+    body  { font-family: system-ui, sans-serif; padding: 16px; background:#0f1117; color:#e0e0e0; margin:0; }
+    h1    { color:#17BECF; font-size:1.2rem; margin:0 0 16px; }
+    h3    { color:#17BECF; font-size:.95rem; margin:0 0 8px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    .card { background:#1c1f26; border-radius:8px; padding:12px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th    { background:#262b36; padding:6px 8px; text-align:left; color:#17BECF; }
+    td    { padding:5px 8px; border-bottom:1px solid #2a2f3a; }
+    terra-time-average-map { display:block; height:360px; }
+    terra-time-series      { display:block; height:320px; }
+  </style>
+</head>
+<body>
+  <h1>Earthdata Search Results</h1>
+
+  <div class="grid">
+    <!-- terra-time-average-map: renders a temporal average map from CMR data -->
+    <div class="card">
+      <h3>Sea Surface Temperature (MUR) — Time Average Map</h3>
+      <terra-time-average-map
+        collection="C2036882064-POCLOUD"
+        variable="analysed_sst"
+        start-date="2024-01-01"
+        end-date="2024-01-31"
+        long-name="Analysed Sea Surface Temperature"
+        bearer-token=""
+      ></terra-time-average-map>
+    </div>
+
+    <!-- terra-time-series: renders a time-series chart fetched from CMR -->
+    <div class="card">
+      <h3>Soil Moisture (SMAP) — Time Series</h3>
+      <terra-time-series
+        collection="C2208418228-NSIDC_ECS"
+        variable="soil_moisture"
+        variable-entry-id="V2208418229-NSIDC_ECS"
+        start-date="2024-01-01"
+        end-date="2024-01-31"
+        bearer-token=""
+      ></terra-time-series>
+      <script type="module">
+        await customElements.whenDefined('terra-time-series');
+        document.querySelector('terra-time-series').location = {"lat": 36.0, "lon": -122.0};
+      </script>
+    </div>
+  </div>
+
+  <!-- Collections table -->
+  <div class="card">
+    <h3>Collections (5 results)</h3>
+    <table>
+      <thead><tr><th>Short Name</th><th>Title</th><th>Provider</th><th>Granules</th></tr></thead>
+      <tbody><tr><td>MOD11A1</td><td style='max-width:300px'>MODIS/Terra Land Surface Temperature Daily</td><td>LPCLOUD</td><td>8,432</td></tr><tr><td>MUR-JPL-L4-GLOB-v4.1</td><td style='max-width:300px'>MUR MEaSUREs Sea Surface Temperature</td><td>POCLOUD</td><td>3,214</td></tr><tr><td>SPL3SMP</td><td style='max-width:300px'>SMAP L3 Radiometer Soil Moisture</td><td>NSIDC_ECS</td><td>2,876</td></tr><tr><td>GLDAS_NOAH025_3H</td><td style='max-width:300px'>GLDAS Noah Land Surface Model 0.25deg 3hr</td><td>GES_DISC</td><td>62,140</td></tr><tr><td>ASTGTM_NC</td><td style='max-width:300px'>ASTER Global Digital Elevation Model V003</td><td>LPCLOUD</td><td>22,702</td></tr></tbody>
+    </table>
+  </div>
+</body>
+</html>
