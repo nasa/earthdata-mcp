@@ -23,7 +23,7 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
 
     Args:
         params: Optional dictionary of query parameters to filter events.
-        is_geojson: Optional boolean to specify if the GeoJSON endpint should be used
+        is_geojson: Optional boolean to specify if the GeoJSON endpoint should be used
         instead. Default is false.
 
     Returns:
@@ -83,7 +83,7 @@ def categories(category: str, params: dict | None = None) -> dict:
 
     if category:
         if not isinstance(results, dict) or "events" not in results:
-            raise EONETError(f"Unexpected response shape for cateogory '{category}'. Response keys: {list(results.keys())}")
+            raise EONETError(f"Unexpected response shape for category '{category}'. Response keys: {list(results.keys())}")
     else:
         if not isinstance(results, dict) or "categories" not in results:
             raise EONETError(f"Unexpected response shape for category endpoint. Response keys: {list(results.keys())}")
