@@ -1,5 +1,7 @@
 """Tests for EONET API client."""
 
+import pytest
+
 from unittest.mock import Mock, ANY
 
 from util.eonet.client import (
@@ -376,16 +378,13 @@ class TestEvents:
 
     def test_returns_error_for_fake_category(self, monkeypatch):
         """Test that categories returns an error for a fake category."""
-        expected = EONETError()
+        mock_get = Mock(side_effect=EONETError("That category doesn't exist."))
+        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
-        try:
-            mock_get = Mock(return_value=_make_response(json_data=expected))
-            mock_get.side_effect = EONETError
-            monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-
-            result = categories("fakecategory", {})
-        except Exception as e:
-            assert type(e) == type(expected)
+        with pytest.raises(EONETError) as e:
+            categories("fakecategory", {})
+        
+        assert "That category doesn't exist." in str(e.value)
 
     def test_returns_layer_from_category(self, monkeypatch):
         """Test that layers can return a single layer from the specified category."""
@@ -529,12 +528,10 @@ class TestEvents:
 
     def test_layers_returns_error_for_fake_category(self, monkeypatch):
         """Test that layers returns an error if a fake category is given."""
-        expected = EONETError()
+        mock_get = Mock(side_effect=EONETError("That category doesn't exist."))
+        monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
-        try:
-            mock_get = Mock(return_value=_make_response(json_data=expected))
-            mock_get.side_effect = EONETError
-            monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-            result = layers("fakecategory")
-        except Exception as e:
-            assert type(e) == type(expected)
+        with pytest.raises(EONETError) as e:
+            layers("fakecategory")
+
+        assert "That category doesn't exist." in str(e.value)
