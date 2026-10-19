@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import Mock, ANY
 
 from util.eonet.client import (
+    EONET_BASE_URL,
     EONETError,
     events,
     categories,
@@ -26,7 +27,7 @@ class TestEvents:
         expected = {
             "title": "EONET Event",
             "description": "Natural event from EONET.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+            "link": f"{EONET_BASE_URL}/events",
             "events": [{ "id": "exampleEvent" }]
         }
 
@@ -43,7 +44,7 @@ class TestEvents:
         expected = {
             "title": "EONET Event",
             "description": "Natural events from EONET.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+            "link": f"{EONET_BASE_URL}/events",
             "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
         }
     
@@ -60,7 +61,7 @@ class TestEvents:
         expected = {
 	        "title": "EONET Events",
 	        "description": "Natural events from EONET.",
-	        "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+	        "link": f"{EONET_BASE_URL}/events",
 	        "events": []
         }
     
@@ -77,7 +78,7 @@ class TestEvents:
         expected = {
             "title": "EONET Event",
             "description": "Natural events from EONET.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+            "link": f"{EONET_BASE_URL}/events",
             "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
         }
         
@@ -212,7 +213,7 @@ class TestEvents:
         expected = {
             "title": "EONET Event",
             "description": "Natural events from EONET.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+            "link": f"{EONET_BASE_URL}/events",
             "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
         }
 
@@ -229,7 +230,7 @@ class TestEvents:
         expected = {
             "title": "EONET Events: Category",
             "description": "Category description.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
+            "link": f"{EONET_BASE_URL}/categories/categoryId",
             "events": [
                 { 
                     "id": "exampleEvent",
@@ -256,7 +257,7 @@ class TestEvents:
         expected = {
             "title": "EONET Events: Category",
             "description": "Category description.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
+            "link": f"{EONET_BASE_URL}/categories/categoryId",
             "events": [
                 { 
                     "id": "exampleEvent1",
@@ -292,7 +293,7 @@ class TestEvents:
         expected = {
 	        "title": ANY,
 	        "description": ANY,
-	        "link": f"https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
+	        "link": f"{EONET_BASE_URL}/categories/categoryId",
 	        "events": []
         }
         
@@ -312,21 +313,21 @@ class TestEvents:
         expected = {
 	        "title": "EONET Event Categories",
 	        "description": "List of all the available event categories in the EONET system",
-	        "link": "https://eonet.gsfc.nasa.gov/api/v3/categories",
+	        "link": f"{EONET_BASE_URL}/categories",
 	        "categories": [
 		        {
 		        	"id": "cat_01",
 		        	"title": "category1",
-		        	"link": "https://eonet.gsfc.nasa.gov/api/v3/categories/cat_01",
+		        	"link": f"{EONET_BASE_URL}/categories/cat_01",
 		        	"description": "Category 1 description.",
-		        	"layers": "https://eonet.gsfc.nasa.gov/api/v3/layers/cat_01_layers"
+		        	"layers": f"{EONET_BASE_URL}/layers/cat_01_layers"
 		        },
 		        {
 		        	"id": "cat_02",
                     "title": "category2",
-                    "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/cat_02",
+                    "link": f"{EONET_BASE_URL}/categories/cat_02",
                     "description": "Category 2 description.",
-                    "layers": "https://eonet.gsfc.nasa.gov/api/v3/layers/cat_02_layers"
+                    "layers": f"{EONET_BASE_URL}/layers/cat_02_layers"
 		        }
             ]
         }
@@ -345,7 +346,7 @@ class TestEvents:
         expected = {
 	        "title": "EONET Events: Category Title",
             "description": "Category description.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/categories/categoryId",
+            "link": f"{EONET_BASE_URL}/categories/categoryId",
             "events": [
                 { 
                     "id": "exampleEvent1",
@@ -391,7 +392,7 @@ class TestEvents:
         expected = {
             "title": "EONET Web Service Layers",
 	        "description": "List of web service layers in the EONET system.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
+            "link": f"{EONET_BASE_URL}/layers/categoryId",
             "categories": [
                 { 
                     "id": "categoryId",
@@ -424,7 +425,7 @@ class TestEvents:
         expected = {
             "title": "EONET Web Service Layers",
             "description": "List of web service layers in the EONET system.",
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
+            "link": f"{EONET_BASE_URL}/layers/categoryId",
             "categories": [
                 { 
                     "id": "categoryId",
@@ -468,7 +469,7 @@ class TestEvents:
         expected = {
             "title": ANY,
             "description": ANY,
-            "link": "https://eonet.gsfc.nasa.gov/api/v3/layers/categoryId",
+            "link": f"{EONET_BASE_URL}/layers/categoryId",
             "categories": [
                 { 
                     "id": ANY,
@@ -489,7 +490,7 @@ class TestEvents:
         expected = {
 	        "title": "EONET Web Service Layers",
 	        "description": "List of web service layers in the EONET system",
-	        "link": "https://eonet.gsfc.nasa.gov/api/v3/layers",
+	        "link": f"{EONET_BASE_URL}/layers",
 	        "categories": [
 	        	{
 	        		"layers": [
