@@ -72,7 +72,7 @@ class LayerResult(BaseModel):
     )
 
 
-class GetEONETInput(BaseModel):
+class GetEventsInput(BaseModel):
     """Input model for get_events."""
 
     model_config = ConfigDict(extra="forbid")
@@ -82,8 +82,8 @@ class GetEONETInput(BaseModel):
         Field(
             ...,
             min_length=7,
-            pattern=r"/[a-z]+/?[a-z]*?",
-            description="The EONET endpoint for the API call (e.g. '/events').",
+            pattern=r"[a-z]+/?[a-z]*?",
+            description="The EONET endpoint for the API call (e.g. 'events').",
         ),
     ]
     params: Annotated[
@@ -98,9 +98,16 @@ class GetEONETInput(BaseModel):
         ),
     ]
     limit: LimitParam = 50
+    category: Annotated[
+        str,
+        Field(
+            "",
+            description="The optional category to pass to the categories or layers functions"
+        )
+    ]
 
 
-class GetEONETOutput(BaseToolOutput):
+class GetEventsOutput(BaseToolOutput):
     """Output model for get_events."""
 
     title: str = Field(..., description="The EONET-provided title of the response")

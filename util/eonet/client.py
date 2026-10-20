@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 EONET_BASE_URL = "https://eonet.gsfc.nasa.gov/api/v3"
 CLIENT_ID = get_client_id()
+REQUEST_URL = ""
 
 class EONETError(Exception):
     """Raised when an EONET API request fails."""
@@ -34,6 +35,7 @@ def events(params: dict | None = None, is_geojson: bool = False) -> dict:
         requests.RequestException: If the EONET API events endpoint request fails.
     """
     url = f"{EONET_BASE_URL}/events/geojson" if is_geojson else f"{EONET_BASE_URL}/events"
+    REQUEST_URL = url
 
     try:
         response = requests.get(url, params=params, headers={"Client-Id": CLIENT_ID}, timeout=10)
@@ -73,6 +75,7 @@ def categories(category: str, params: dict | None = None) -> dict:
         requests.RequestException: If the EONET API category endpoint request fails.
     """
     url = f"{EONET_BASE_URL}/categories/{category}" if category else f"{EONET_BASE_URL}/categories"
+    REQUEST_URL = url
 
     try:
         response = requests.get(url, params=params, timeout=10)
@@ -109,6 +112,7 @@ def layers(category_id: str) -> dict:
         requests.RequestException: If the EONET API layers endpoint request fails.
     """
     url = f"{EONET_BASE_URL}/layers/{category_id}"
+    REQUEST_URL = url
 
     try:
         response = requests.get(url, params={}, timeout=10)
@@ -121,3 +125,8 @@ def layers(category_id: str) -> dict:
         raise EONETError(f"Unexpected layers response shape for category '{category_id}'. Response keys: {list(results.keys())}")
 
     return results
+
+
+def get_request_url():
+    """Returns the request URL for tool error messages"""
+    return REQUEST_URL
