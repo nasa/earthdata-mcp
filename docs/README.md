@@ -7,13 +7,14 @@ This directory contains detailed documentation for both consumers of the MCP ser
 This section contains examples, sample prompts, and advanced guides for LLM agents and human developers querying NASA's Earth science data APIs via this MCP server. Every tool available today is backed by the Common Metadata Repository (CMR).
 
 - **[User Guide](consumers/earthdata-mcp-server-user-guide.md)**: How to connect to the MCP server using variety of harnesses, example walkthrough, troubleshooting, and feedback reporting.
-- **[Currently Supported Parameters](consumers/supported-parameters.md)**: maps Earthdata MCP tool parameters to the upstream API arguments and schema fields behind them.
+- **[Tools](consumers/supported-parameters.md)**: every Earthdata MCP tool, with inputs and outputs mapped to the upstream API arguments and schema fields behind them.
 
 ## For Developers (`docs/developers/`)
 
 Developer guidelines and procedures for contributing to and maintaining the application.
 
 - **[Adding a New Tool](developers/adding-a-new-tool.md)**: How to build and register a new tool, configure `manifest.json`, follow Semantic Versioning, and update Dockerfiles.
+- **[Adding Authentication to a Tool](developers/adding-authentication-to-a-tool.md)**: How to configure a tool to require authentication, including updating the manifest and handling OAuth scopes.
 - **[Adding an Environment Variable](developers/adding-an-env-var.md)**: The exact files to touch in Terraform, Docker, and Bamboo when adding a new environment variable to the ECS container.
 - **[Versioning Methodology](developers/versioning.md)**: Explains the decoupled versioning strategy between the MCP Server (`pyproject.toml`) and individual tools (`manifest.json`).
 - **[Troubleshooting Deployments](developers/troubleshooting-deployments.md)**: Step-by-step instructions for debugging a `503 Service Unavailable` error, finding AWS CloudWatch logs, and fixing crash loops.
@@ -68,10 +69,6 @@ Starlight. The pieces:
   tokens. Anything that exists because of Horizon belongs here.
 - `src/styles/custom.css` holds plain Starlight overrides that would apply with
   or without Horizon.
-- `src/components/ServerStatus.astro` polls the MCP server's health endpoint from
-  the visitor's browser and renders a status indicator on the home page. Under
-  `npm run dev` it points at `http://127.0.0.1:5001/mcp/health`, so start the
-  server with `uv run server.py http` or the badge reports "Unreachable".
 
 Logic worth testing lives in `src/lib/` with colocated `*.test.ts` files, so the
 components stay thin enough to verify by eye.

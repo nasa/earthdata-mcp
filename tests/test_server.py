@@ -78,12 +78,6 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
 
-    @pytest.mark.asyncio
-    async def test_health_allows_any_origin(self):
-        """The docs site polls this cross-origin, so the CORS header must be present."""
-        response = await server.health(None)
-        assert response.headers.get("access-control-allow-origin") == "*"
-
 
 class TestArdEndpoint:
     """Test the .well-known/ard.json endpoint."""
