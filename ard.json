@@ -6,6 +6,7 @@
       "type": "application/mcp-server+json",
       "capabilities": [
         "get_collections",
+        "get_events",
         "get_granules",
         "get_services",
         "get_tools",
@@ -13,9 +14,10 @@
         "get_keywords",
         "get_citations"
       ],
-      "description": "An MCP server providing access to NASA Earthdata's Common Metadata Repository (CMR) for discovering and searching collections, granules, services, tools, variables, keywords, and citations.",
+      "description": "An MCP server providing access to NASA Earthdata's Common Metadata Repository (CMR) for discovering and searching collections, granules, services, tools, variables, keywords, and citations. Supports the Earth Observatory Natural Event Tracker (EONET) API for injecting NRT natural events into LLM contexts.",
       "representativeQueries": [
         "find Landsat 8 collections",
+        "give me information on current wildfires that follow my prediction model",
         "search for granules in the MODIS Terra collection",
         "what services are available for the GEDI L2A collection",
         "What are the official science keywords related to Earth's climate and environment?",

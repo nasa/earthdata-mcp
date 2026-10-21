@@ -2,7 +2,6 @@
 
 import logging
 
-import requests
 from langfuse import observe
 
 from models.pagination import (
@@ -15,7 +14,6 @@ from models.tools.get_events import (
     EventResult,
     GeoJSONResult,
     CategoryResult,
-    LayerResult
 )
 from util.eonet.client import (
     EONET_BASE_URL,
@@ -39,12 +37,88 @@ class Endpoints:
 logger = logging.getLogger(__name__)
 
 
+def _build_response_dict(endpoint: str, results: dict):
+    try:
+        if (endpoint == Endpoints.EVENTS) or (endpoint == Endpoints.CATEGORIES):
+            event_list = []
+            for event in results["events"]:
+                event_list.append(
+                    EventResult(
+                        id=event["id"],
+                        title=event["title"],
+                        description=event["description"],
+                        link=event["link"],
+                        closed=event["closed"],
+                        categories=event["categories"],
+                        sources=event["sources"],
+                        geometry=event["geometry"],
+                    )
+                )
+            return GetEventsOutput(
+                status=SearchStatus.SUCCESS,
+                error_message=None,
+                title=results["title"],
+                description=results["description"],
+                link=results["link"],
+                events=event_list,
+            ).model_dump()
+        elif endpoint == Endpoints.GEOJSON:
+            feature_list = []
+            for feature in results["features"]:
+                feature_list.append(
+                    GeoJSONResult(
+                        type=feature["type"],
+                        properties=feature["properties"],
+                        geometry=feature["geometry"],
+                    )
+                )
+            return GetEventsOutput(
+                status=SearchStatus.SUCCESS,
+                error_message=None,
+                type=results["type"],
+                features=feature_list,
+            ).model_dump()
+        elif endpoint == Endpoints.LAYERS:
+            category_list = []
+            for category in results["categories"]:
+                category_list.append(
+                    CategoryResult(
+                        id=category["id"],
+                        title=category["title"],
+                        layers=category["layers"],
+                    )
+                )
+            return GetEventsOutput(
+                status=SearchStatus.SUCCESS,
+                error_message=None,
+                title=results["title"],
+                description=results["description"],
+                link=results["link"],
+                categories=category_list,
+            ).model_dump()
+        else:
+            return GetEventsOutput(
+                status=SearchStatus.ERROR,
+                error_message=f"Couldn't retrieve results. Endpoint does not exist: {get_request_url()}",
+                title=SearchStatus.ERROR,
+                link=f"{get_request_url()}"
+            )
+    except (ValueError, TypeError) as e:
+        logger.error("Results could not be saved: %s", e)
+        return GetEventsOutput(
+            status=SearchStatus.ERROR,
+            error_message=f"Attempted to store malformed results: {e}",
+            title=SearchStatus.ERROR,
+            link=f"{get_request_url()}",
+        ).model_dump()
+
+
 @observe(name="get_events")
 def get_events(
     endpoint: str,
     params: dict = {},
-    limit: LimitParam = 50,
-    category: str = ""
+    category: str = "",
+    limit: LimitParam = 5,
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
@@ -56,6 +130,7 @@ def get_events(
         tags=["eonet", "eventsapi"],
         metadata={
             "endpoint": endpoint,
+            "category": category,
             "params": params,
         },
     )
@@ -63,9 +138,9 @@ def get_events(
     try:
         eonet_params = GetEventsInput(
             endpoint=endpoint,
+            category=category,
             params=params,
             limit=limit,
-            category=category
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_events input validation failed: %s", exc)
@@ -77,17 +152,17 @@ def get_events(
         ).model_dump()
 
     endpoint = eonet_params.endpoint
+    category = eonet_params.category
     params = eonet_params.params
     if "limit" not in params:
-        params["limit"] = limit
-    category = eonet_params.category
+        params["limit"] = eonet_params.limit
 
     if not endpoint:
         return GetEventsOutput(
             status=SearchStatus.ERROR,
             error_message="Endpoint cannot be empty.",
             title=SearchStatus.ERROR,
-            link=f"{EONET_BASE_URL}/",
+            link=f"{EONET_BASE_URL}/{endpoint}",
         ).model_dump()
 
     try:
@@ -99,6 +174,8 @@ def get_events(
                     error_message=None,
                     title=results["title"],
                     link=results["link"],
+                    description=results["description"],
+                    events=results["events"],
                 ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
             results = events(params, True)
@@ -106,8 +183,8 @@ def get_events(
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
                     error_message=None,
-                    title=SearchStatus.NO_RESULTS,
-                    link="No link available.",
+                    type=results["type"],
+                    features=results["features"],
                 ).model_dump()
         elif endpoint == Endpoints.CATEGORIES:
             results = categories(category, params)
@@ -117,8 +194,10 @@ def get_events(
                     error_message=None,
                     title=results["title"],
                     link=results["link"],
+                    description=results["description"],
+                    events=results["events"],
                 ).model_dump()
-        else:
+        elif endpoint == Endpoints.LAYERS:
             results = layers(category)
             if len(results["categories"]) == 0:
                 return GetEventsOutput(
@@ -126,7 +205,16 @@ def get_events(
                     error_message=None,
                     title=results["title"],
                     link=results["link"],
+                    description=results["description"],
+                    categories=results["categories"],
                 ).model_dump()
+        else:
+            return GetEventsOutput(
+                status=SearchStatus.ERROR,
+                error_message=f"The given endpoint does not exist: {get_request_url()}",
+                title=SearchStatus.ERROR,
+                link=f"{get_request_url()}"
+            )
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
         return GetEventsOutput(
@@ -134,25 +222,7 @@ def get_events(
             error_message=f"EONET could not process the request: {e}",
             title=SearchStatus.ERROR,
             link=f"{get_request_url()}",
+            description="Failed EONET API request",
         ).model_dump()
 
-    total_hits = len(results)
-    events = []
-    for event in results:
-        events.append(
-            EventResult(
-                id=event.get("id"),
-                title=event.get("title"),
-                metadata=event.get("metadata", {}),
-                description=event.get("description"),
-            )
-        )
-
-    response_dict = GetEventsOutput(
-        status=SearchStatus.SUCCESS,
-        total_hits=total_hits,
-        error_message=None,
-        events=events,
-    ).model_dump()
-
-    return response_dict
+    return _build_response_dict(endpoint, results)

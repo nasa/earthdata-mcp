@@ -49,27 +49,7 @@ class CategoryResult(BaseModel):
 
     id: str = Field(..., description="The unique ID of the category")
     title: str = Field(..., description="The EONET-provided title of the category")
-    description: str = Field(
-        ..., description="The primary description of the category, if available"
-    )
-    link: str = Field(..., description="The API endpoint URL for the event")
     layers: str = Field(..., description="EONET endpoint URL for the category's layers")
-
-
-class LayerResult(BaseModel):
-    """A single EONET layer object."""
-
-    name: str = Field(..., description="The EONET-provided name of the layer")
-    service_url: str = Field(
-        ..., description="The base URL of the service that provides the layer"
-    
-    )
-    service_type_id: str = Field(
-        ..., description="The service type and version from `service_url`"
-    )
-    parameters: list = Field(
-        ..., description="URL query parameters required for requests to the service"
-    )
 
 
 class GetEventsInput(BaseModel):
@@ -97,7 +77,7 @@ class GetEventsInput(BaseModel):
             ),
         ),
     ]
-    limit: LimitParam = 50
+    limit: LimitParam = 5
     category: Annotated[
         str,
         Field(
@@ -110,8 +90,8 @@ class GetEventsInput(BaseModel):
 class GetEventsOutput(BaseToolOutput):
     """Output model for get_events."""
 
-    title: str = Field(..., description="The EONET-provided title of the response")
-    link: str = Field(..., description="The API endpoint URL that was used to get the response")
+    title: str | None = Field(None, description="The EONET-provided title of the response")
+    link: str | None = Field(None, description="The API endpoint URL that was used to get the response")
     description: str | None = Field(
         None, description="Information describing what was requested, if available"
     )
@@ -122,7 +102,7 @@ class GetEventsOutput(BaseToolOutput):
     features: list[GeoJSONResult] | None = Field(
         None, description="The list of results if GeoJSON was requested"
     )
-    categories: list[LayerResult] | None = Field(
+    categories: list[CategoryResult] | None = Field(
         None, description="The list of results if layers were requested"
     )
 
