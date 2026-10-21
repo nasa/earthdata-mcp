@@ -1,11 +1,13 @@
 """Harmony get transformation options tool."""
 
 import logging
-import harmony
 
-from langfuse import observe
+import harmony
+from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token
-from models.tools.get_transformation_options import GetTransformationOptionsInput, GetTransformationOptionsOutput
+from langfuse import observe
+
+from models.tools.get_transformation_options import GetTransformationOptionsInput
 from util.harmony.client import get_client
 from util.langfuse import trace_update
 
@@ -39,10 +41,7 @@ def get_transformation_options(
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_transformation_options input validation failed: %s", exc)
-        return GetTransformationOptionsOutput(
-            code=type(exc).__name__,
-            description=str(exc)
-        ).model_dump()
+        raise ToolError(f"get_transformation_options {type(exc).__name__}: {str(exc)}") from exc
 
     kwargs = {}
     if collection_concept_id:
@@ -60,9 +59,6 @@ def get_transformation_options(
         result = client.submit(request)
     except Exception as exc:
         logger.error("Error communicating with Harmony API: %s", exc, exc_info=True)
-        return GetTransformationOptionsOutput(
-            code=type(exc).__name__,
-            description=f"Failed to fetch capabilities from Harmony: {str(exc)}"
-        ).model_dump()
+        raise ToolError(f"get_transformation_options {type(exc).__name__}: {str(exc)}") from exc
 
     return result

@@ -4,7 +4,8 @@ import importlib
 import importlib.util
 import sys
 from pathlib import Path
-from unittest.mock import mock_open, Mock, patch
+from unittest.mock import Mock, mock_open, patch
+
 import pytest
 
 import server

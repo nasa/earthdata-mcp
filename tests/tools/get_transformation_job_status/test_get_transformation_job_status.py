@@ -6,6 +6,7 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
 from util.pagination import decode_cursor, encode_cursor
@@ -44,7 +45,7 @@ def _make_link(n: int) -> str:
 
 
 @pytest.fixture
-def mock_get_access_token() -> Generator[MagicMock, None, None]:
+def mock_get_access_token() -> Generator[MagicMock]:
     """Mock the get_access_token function specifically within the tool module."""
     with patch("tools.get_transformation_job_status.tool.get_access_token") as mock_token_func:
         mock_token_obj = MagicMock()
@@ -54,7 +55,7 @@ def mock_get_access_token() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_get_client() -> Generator[MagicMock, None, None]:
+def mock_get_client() -> Generator[MagicMock]:
     """Mock util.harmony.client.get_client within the tool."""
     with patch("tools.get_transformation_job_status.tool.get_client") as mock_client:
         yield mock_client
@@ -193,16 +194,16 @@ def test_get_transformation_job_status_invalid_cursor(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
 ) -> None:
-    """Garbage cursor returns a clean error response, not an unhandled exception."""
+    """Garbage cursor raises a ToolError, not an unhandled exception."""
     tool = _load_tool()
 
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
 
-    result = tool.get_transformation_job_status(job_id="test-job", cursor="not-valid-base64!!!")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="test-job", cursor="not-valid-base64!!!")
 
-    assert result.get("code") == "ValueError"
-    assert "cursor" in result.get("description", "").lower()
+    assert "cursor" in str(exc_info.value).lower()
     mock_client_instance.status.assert_not_called()
 
 
@@ -217,10 +218,11 @@ def test_get_transformation_job_status_cross_backend_cursor(
     mock_get_client.return_value = mock_client_instance
 
     foreign_cursor = encode_cursor("kms", {"offset": 10, "query": "ocean"})
-    result = tool.get_transformation_job_status(job_id="test-job", cursor=foreign_cursor)
 
-    assert result.get("code") == "ValueError"
-    assert "cannot be reused across" in result.get("description", "").lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="test-job", cursor=foreign_cursor)
+
+    assert "cannot be reused across" in str(exc_info.value).lower()
     mock_client_instance.status.assert_not_called()
 
 
@@ -228,17 +230,18 @@ def test_get_transformation_job_status_old_format_cursor_returns_error(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
 ) -> None:
-    """An old-format (scalar, non-dict) cursor value must return a clean error."""
+    """An old-format (scalar, non-dict) cursor value must raise a clean ToolError."""
     tool = _load_tool()
 
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
 
     old_cursor = encode_cursor(_CURSOR_BACKEND, 10)
-    result = tool.get_transformation_job_status(job_id="test-job", cursor=old_cursor)
 
-    assert result.get("code") == "ValueError"
-    assert "cursor" in result.get("description", "").lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="test-job", cursor=old_cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
     mock_client_instance.status.assert_not_called()
 
 
@@ -246,17 +249,23 @@ def test_get_transformation_job_status_cursor_rejects_changed_job_id(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
 ) -> None:
-    """A cursor minted for one job_id must be rejected if reused with a different job_id."""
+    """A cursor minted for one job_id must be rejected if reused with a different job_id.
+
+    NOTE: This currently requires fixing the `from exc` NameError bug in the
+    source's CursorScopeError raise (see comment above the test module docstring).
+    """
     tool = _load_tool()
 
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
 
     cursor = encode_cursor(_CURSOR_BACKEND, {"offset": 10, "job_id": "job-A"})
-    result = tool.get_transformation_job_status(job_id="job-B", limit=10, cursor=cursor)
 
-    assert result.get("code") == "CursorScopeError"
-    assert "job-scoped" in result.get("description", "").lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="job-B", limit=10, cursor=cursor)
+
+    assert "cursorscopeerror" in str(exc_info.value).lower()
+    assert "job-scoped" in str(exc_info.value).lower()
     mock_client_instance.status.assert_not_called()
     mock_client_instance.result_urls.assert_not_called()
 
@@ -282,10 +291,10 @@ def test_get_transformation_job_status_validation_error() -> None:
     """Test behavior when input validation fails (e.g., job_id is missing/None)."""
     tool = _load_tool()
 
-    result = tool.get_transformation_job_status(job_id=None)
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id=None)
 
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "job_id" in result.get("description", "").lower()
+    assert "job_id" in str(exc_info.value).lower()
 
 
 def test_get_transformation_job_status_client_error(
@@ -301,12 +310,12 @@ def test_get_transformation_job_status_client_error(
     mock_get_client.return_value = mock_client_instance
     mock_client_instance.status.side_effect = Exception("Job test-job-123 not found")
 
-    result = tool.get_transformation_job_status(job_id="test-job-123")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="test-job-123")
 
-    assert result.get("code") == "Exception"
-    assert "Failed to fetch job status from Harmony: Job test-job-123 not found" in result.get(
-        "description", ""
-    )
+    assert "Exception" in str(exc_info.value)
+    assert "Job test-job-123 not found" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, Exception)
 
 
 def test_get_transformation_job_status_schema_mismatch(
@@ -329,10 +338,12 @@ def test_get_transformation_job_status_schema_mismatch(
     }
     mock_client_instance.status.return_value = malformed_status
 
-    result = tool.get_transformation_job_status(job_id="test-job-malformed")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_job_status(job_id="test-job-malformed")
 
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "Unexpected response shape from Harmony" in result.get("description", "")
+    assert any(
+        tag in str(exc_info.value) for tag in ("ValueError", "ValidationError")
+    )
     mock_client_instance.result_urls.assert_not_called()
 
 

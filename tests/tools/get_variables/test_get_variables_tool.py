@@ -3,6 +3,9 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+from fastmcp.exceptions import ToolError
+
 import util.cmr.search_tools as _search_tools_mod
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
@@ -20,13 +23,13 @@ def _patch_search_cmr(monkeypatch, tool_module, fake_fn):
 
 
 def test_get_variables_input_validation_missing_args(monkeypatch):
-    """Test get_variables fails when neither collection_concept_id nor keyword is provided."""
+    """Test get_variables raises ToolError when neither collection_concept_id nor keyword is provided."""
     tool = _load_tool()
 
-    result = tool.get_variables()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables()
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "Must provide either a collection_concept_id or a keyword" in result["error_message"]
+    assert "Must provide either a collection_concept_id or a keyword" in str(exc_info.value)
 
 
 def test_get_variables_success_keyword(monkeypatch):
@@ -273,7 +276,7 @@ def test_get_variables_no_results(monkeypatch):
 
 
 def test_get_variables_cmr_error(monkeypatch):
-    """Test get_variables handling of CMR API errors."""
+    """Test get_variables raises ToolError on CMR API errors."""
     tool = _load_tool()
 
     def fake_search_cmr(**kwargs):
@@ -282,14 +285,14 @@ def test_get_variables_cmr_error(monkeypatch):
 
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-    result = tool.get_variables(keyword="SST")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="SST")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "CMR API is down" in result["error_message"]
+    assert "CMR API is down" in str(exc_info.value)
 
 
 def test_get_variables_returns_error_on_unexpected_failure(monkeypatch):
-    """Test unexpected internal error handling."""
+    """Test unexpected internal error handling raises a ToolError."""
     tool = _load_tool()
 
     def fake_search_cmr(**kwargs):
@@ -298,10 +301,10 @@ def test_get_variables_returns_error_on_unexpected_failure(monkeypatch):
 
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-    result = tool.get_variables(keyword="SST")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="SST")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "unexpected internal error" in result["error_message"]
+    assert "unexpected internal error" in str(exc_info.value).lower()
 
 
 def test_get_variables_calls_trace_update(monkeypatch):
@@ -322,7 +325,7 @@ def test_get_variables_calls_trace_update(monkeypatch):
 
 
 def test_get_variables_collection_cmr_error(monkeypatch):
-    """Test get_variables handling of CMRError during collection lookup."""
+    """Test get_variables raises ToolError on CMRError during collection lookup."""
     tool = _load_tool()
 
     def fake_search_cmr(**kwargs):
@@ -331,14 +334,14 @@ def test_get_variables_collection_cmr_error(monkeypatch):
 
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-    result = tool.get_variables(collection_concept_id="C99999-PROV")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(collection_concept_id="C99999-PROV")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "Collection search failed" in result["error_message"]
+    assert "Collection search failed" in str(exc_info.value)
 
 
 def test_get_variables_collection_unexpected_error(monkeypatch):
-    """Test get_variables handling of unexpected error during collection lookup."""
+    """Test get_variables raises ToolError on unexpected error during collection lookup."""
     tool = _load_tool()
 
     def fake_search_cmr(**kwargs):
@@ -347,10 +350,10 @@ def test_get_variables_collection_unexpected_error(monkeypatch):
 
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-    result = tool.get_variables(collection_concept_id="C99999-PROV")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(collection_concept_id="C99999-PROV")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "unexpected internal error occurred during collection lookup" in result["error_message"]
+    assert "unexpected internal error occurred during collection lookup" in str(exc_info.value)
 
 
 def test_get_variables_collection_empty_items(monkeypatch):
@@ -535,24 +538,25 @@ def test_get_variables_pagination_second_page(monkeypatch):
 
 
 def test_get_variables_invalid_cursor(monkeypatch):
-    """Test get_variables returns error for an invalid cursor."""
+    """Test get_variables raises a ToolError for an invalid cursor."""
     tool = _load_tool()
 
-    result = tool.get_variables(keyword="SST", cursor="not-valid-base64!!!")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="SST", cursor="not-valid-base64!!!")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "Invalid pagination cursor" in result["error_message"]
+    assert "Invalid pagination cursor" in str(exc_info.value)
 
 
 def test_get_variables_cross_backend_cursor(monkeypatch):
-    """Test get_variables returns error if cursor is for wrong backend."""
+    """Test get_variables raises a ToolError if cursor is for wrong backend."""
     tool = _load_tool()
 
     kms_cursor = encode_cursor("kms", "some-token")
-    result = tool.get_variables(keyword="SST", cursor=kms_cursor)
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "not valid for this tool" in result["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="SST", cursor=kms_cursor)
+
+    assert "not valid for this tool" in str(exc_info.value)
 
 
 def test_get_variables_fields_filter(monkeypatch):
@@ -591,19 +595,19 @@ def test_get_variables_fields_filter(monkeypatch):
 
 
 def test_get_variables_old_format_cursor_returns_error(monkeypatch):
-    """An old-format (scalar string) cursor must return a clean error."""
+    """An old-format (scalar string) cursor must raise a clean ToolError."""
     tool = _load_tool()
 
     old_cursor = encode_cursor("cmr", "some-legacy-token")
-    result = tool.get_variables(keyword="SST", cursor=old_cursor)
 
-    assert result["status"] == SearchStatus.ERROR
-    assert result["next_cursor"] is None
-    assert "outdated" in result["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="SST", cursor=old_cursor)
+
+    assert "outdated" in str(exc_info.value).lower()
 
 
 def test_get_variables_cursor_ignores_changed_params(monkeypatch):
-    """When cursor is present, stored params are used and incoming keyword ignored."""
+    """When cursor is present, changing the keyword param must raise a ToolError."""
     tool = _load_tool()
 
     var_page = CMRSearchResponse(
@@ -622,6 +626,8 @@ def test_get_variables_cursor_ignores_changed_params(monkeypatch):
     _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     cursor = encode_cursor("cmr", {"token": "tok-v1", "params": {"keyword": "original"}})
-    output = tool.get_variables(keyword="changed", cursor=cursor)
-    assert output["status"] == "error"
-    assert "query-scoped" in output["error_message"].lower()
+
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_variables(keyword="changed", cursor=cursor)
+
+    assert "query-scoped" in str(exc_info.value).lower()

@@ -2,6 +2,7 @@
 
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -146,11 +147,10 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
                     normalized_cursor[k] = sorted(v)
 
             if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
-                return GetGranulesOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    next_cursor=None,
-                ).model_dump()
+                raise ToolError(
+                    "get_granules CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
 
             search_params = cursor_value.get("params", {})
             if spatial_wkt:
@@ -170,18 +170,17 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
             ),
             None,
         )
+    except ToolError:
+        raise
     except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Granule search failed: %s", exc)
-        return GetGranulesOutput(
-            status=SearchStatus.ERROR,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
+        raise ToolError(f"get_granules {type(exc).__name__}: {str(exc)}") from exc
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during granule search")
-        return GetGranulesOutput(
-            status=SearchStatus.ERROR,
-            error_message="An unexpected internal error occurred during granule search.",
-        ).model_dump()
+        raise ToolError(
+            "get_granules InternalError: An unexpected internal error occurred "
+            "during granule search."
+        ) from exc
 
     if page is None:
         return GetGranulesOutput(status=SearchStatus.NO_RESULTS).model_dump()

@@ -2,6 +2,7 @@
 
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -159,11 +160,10 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
                     normalized_cursor[k] = sorted(v)
 
             if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
-                return GetCollectionsOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    next_cursor=None,
-                ).model_dump()
+                raise ToolError(
+                    "get_collections CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
 
             if spatial_wkt:
                 files = build_spatial_files(spatial_wkt)
@@ -185,18 +185,17 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
             ),
             None,
         )
+    except ToolError:
+        raise
     except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Collection search failed: %s", exc)
-        return GetCollectionsOutput(
-            status=SearchStatus.ERROR,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
+        raise ToolError(f"get_collections {type(exc).__name__}: {str(exc)}") from exc
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during collection search")
-        return GetCollectionsOutput(
-            status=SearchStatus.ERROR,
-            error_message="An unexpected internal error occurred during collection search.",
-        ).model_dump()
+        raise ToolError(
+            "get_collections InternalError: An unexpected internal error occurred "
+            "during collection search."
+        ) from exc
 
     if page is None:
         return GetCollectionsOutput(status=SearchStatus.NO_RESULTS).model_dump()

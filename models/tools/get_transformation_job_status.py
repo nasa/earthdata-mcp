@@ -3,8 +3,9 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
-from models.tools.harmony import BaseHarmonyToolOutput
+
 from models.pagination import CursorParam, FieldsParam, LimitParam
+
 
 class GetTransformationJobStatusInput(BaseModel):
     """Input model for the get_transformation_job_status MCP tool."""
@@ -17,7 +18,7 @@ class GetTransformationJobStatusInput(BaseModel):
     fields: FieldsParam
 
 
-class GetTransformationJobStatusOutput(BaseHarmonyToolOutput):
+class GetTransformationJobStatusOutput(BaseModel):
     """Output model for the get_transformation_job_status MCP tool."""
 
     job_id: str | None = Field(
@@ -25,47 +26,47 @@ class GetTransformationJobStatusOutput(BaseHarmonyToolOutput):
         description="Unique identifier (UUID) for the job"
     )
     status: str | None = Field(
-        default=None, 
+        default=None,
         description="Current status of the job (e.g., 'running', 'successful', 'failed', 'canceled')."
     )
     message: str | None = Field(
-        default=None, 
+        default=None,
         description="Human-readable message regarding the job status."
     )
     progress: int | float | None = Field(
-        default=None, 
+        default=None,
         description="Progress percentage of the job (0-100)."
     )
     created_at: datetime | None = Field(
-        default=None, 
+        default=None,
         description="UTC timestamp (ISO 8601) when the job was created."
     )
     updated_at: datetime | None = Field(
-        default=None, 
+        default=None,
         description="UTC timestamp (ISO 8601) when the job was last updated."
     )
     created_at_local: datetime | None = Field(
-        default=None, 
+        default=None,
         description="Local timestamp (ISO 8601) when the job was created."
     )
     updated_at_local: datetime | None = Field(
-        default=None, 
+        default=None,
         description="Local timestamp (ISO 8601) when the job was last updated."
     )
     request: str | None = Field(
-        default=None, 
+        default=None,
         description="The original Harmony request URL with parameters."
     )
     num_input_granules: int | None = Field(
-        default=None, 
+        default=None,
         description="Total number of input granules processed by the job."
     )
     data_expiration: datetime | None = Field(
-        default=None, 
+        default=None,
         description="UTC timestamp (ISO 8601) when the job's data will expire."
     )
     data_expiration_local: datetime | None = Field(
-        default=None, 
+        default=None,
         description="Local timestamp (ISO 8601) when the job's data will expire."
     )
     links: list[str] = Field(

@@ -3,6 +3,9 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+from fastmcp.exceptions import ToolError
+
 import util.cmr.search_tools as _search_tools_mod
 from util.cmr.client import CMRError, CMRSearchResponse
 from util.pagination import decode_cursor, encode_cursor
@@ -218,10 +221,10 @@ class TestGetServicesNoResults:
 
 
 class TestGetServicesErrors:
-    """Tests for error-response scenarios."""
+    """Tests for ToolError-raising scenarios."""
 
     def test_returns_error_on_collection_cmr_error(self, monkeypatch):
-        """Should return status='error' when the collection lookup raises CMRError."""
+        """Should raise ToolError when the collection lookup raises CMRError."""
         tool = _load_tool()
 
         def fake_search_cmr(**kwargs):
@@ -230,13 +233,13 @@ class TestGetServicesErrors:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        output = tool.get_services(collection_concept_id="C1-PROV")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV")
 
-        assert output["status"] == "error"
-        assert "Collection lookup failed" in output["error_message"]
+        assert "Collection lookup failed" in str(exc_info.value)
 
     def test_returns_error_on_service_cmr_error(self, monkeypatch):
-        """Should return status='error' when the service search raises CMRError."""
+        """Should raise ToolError when the service search raises CMRError."""
         tool = _load_tool()
 
         def fake_search_cmr(**kwargs):
@@ -248,23 +251,22 @@ class TestGetServicesErrors:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        output = tool.get_services(collection_concept_id="C1-PROV")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV")
 
-        assert output["status"] == "error"
-        assert "Service fetch failed" in output["error_message"]
+        assert "Service fetch failed" in str(exc_info.value)
 
     def test_returns_error_on_input_validation(self, monkeypatch):
-        """Should return status='error' when input validation fails."""
+        """Should raise ToolError when input validation fails."""
         tool = _load_tool()
 
-        output = tool.get_services(collection_concept_id="invalid_format")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="invalid_format")
 
-        assert output["status"] == "error"
-        assert "error_message" in output
-        assert "Invalid collection concept ID format" in output["error_message"]
+        assert "Invalid collection concept ID format" in str(exc_info.value)
 
     def test_returns_error_on_unexpected_collection_error(self, monkeypatch):
-        """Should return status='error' when an unexpected Exception occurs during collection lookup."""
+        """Should raise ToolError when an unexpected Exception occurs during collection lookup."""
         tool = _load_tool()
 
         def fake_search_cmr(**kwargs):
@@ -273,16 +275,16 @@ class TestGetServicesErrors:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        output = tool.get_services(collection_concept_id="C1-PROV")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV")
 
-        assert output["status"] == "error"
         assert (
-            output["error_message"]
-            == "An unexpected internal error occurred during collection lookup."
+            "an unexpected internal error occurred during collection lookup"
+            in str(exc_info.value).lower()
         )
 
     def test_returns_error_on_unexpected_service_error(self, monkeypatch):
-        """Should return status='error' when an unexpected Exception occurs during service lookup."""
+        """Should raise ToolError when an unexpected Exception occurs during service lookup."""
         tool = _load_tool()
 
         def fake_search_cmr(**kwargs):
@@ -294,11 +296,12 @@ class TestGetServicesErrors:
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
-        output = tool.get_services(collection_concept_id="C1-PROV")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV")
 
-        assert output["status"] == "error"
         assert (
-            output["error_message"] == "An unexpected internal error occurred during service fetch."
+            "an unexpected internal error occurred during service fetch"
+            in str(exc_info.value).lower()
         )
 
 
@@ -311,7 +314,7 @@ def test_get_services_calls_trace_update(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     with patch.object(tool, "trace_update") as mock_trace_update:
         tool.get_services(collection_concept_id="C1-PROV")
@@ -356,13 +359,13 @@ class TestGetServicesNewParams:
         assert captured["service"]["search_params"] == {"type": "OPeNDAP"}
 
     def test_get_services_no_args_error(self, monkeypatch):
-        """Calling with no args should return error with 'at least one' in the message."""
+        """Calling with no args should raise a ToolError with 'at least one' in the message."""
         tool = _load_tool()
 
-        output = tool.get_services()
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services()
 
-        assert output["status"] == "error"
-        assert "at least one" in output["error_message"].lower()
+        assert "at least one" in str(exc_info.value).lower()
 
     def test_get_services_pagination_first_page(self, monkeypatch):
         """limit=2 with 3 service IDs: next_cursor should be set when page has search_after."""
@@ -413,25 +416,24 @@ class TestGetServicesNewParams:
         assert captured["service"]["search_after"] == "tok-abc"
 
     def test_get_services_invalid_cursor(self, monkeypatch):
-        """An invalid cursor string should return an error with 'cursor' in the message."""
+        """An invalid cursor string should raise a ToolError with 'cursor' in the message."""
         tool = _load_tool()
 
-        output = tool.get_services(collection_concept_id="C1-PROV", cursor="!!!invalid!!!")
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV", cursor="!!!invalid!!!")
 
-        assert output["status"] == "error"
-        assert "cursor" in output["error_message"].lower()
-        assert output["next_cursor"] is None
+        assert "cursor" in str(exc_info.value).lower()
 
     def test_get_services_cross_backend_cursor(self, monkeypatch):
-        """A cursor from a different backend should return an error."""
+        """A cursor from a different backend should raise a ToolError."""
         tool = _load_tool()
 
         cursor = encode_cursor("kms", 10)
-        output = tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
 
-        assert output["status"] == "error"
-        assert "cursor" in output["error_message"].lower()
-        assert output["next_cursor"] is None
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV", cursor=cursor)
+
+        assert "cursor" in str(exc_info.value).lower()
 
     def test_get_services_new_fields(self, monkeypatch):
         """service_keywords and service_organizations should be normalized from UMM-S."""
@@ -459,17 +461,18 @@ class TestGetServicesNewParams:
         ]
 
     def test_get_services_old_format_cursor_returns_error(self, monkeypatch):
-        """An old-format (scalar string) cursor must return a clean error."""
+        """An old-format (scalar string) cursor must raise a clean ToolError."""
         tool = _load_tool()
 
         old_cursor = encode_cursor("cmr", "some-legacy-token")
-        output = tool.get_services(collection_concept_id="C1-PROV", cursor=old_cursor)
 
-        assert output["status"] == "error"
-        assert output["next_cursor"] is None
-        assert "outdated" in output["error_message"].lower()
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(collection_concept_id="C1-PROV", cursor=old_cursor)
+
+        assert "outdated" in str(exc_info.value).lower()
 
     def test_get_services_cursor_override(self, monkeypatch):
+        """Ensure changing query parameters on page 2 rejects the cursor."""
         tool = _load_tool()
         from util.pagination import encode_cursor
 
@@ -481,9 +484,11 @@ class TestGetServicesNewParams:
                 "inputs": {"keyword": "original"},
             },
         )
-        res = tool.get_services(keyword="changed", cursor=cursor)
-        assert res["status"] == "error"
-        assert "query-scoped" in res["error_message"]
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_services(keyword="changed", cursor=cursor)
+
+        assert "query-scoped" in str(exc_info.value).lower()
 
     def test_get_services_phase1_skipped_on_page2(self, monkeypatch):
         """Page 2 with cursor must not perform the Phase 1 collection lookup."""
@@ -510,56 +515,9 @@ class TestGetServicesNewParams:
 
 
 def test_get_services_validation_error():
+    """limit=100 should trigger an input validation ToolError."""
     from tools.get_services.tool import get_services
 
-    res = get_services(
-        collection_concept_id="C123-PROV", limit=100
-    )  # limit=100 triggers validation error
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_services(collection_concept_id="C123-PROV", limit=100)
 
-
-def test_get_services_cursor_post():
-    from unittest.mock import patch
-
-    from tools.get_services.tool import get_services
-
-    # Line 195 is the bare except block. Force an exception during field application or dict conversion
-    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
-        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
-        # Should not crash but return error status
-        assert res["status"] == "error"
-
-
-def test_get_services_bare_except():
-    from unittest.mock import patch
-
-    from tools.get_services.tool import get_services
-
-    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
-        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
-        assert res["status"] == "error"
-
-
-def test_get_services_bare_except_coverage():
-    from unittest.mock import patch
-
-    from tools.get_services.tool import get_services
-
-    with patch("tools.get_services.tool.apply_field_filter", side_effect=Exception("Crash")):
-        res = get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
-        assert res["status"] == "error"
-
-
-def test_get_services_apply_field_filter_error():
-    from unittest.mock import patch
-
-    from tools.get_services.tool import get_services
-
-    with patch(
-        "tools.get_services.tool.apply_field_filter", side_effect=Exception("mock field error")
-    ):
-        get_services(collection_concept_id="C1-PROV", fields=["concept_id"])
-        # It's not a try/except, it just throws if it crashes, or maybe it is caught in the MCP wrapper.
-        # But let's check if there's a bare except in the tool.
-        # Wait, 195 is the `return response_dict` line! It's just not getting hit if `apply_field_filter` throws!
-        # Ah, the bare except is at line 195 in the tool? Let's verify line 195.

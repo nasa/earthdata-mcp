@@ -6,9 +6,9 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
-
 
 # Mock status response returned by client.status() right after submission.
 MOCK_STATUS_RESPONSE = {
@@ -35,7 +35,7 @@ def _load_tool() -> types.ModuleType:
 
 
 @pytest.fixture
-def mock_get_access_token() -> Generator[MagicMock, None, None]:
+def mock_get_access_token() -> Generator[MagicMock]:
     """Mock the get_access_token function specifically within the tool module."""
     with patch("tools.submit_transformation_job.tool.get_access_token") as mock_token_func:
         mock_token_obj = MagicMock()
@@ -45,28 +45,28 @@ def mock_get_access_token() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_get_client() -> Generator[MagicMock, None, None]:
+def mock_get_client() -> Generator[MagicMock]:
     """Mock util.harmony.client.get_client within the tool."""
     with patch("tools.submit_transformation_job.tool.get_client") as mock_client:
         yield mock_client
 
 
 @pytest.fixture
-def mock_harmony_request() -> Generator[MagicMock, None, None]:
+def mock_harmony_request() -> Generator[MagicMock]:
     """Mock harmony.Request to avoid triggering real harmony-py logic."""
     with patch("tools.submit_transformation_job.tool.harmony.Request") as mock_req:
         yield mock_req
 
 
 @pytest.fixture
-def mock_harmony_collection() -> Generator[MagicMock, None, None]:
+def mock_harmony_collection() -> Generator[MagicMock]:
     """Mock harmony.Collection."""
     with patch("tools.submit_transformation_job.tool.harmony.Collection") as mock_coll:
         yield mock_coll
 
 
 @pytest.fixture
-def mock_harmony_bbox() -> Generator[MagicMock, None, None]:
+def mock_harmony_bbox() -> Generator[MagicMock]:
     """Mock harmony.BBox."""
     with patch("tools.submit_transformation_job.tool.harmony.BBox") as mock_bbox:
         yield mock_bbox
@@ -186,10 +186,11 @@ def test_submit_transformation_job_invalid_bbox_length() -> None:
     tool = _load_tool()
 
     # Pass only 3 values instead of 4
-    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV", bbox=[-10.0, -20.0, 10.0])
+    with pytest.raises(ToolError) as exc_info:
+        tool.submit_transformation_job(collection_concept_id="C12345-PROV", bbox=[-10.0, -20.0, 10.0])
 
-    assert result.get("code") == "ValueError"
-    assert "bbox must have exactly 4 values" in result.get("description", "")
+    assert "ValueError" in str(exc_info.value)
+    assert "bbox must have exactly 4 values" in str(exc_info.value)
 
 
 def test_submit_transformation_job_invalid_temporal_date() -> None:
@@ -202,22 +203,22 @@ def test_submit_transformation_job_invalid_temporal_date() -> None:
     tool = _load_tool()
 
     # Pass garbage date string
-    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV", temporal_start="not-a-real-date")
+    with pytest.raises(ToolError) as exc_info:
+        tool.submit_transformation_job(collection_concept_id="C12345-PROV", temporal_start="not-a-real-date")
 
-    assert result.get("code") == "ParserError"
-    assert "Invalid date format" in result.get("description", "")
+    assert "ParserError" in str(exc_info.value)
+    assert "Invalid date format" in str(exc_info.value)
 
 
 def test_submit_transformation_job_missing_collection_concept_id() -> None:
     """Test behavior when input validation fails due to missing required parameter."""
     tool = _load_tool()
 
-    # Act
-    result = tool.submit_transformation_job(collection_concept_id=None)
+    # Act / Assert
+    with pytest.raises(ToolError) as exc_info:
+        tool.submit_transformation_job(collection_concept_id=None)
 
-    # Assert
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "collection_id" in result.get("description", "").lower()
+    assert "collection_id" in str(exc_info.value).lower()
 
 
 def test_submit_transformation_job_client_error(
@@ -235,12 +236,14 @@ def test_submit_transformation_job_client_error(
     # Simulate an error from the Harmony API during submit
     mock_client_instance.submit.side_effect = Exception("Service Unavailable")
 
-    # Act
-    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV")
+    # Act / Assert
+    with pytest.raises(ToolError) as exc_info:
+        tool.submit_transformation_job(collection_concept_id="C12345-PROV")
 
-    # Assert
-    assert result.get("code") == "Exception"
-    assert "Failed to submit request to Harmony: Service Unavailable" in result.get("description", "")
+    assert "Exception" in str(exc_info.value)
+    assert "Service Unavailable" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, Exception)
+
 
 def test_submit_transformation_job_schema_mismatch(
     mock_get_client: MagicMock,
@@ -265,12 +268,13 @@ def test_submit_transformation_job_schema_mismatch(
     mock_coll_instance = MagicMock()
     mock_harmony_collection.return_value = mock_coll_instance
 
-    result = tool.submit_transformation_job(collection_concept_id="C12345-PROV")
+    with pytest.raises(ToolError) as exc_info:
+        tool.submit_transformation_job(collection_concept_id="C12345-PROV")
 
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "Unexpected response shape from Harmony" in result.get("description", "")
+    assert any(tag in str(exc_info.value) for tag in ("ValueError", "ValidationError"))
     mock_client_instance.submit.assert_called_once_with(mock_req_instance)
     mock_client_instance.status.assert_called_once_with(MOCK_JOB_ID)
+
 
 def test_submit_transformation_job_calls_trace_update(
     mock_get_client: MagicMock,
@@ -288,5 +292,6 @@ def test_submit_transformation_job_calls_trace_update(
 
     with patch.object(tool, "trace_update") as mock_trace_update:
         tool.submit_transformation_job(collection_concept_id="C123")
+
 
     assert mock_trace_update.called

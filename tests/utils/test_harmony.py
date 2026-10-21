@@ -4,8 +4,8 @@ import importlib
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
 import harmony
+import pytest
 
 
 def _load_module() -> types.ModuleType:

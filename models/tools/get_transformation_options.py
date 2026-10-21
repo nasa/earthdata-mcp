@@ -17,7 +17,6 @@ in sync with these models; it is intentionally not exposed as a tool input.
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from models.tools.harmony import BaseHarmonyToolOutput
 
 CollectionIdParam = Annotated[
     str | None,
@@ -188,7 +187,7 @@ class GetTransformationOptionsInput(BaseModel):
         return self
 
 
-class GetTransformationOptionsOutput(BaseHarmonyToolOutput):
+class GetTransformationOptionsOutput(BaseModel):
     """Output model for get_transformation_options (version 3 response format)."""
 
     concept_id: str | None  = Field(default=None, alias="conceptId", description="Concept ID of the collection")

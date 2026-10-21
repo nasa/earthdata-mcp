@@ -10,7 +10,6 @@ from fastmcp.exceptions import ToolError
 
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
 
-
 # Mock status response returned by client.status() after a control action.
 MOCK_STATUS_RESPONSE = {
     "code": None,
@@ -36,7 +35,7 @@ def _load_tool() -> types.ModuleType:
 
 
 @pytest.fixture
-def mock_get_access_token() -> Generator[MagicMock, None, None]:
+def mock_get_access_token() -> Generator[MagicMock]:
     """Mock the get_access_token function specifically within the tool module."""
     with patch("tools.control_transformation_job.tool.get_access_token") as mock_token_func:
         mock_token_obj = MagicMock()
@@ -46,7 +45,7 @@ def mock_get_access_token() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_get_client() -> Generator[MagicMock, None, None]:
+def mock_get_client() -> Generator[MagicMock]:
     """Mock util.harmony.client.get_client within the tool."""
     with patch("tools.control_transformation_job.tool.get_client") as mock_client:
         yield mock_client
