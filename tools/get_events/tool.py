@@ -44,38 +44,41 @@ def _build_response_dict(endpoint: str, results: dict):
             event_list = []
             event_category_list = []
             layer_list = []
-            for event in results["events"]:
-                for event_category in results["categories"]:
-                    for layer in event_category["layers"]:
-                        layer_list.append(
-                            LayerResult(
-                                name=layer["name"],
-                                serviceUrl=layer["serviceUrl"],
-                                serviceTypeId=layer["serviceTypeId"],
-                                parameters=layer["parameters"],
+            if "events" in results:
+                for event in results["events"]:
+                    if "categories" in event:
+                        for event_category in event["categories"]:
+                            if "layers" in event_category:
+                                for layer in event_category["layers"]:
+                                    layer_list.append(
+                                        LayerResult(
+                                            name=layer["name"] if "name" in layer else "",
+                                            serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
+                                            serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
+                                            parameters=layer["parameters"] if "parameters" in layer else [],
+                                        )
+                                    )
+                            event_category_list.append(
+                                CategoryResult(
+                                    id=event_category["id"] if "id" in event_category else None,
+                                    title=event_category["title"] if "title" in event_category else "",
+                                    link=event_category["link"] if "link" in event_category else "",
+                                    description=event_category["description"] if "description" in event_category else "",
+                                    layers=layer_list,
+                                )
                             )
-                        )
-                    event_category_list.append(
-                        CategoryResult(
-                            id=event_category["id"],
-                            title=event_category["title"],
-                            link=event_category["link"],
-                            description=event_category["description"],
-                            layers=layer_list,
+                    event_list.append(
+                        EventResult(
+                            id=event["id"] if "id" in event else "",
+                            title=event["title"] if "title" in event else "",
+                            description=event["description"] if "description" in event else "",
+                            link=event["link"] if "link" in event else "",
+                            closed=event["closed"] if "closed" in event else "",
+                            categories=event_category_list,
+                            sources=event["sources"] if "sources" in event else [],
+                            geometry=event["geometry"] if "geometry" in event else [],
                         )
                     )
-                event_list.append(
-                    EventResult(
-                        id=event["id"],
-                        title=event["title"],
-                        description=event["description"],
-                        link=event["link"],
-                        closed=event["closed"],
-                        categories=event_category_list,
-                        sources=event["sources"],
-                        geometry=event["geometry"],
-                    )
-                )
             return GetEventsOutput(
                 status=SearchStatus.SUCCESS,
                 error_message=None,
@@ -86,14 +89,15 @@ def _build_response_dict(endpoint: str, results: dict):
             ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
             feature_list = []
-            for feature in results["features"]:
-                feature_list.append(
-                    GeoJSONResult(
-                        type=feature["type"],
-                        properties=feature["properties"],
-                        geometry=feature["geometry"],
+            if "features" in results:
+                for feature in results["features"]:
+                    feature_list.append(
+                        GeoJSONResult(
+                            type=feature["type"] if "type" in feature else "",
+                            properties=feature["properties"] if "properties" in feature else {},
+                            geometry=feature["geometry"] if "geometry" in feature else {},
+                        )
                     )
-                )
             return GetEventsOutput(
                 status=SearchStatus.SUCCESS,
                 error_message=None,
@@ -103,23 +107,25 @@ def _build_response_dict(endpoint: str, results: dict):
         elif endpoint == Endpoints.LAYERS:
             category_list = []
             category_layer_list = []
-            for category in results["categories"]:
-                for layer in category["layers"]:
-                    category_layer_list.append(
-                        LayerResult(
-                            name=layer["name"],
-                            serviceUrl=layer["serviceUrl"],
-                            serviceTypeId=layer["serviceTypeId"],
-                            parameters=layer["parameters"],
+            if "categories" in results:
+                for category in results["categories"]:
+                    if "layers" in category:
+                        for layer in category["layers"]:
+                            category_layer_list.append(
+                                LayerResult(
+                                    name=layer["name"] if "name" in layer else "",
+                                    serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
+                                    serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
+                                    parameters=layer["parameters"] if "parameters" in layer else [],
+                                )
+                            )
+                    category_list.append(
+                        CategoryResult(
+                            id=category["id"] if "id" in category else None,
+                            title=category["title"] if "title" in category else "",
+                            layers=category_layer_list,
                         )
                     )
-                category_list.append(
-                    CategoryResult(
-                        id=category["id"],
-                        title=category["title"],
-                        layers=category_layer_list,
-                    )
-                )
             return GetEventsOutput(
                 status=SearchStatus.SUCCESS,
                 error_message=None,
@@ -257,4 +263,5 @@ def get_events(
             description="Failed EONET API request",
         ).model_dump()
 
+    logger.info("RESULTS: %s", results)
     return _build_response_dict(endpoint, results)
