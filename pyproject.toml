@@ -8,6 +8,7 @@ readme = "README.md"
 requires-python = "==3.13.0"
 dependencies = [
     "fastmcp>=4",
+    "prefab-ui==0.20.2",  # map/chart cards; FastMCP sets no upper bound, so pin it here
     "earthaccess==0.14.0",
     "starlette>=1.6",
     "uvicorn==0.37.0",
@@ -20,8 +21,6 @@ dependencies = [
     "boto3>=1.28.0",
     "jsonpath-ng>=1.7.0",
     "harmony-py>=1.0",
-    "prefab-ui>=0.20.2",
-    "terra-ui-components>=0.0.202",
 ]
 
 [project.optional-dependencies]
@@ -141,4 +140,5 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.14.0",
     "responses>=0.25.3",
+    "tifffile>=2026.10.15",
 ]
