@@ -2,6 +2,7 @@
 
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -75,11 +76,7 @@ def get_variables(
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_variables input validation failed: %s", exc)
-        return GetVariablesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
+        raise ToolError(f"get_variables {type(exc).__name__}: {str(exc)}") from exc
 
     current_inputs = {
         "collection_concept_id": params.collection_concept_id,
@@ -106,17 +103,12 @@ def get_variables(
                     normalized_cursor[k] = sorted(v)
 
             if normalized_search != normalized_cursor:
-                return GetVariablesOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    next_cursor=None,
-                ).model_dump()
+                raise ToolError(
+                    "get_variables CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
         except ValueError as exc:
-            return GetVariablesOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message=str(exc),
-            ).model_dump()
+            raise ToolError(f"get_variables {type(exc).__name__}: {str(exc)}") from exc
 
     variable_ids: list[str] = []
 
@@ -129,22 +121,17 @@ def get_variables(
                 logger.warning(
                     "Collection lookup failed for %s: %s", params.collection_concept_id, exc
                 )
-                return GetVariablesOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message=str(exc),
-                ).model_dump()
+                raise ToolError(f"get_variables {type(exc).__name__}: {str(exc)}") from exc
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.exception(
                     "Unexpected error during collection lookup for %s: %s",
                     params.collection_concept_id,
                     exc,
                 )
-                return GetVariablesOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message="An unexpected internal error occurred during collection lookup.",
-                ).model_dump()
+                raise ToolError(
+                    "get_variables InternalError: An unexpected internal error occurred "
+                    "during collection lookup."
+                ) from exc
 
             if found_ids is None:
                 return GetVariablesOutput(
@@ -176,20 +163,15 @@ def get_variables(
         )
     except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Variable fetch failed for query %s: %s", search_params, exc)
-        return GetVariablesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
+        raise ToolError(f"get_variables {type(exc).__name__}: {str(exc)}") from exc
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception(
             "Unexpected error during variable fetch for query %s: %s", search_params, exc
         )
-        return GetVariablesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message="An unexpected internal error occurred during variable fetch.",
-        ).model_dump()
+        raise ToolError(
+            "get_variables InternalError: An unexpected internal error occurred "
+            "during variable fetch."
+        ) from exc
 
     if variable_page is None or not variable_page.items:
         if variable_ids:

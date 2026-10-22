@@ -18,7 +18,7 @@ This reference maps Earthdata MCP tool parameters to their corresponding CMR API
 
 > **Note:** All search tools globally support the `limit`, `cursor`, and `fields` parameters for pagination and response filtering. These are omitted from the tables below for brevity.
 
-> **Note on Harmony tools:** Unlike the CMR-backed tools above, the four Harmony transformation tools below do not query CMR's `/search` endpoints or use UMM schemas. They call the [Harmony](https://harmony.earthdata.nasa.gov/) API directly via the official [harmony-py](https://github.com/nasa/harmony-py) client library. Parameter/field tables for these tools reference harmony-py and the Harmony API's own JSON response shapes instead of CMR API parameters and UMM JSON paths. All four share a common `BaseHarmonyToolOutput` base model contributing `code` and `description` fields, populated only when a request fails.
+> **Note on Harmony tools:** Unlike the CMR-backed tools above, the four Harmony transformation tools below do not query CMR's `/search` endpoints or use UMM schemas. They call the [Harmony](https://harmony.earthdata.nasa.gov/) API directly via the official [harmony-py](https://github.com/nasa/harmony-py) client library. Parameter/field tables for these tools reference harmony-py and the Harmony API's own JSON response shapes instead of CMR API parameters and UMM JSON paths.
 >
 > **Authentication required:** Unlike the CMR-backed discovery tools, all four Harmony tools require an authenticated Earthdata Login access token (retrieved via `get_access_token()`) to call Harmony's API on the user's behalf.
 
@@ -315,8 +315,6 @@ Looks up which Harmony operations a collection supports (subsetting, reprojectio
 | ✅ | `services` | `services` | ✅ | Harmony services applicable to the collection, each with `name`, `href` (link to the service's UMM-S record in CMR), and a per-service `capabilities` object (same shape as `summary`) — some capability combinations are only valid on specific services, so check here to determine which combinations a given service supports |
 | ✅ | `variables` | `variables` | ✅ | Variables associated with the collection, each with `name`, `long_name`, `href` (link to the variable's UMM-Var record in CMR), `units`, and `science_keywords` (GCMD Category/Topic/Term/VariableLevel1-3/DetailedVariable) |
 | ✅ | `capabilities_version` | `capabilitiesVersion` | | Version identifier of this capabilities response format (currently pinned to '3') |
-| ✅ | `code` | *(from Harmony error response)* | | Error code if the request failed (inherited from `BaseHarmonyToolOutput`) |
-| ✅ | `description` | *(from Harmony error response)* | | Error description if the request failed (inherited from `BaseHarmonyToolOutput`) |
 
 ---
 
@@ -349,7 +347,7 @@ Submits a Harmony data processing request (subset/reformat/reproject).
 | ❌ | N/A | `labels` | Job labels for organization/tracking |
 
 #### Output Fields
-Same output model as [`get_transformation_job_status`](#get_transformation_job_status) below (`GetTransformationJobStatusOutput`, which itself extends `BaseHarmonyToolOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). Immediately after submission, `status` typically reflects the job's initial state (e.g., `running` or `accepted`) rather than a terminal state, and `links` will typically be empty until the job completes. `code`/`description` are populated only if the submission itself failed.
+Same output model as [`get_transformation_job_status`](#get_transformation_job_status) below (`GetTransformationJobStatusOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). Immediately after submission, `status` typically reflects the job's initial state (e.g., `running` or `accepted`) rather than a terminal state, and `links` will typically be empty until the job completes. `code`/`description` are populated only if the submission itself failed.
 
 ---
 
@@ -386,8 +384,6 @@ Gets the current status, progress percentage, and metadata for a Harmony job.
 | ✅ | `links` | `links` | ✅ | Result/download links for the current page, sliced in-memory from the full job link list once terminal |
 | ✅ | `total_hits` | N/A (computed from full `links` count) | ✅ | Full link count for the job |
 | ✅ | `next_cursor` | N/A (computed, MCP-side) | ✅ | Opaque, job-scoped pagination token for the next page of `links`; `None` when no more results |
-| ✅ | `code` | *(from Harmony error response)* | | Error code if the request failed (inherited from `BaseHarmonyToolOutput`) |
-| ✅ | `description` | *(from Harmony error response)* | | Error description if the request failed (inherited from `BaseHarmonyToolOutput`) |
 
 ---
 
@@ -405,4 +401,4 @@ Cancels, pauses, or resumes a running or paused Harmony transformation job.
 | ✅ | `action` | N/A (dispatches to `cancel()` / `pause()` / `resume()`) | One of `"cancel"`, `"pause"`, or `"resume"`. |
 
 #### Output Fields
-Same output model as [`get_transformation_job_status`](#get_transformation_job_status) (`GetTransformationJobStatusOutput`, which itself extends `BaseHarmonyToolOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). The returned `status` reflects the job's state **immediately after** the requested action is applied (e.g., `canceled`, `paused`, `running`), not a final/terminal outcome if the action triggers further async processing. `code`/`description` are populated if input validation fails, if the control action itself fails (e.g., invalid state transition), or if Harmony's status response doesn't match the expected schema.
+Same output model as [`get_transformation_job_status`](#get_transformation_job_status) (`GetTransformationJobStatusOutput`) — see that section's Output Fields table for the full field list (`job_id`, `status`, `message`, `progress`, `created_at`/`updated_at`, `links`, `total_hits`, `next_cursor`, `code`, `description`, etc.). The returned `status` reflects the job's state **immediately after** the requested action is applied (e.g., `canceled`, `paused`, `running`), not a final/terminal outcome if the action triggers further async processing. `code`/`description` are populated if input validation fails, if the control action itself fails (e.g., invalid state transition), or if Harmony's status response doesn't match the expected schema.

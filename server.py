@@ -11,12 +11,12 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
+from mcp.server.auth.routes import build_resource_metadata_url
+from pydantic import AnyHttpUrl
 from starlette.middleware import Middleware as ASGIMiddleware
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
-from mcp.server.auth.routes import build_resource_metadata_url
 
-from pydantic import AnyHttpUrl
 from loader import load_tools_from_directory
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS

@@ -3,6 +3,9 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+from fastmcp.exceptions import ToolError
+
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
@@ -183,7 +186,7 @@ def test_get_collections_includes_optional_filter_params(monkeypatch):
 
 
 def test_get_collections_returns_error_on_cmr_failure(monkeypatch):
-    """CMR failures should be converted into stable tool errors."""
+    """CMR failures should be converted into a ToolError."""
     tool = _load_tool()
 
     def fake_search_cmr(**_kwargs):
@@ -192,10 +195,10 @@ def test_get_collections_returns_error_on_cmr_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(keyword="modis")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(keyword="modis")
 
-    assert output["status"] == "error"
-    assert output["error_message"] == "CMR request failed"
+    assert "CMR request failed" in str(exc_info.value)
 
 
 def test_get_collections_returns_no_results_when_cmr_yields_nothing(monkeypatch):
@@ -214,7 +217,7 @@ def test_get_collections_returns_no_results_when_cmr_yields_nothing(monkeypatch)
 
 
 def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
-    """Unexpected failures should still return a stable tool error payload."""
+    """Unexpected failures should still raise a stable ToolError."""
     tool = _load_tool()
 
     def fake_search_cmr(**_kwargs):
@@ -223,22 +226,22 @@ def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(keyword="modis")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(keyword="modis")
 
-    assert output["status"] == "error"
-    assert (
-        output["error_message"] == "An unexpected internal error occurred during collection search."
-    )
+    assert "an unexpected internal error occurred during collection search" in str(
+        exc_info.value
+    ).lower()
 
 
 def test_get_collections_returns_error_on_invalid_spatial_wkt():
-    """Invalid WKT should be returned as a stable tool error payload."""
+    """Invalid WKT should raise a ToolError."""
     tool = _load_tool()
 
-    output = tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT((1 2))")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT((1 2))")
 
-    assert output["status"] == "error"
-    assert "Invalid WKT geometry" in output["error_message"]
+    assert "Invalid WKT geometry" in str(exc_info.value)
 
 
 def test_get_collections_calls_trace_update(monkeypatch):
@@ -347,19 +350,19 @@ def test_get_collections_passes_limit_as_page_size(monkeypatch):
 
 
 def test_get_collections_returns_error_on_invalid_cursor(monkeypatch):
-    """An invalid cursor string must produce a clean error response, not an exception."""
+    """An invalid cursor string must raise a clean ToolError, not an unhandled exception."""
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
-    output = tool.get_collections(cursor="this-is-not-a-valid-cursor!@#")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(cursor="this-is-not-a-valid-cursor!@#")
 
-    assert output["status"] == "error"
-    assert "cursor" in output["error_message"].lower()
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_collections_returns_error_on_cross_backend_cursor(monkeypatch):
-    """A KMS cursor passed to get_collections must produce a clean error response."""
+    """A KMS cursor passed to get_collections must raise a clean ToolError."""
     from util.pagination import encode_cursor
 
     tool = _load_tool()
@@ -367,10 +370,11 @@ def test_get_collections_returns_error_on_cross_backend_cursor(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     kms_cursor = encode_cursor("kms", 20)
-    output = tool.get_collections(cursor=kms_cursor)
 
-    assert output["status"] == "error"
-    assert "cursor" in output["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(cursor=kms_cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 # --- field filtering ---
@@ -556,7 +560,7 @@ def test_get_collections_new_response_fields_present(monkeypatch):
 
 
 def test_get_collections_old_format_cursor_returns_error(monkeypatch):
-    """An old-format (scalar value) cursor must return a clean error."""
+    """An old-format (scalar value) cursor must raise a clean ToolError."""
     from util.pagination import encode_cursor
 
     tool = _load_tool()
@@ -564,38 +568,46 @@ def test_get_collections_old_format_cursor_returns_error(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     old_cursor = encode_cursor("cmr", "some-legacy-token")
-    output = tool.get_collections(cursor=old_cursor)
 
-    assert output["status"] == "error"
-    assert "outdated" in output["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(cursor=old_cursor)
+
+    assert "outdated" in str(exc_info.value).lower()
 
 
 def test_get_collections_cursor_override():
+    """Ensure changing query parameters on page 2 rejects the cursor."""
     from tools.get_collections.tool import get_collections
     from util.pagination import encode_cursor
 
     cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
-    res = get_collections(keyword="changed", cursor=cursor)
-    assert res["status"] == "error"
-    assert "query-scoped" in res["error_message"]
+
+    with pytest.raises(ToolError) as exc_info:
+        get_collections(keyword="changed", cursor=cursor)
+
+    assert "query-scoped" in str(exc_info.value).lower()
 
 
 def test_get_collections_validation_error():
+    """limit=100 should trigger an input validation ToolError."""
     from tools.get_collections.tool import get_collections
 
-    res = get_collections(keyword="", limit=100)
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_collections(keyword="", limit=100)
 
 
 def test_get_collections_wkt_error():
+    """Malformed WKT should raise a ToolError mentioning the invalid geometry."""
     from tools.get_collections.tool import get_collections
 
-    res = get_collections(spatial_wkt_geometry="INVALID WKT")
-    assert res["status"] == "error"
-    assert "Invalid WKT" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        get_collections(spatial_wkt_geometry="INVALID WKT")
+
+    assert "Invalid WKT" in str(exc_info.value)
 
 
 def test_get_collections_cursor_post():
+    """A spatial cursor on page 2 should still trigger exactly one search_cmr call."""
     from unittest.mock import patch
 
     from tools.get_collections.tool import get_collections
@@ -608,21 +620,26 @@ def test_get_collections_cursor_post():
 
 
 def test_get_collections_safe_exception_surfacing(monkeypatch):
+    """Known exceptions should surface their message; unknown exceptions must not leak detail."""
     from tools.get_collections.tool import get_collections
 
     def fake_search_value_error(*args, **kwargs):
         raise ValueError("Safe validation error")
 
     monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_value_error)
-    output = get_collections(keyword="modis")
-    assert output["status"] == "error"
-    assert "Safe validation error" in output["error_message"]
+
+    with pytest.raises(ToolError) as exc_info:
+        get_collections(keyword="modis")
+
+    assert "Safe validation error" in str(exc_info.value)
 
     def fake_search_generic_error(*args, **kwargs):
         raise Exception("Fake secret")
 
     monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_generic_error)
-    output = get_collections(keyword="modis")
-    assert output["status"] == "error"
-    assert "Fake secret" not in output["error_message"]
-    assert "unexpected internal error" in output["error_message"].lower()
+
+    with pytest.raises(ToolError) as exc_info:
+        get_collections(keyword="modis")
+
+    assert "Fake secret" not in str(exc_info.value)
+    assert "unexpected internal error" in str(exc_info.value).lower()

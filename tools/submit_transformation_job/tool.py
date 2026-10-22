@@ -1,13 +1,15 @@
 """Harmony submit transformation job tool."""
 
 import logging
+
 import dateutil.parser
 import harmony
-
-from langfuse import observe
+from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token
-from models.tools.submit_transformation_job import SubmitTransformationJobInput
+from langfuse import observe
+
 from models.tools.get_transformation_job_status import GetTransformationJobStatusOutput
+from models.tools.submit_transformation_job import SubmitTransformationJobInput
 from util.harmony.client import get_client
 from util.langfuse import trace_update
 
@@ -46,7 +48,7 @@ def submit_transformation_job(  # pylint: disable=too-many-arguments, disable=re
     Returns the new job's id and initial status. Poll with get_transformation_job_status,
     the resulting files will be available via the links field.
 
-    If this tool fails because the requested combination of operations is unsupported, 
+    If this tool fails because the requested combination of operations is unsupported,
     suggest that the user call the get_transformation_options tool.
     """
     trace_update(
@@ -85,20 +87,14 @@ def submit_transformation_job(  # pylint: disable=too-many-arguments, disable=re
         )
     except (ValueError, TypeError) as exc:
         logger.warning("submit_transformation_job input validation failed: %s", exc)
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=str(exc),
-        ).model_dump()
+        raise ToolError(f"submit_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     # Build Request Arguments
     request_kwargs: dict = {}
 
     if bbox is not None:
         if len(bbox) != 4:
-            return GetTransformationJobStatusOutput(
-                code="ValueError",
-                description="bbox must have exactly 4 values: [west, south, east, north]",
-            ).model_dump()
+            raise ToolError("submit_transformation_job ValueError: bbox must have exactly 4 values: [west, south, east, north]")
         request_kwargs["spatial"] = harmony.BBox(
             w=bbox[0], s=bbox[1], e=bbox[2], n=bbox[3]
         )
@@ -114,10 +110,7 @@ def submit_transformation_job(  # pylint: disable=too-many-arguments, disable=re
             temporal["stop"] = dateutil.parser.parse(temporal_stop)
     except dateutil.parser.ParserError as exc:
         logger.warning("submit_transformation_job temporal parsing failed: %s", exc)
-        return GetTransformationJobStatusOutput(
-            code="ParserError",
-            description=f"Invalid date format: {str(exc)}",
-        ).model_dump()
+        raise ToolError(f"submit_transformation_job ParserError: Invalid date format: {str(exc)}") from exc
 
     if temporal:
         request_kwargs["temporal"] = temporal
@@ -153,10 +146,7 @@ def submit_transformation_job(  # pylint: disable=too-many-arguments, disable=re
         status = client.status(job_id)
     except Exception as exc:
         logger.error("Error submitting request to Harmony API: %s", exc, exc_info=True)
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Failed to submit request to Harmony: {str(exc)}",
-        ).model_dump()
+        raise ToolError(f"submit_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     # Parse/validate the Harmony status response. job_id populates via the
     # "jobID" alias already present in status, so no manual injection needed.
@@ -169,9 +159,6 @@ def submit_transformation_job(  # pylint: disable=too-many-arguments, disable=re
             exc,
             exc_info=True,
         )
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Unexpected response shape from Harmony: {exc}",
-        ).model_dump()
+        raise ToolError(f"submit_transformation_job {type(exc).__name__}: {str(exc)}") from exc
 
     return parsed.model_dump(mode="json", by_alias=True)

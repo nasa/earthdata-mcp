@@ -2,8 +2,9 @@
 
 import logging
 
-from langfuse import observe
+from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token
+from langfuse import observe
 
 from models.pagination import CursorParam, LimitParam
 from models.tools.get_transformation_job_status import (
@@ -56,10 +57,7 @@ def get_transformation_job_status(
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_transformation_job_status input validation failed: %s", exc)
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=str(exc),
-        ).model_dump()
+        raise ToolError(f"get_transformation_job_status {type(exc).__name__}: {str(exc)}") from exc
 
     offset = 0
     job_id = params.job_id
@@ -70,18 +68,12 @@ def get_transformation_job_status(
             cursor_job_id = cursor_value.get("job_id")
 
             if cursor_job_id and cursor_job_id != params.job_id:
-                return GetTransformationJobStatusOutput(
-                    code="CursorScopeError",
-                    description="Cursor parameters are job-scoped. You cannot change job_id when paginating.",
-                ).model_dump()
+                raise ToolError("get_transformation_job_status CursorScopeError: Cursor parameters are job-scoped. You cannot change job_id when paginating.")
 
             job_id = cursor_job_id or params.job_id
 
         except ValueError as exc:
-            return GetTransformationJobStatusOutput(
-                code=type(exc).__name__,
-                description=str(exc),
-            ).model_dump()
+            raise ToolError(f"get_transformation_job_status {type(exc).__name__}: {str(exc)}") from exc
 
     # Execute Harmony Status Request
     all_links: list[str] = []
@@ -93,10 +85,7 @@ def get_transformation_job_status(
             all_links = list(client.result_urls(job_id))
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.error("Error communicating with Harmony API: %s", exc, exc_info=True)
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Failed to fetch job status from Harmony: {str(exc)}",
-        ).model_dump()
+        raise ToolError(f"get_transformation_job_status {type(exc).__name__}: {str(exc)}") from exc
 
     total_hits = len(all_links)
     page_links = all_links[offset : offset + params.limit]
@@ -119,10 +108,7 @@ def get_transformation_job_status(
             exc,
             exc_info=True,
         )
-        return GetTransformationJobStatusOutput(
-            code=type(exc).__name__,
-            description=f"Unexpected response shape from Harmony: {exc}",
-        ).model_dump()
+        raise ToolError(f"get_transformation_job_status {type(exc).__name__}: {str(exc)}") from exc
 
     response_dict = parsed.model_dump(mode="json", by_alias=True)
 

@@ -3,6 +3,7 @@
 import logging
 
 import requests
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -59,13 +60,7 @@ def get_keywords(  # pylint: disable=too-many-return-statements
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_keywords input validation failed: %s", exc)
-        return GetKeywordsOutput(
-            status=SearchStatus.ERROR,
-            total_hits=0,
-            next_cursor=None,
-            error_message=str(exc),
-            keywords=[],
-        ).model_dump()
+        raise ToolError(f"get_keywords {type(exc).__name__}: {str(exc)}") from exc
 
     offset = 0
     query = params.query
@@ -78,55 +73,31 @@ def get_keywords(  # pylint: disable=too-many-return-statements
             cursor_scheme = cursor_value.get("scheme")
 
             if (cursor_query and cursor_query != params.query) or (cursor_scheme != params.scheme):
-                return GetKeywordsOutput(
-                    status=SearchStatus.ERROR,
-                    total_hits=0,
-                    next_cursor=None,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    keywords=[],
-                ).model_dump()
+                raise ToolError(
+                    "get_keywords CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
 
             query = cursor_query or params.query
             scheme = cursor_scheme or params.scheme
 
         except ValueError as exc:
-            return GetKeywordsOutput(
-                status=SearchStatus.ERROR,
-                total_hits=0,
-                next_cursor=None,
-                error_message=str(exc),
-                keywords=[],
-            ).model_dump()
+            raise ToolError(f"get_keywords {type(exc).__name__}: {str(exc)}") from exc
 
     try:
         raw_concepts = search_kms_pattern(query, scheme)
     except requests.RequestException as exc:
         logger.error("Failed to fetch KMS keywords: %s", exc)
-        return GetKeywordsOutput(
-            status=SearchStatus.ERROR,
-            total_hits=0,
-            next_cursor=None,
-            error_message=f"Failed to communicate with KMS API: {exc}",
-            keywords=[],
-        ).model_dump()
+        raise ToolError(f"get_keywords RequestException: Failed to communicate with KMS API: {exc}") from exc
     except (ValueError, TypeError) as exc:
         logger.warning("KMS keyword fetch failed: %s", exc)
-        return GetKeywordsOutput(
-            status=SearchStatus.ERROR,
-            total_hits=0,
-            next_cursor=None,
-            error_message=str(exc),
-            keywords=[],
-        ).model_dump()
+        raise ToolError(f"get_keywords {type(exc).__name__}: {str(exc)}") from exc
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error in get_keywords for query '%s': %s", params.query, exc)
-        return GetKeywordsOutput(
-            status=SearchStatus.ERROR,
-            total_hits=0,
-            next_cursor=None,
-            error_message="An unexpected error occurred while processing KMS keywords.",
-            keywords=[],
-        ).model_dump()
+        raise ToolError(
+            "get_keywords InternalError: An unexpected error occurred while processing "
+            "KMS keywords."
+        ) from exc
 
     if not raw_concepts:
         return GetKeywordsOutput(

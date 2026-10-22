@@ -6,7 +6,7 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-
+from fastmcp.exceptions import ToolError
 
 MOCK_CAPABILITIES_RESPONSE = {
     "conceptId": "C1234567-PROV",
@@ -43,7 +43,7 @@ def _load_tool() -> types.ModuleType:
 
 
 @pytest.fixture
-def mock_get_access_token() -> Generator[MagicMock, None, None]:
+def mock_get_access_token() -> Generator[MagicMock]:
     """Mock the get_access_token function specifically within the tool module."""
     with patch("tools.get_transformation_options.tool.get_access_token") as mock_token_func:
         # Create a mock object that has a `.token` attribute
@@ -54,21 +54,21 @@ def mock_get_access_token() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_get_client() -> Generator[MagicMock, None, None]:
+def mock_get_client() -> Generator[MagicMock]:
     """Mock util.harmony.client.get_client within the tool."""
     with patch("tools.get_transformation_options.tool.get_client") as mock_client:
         yield mock_client
 
 
 @pytest.fixture
-def mock_capabilities_request() -> Generator[MagicMock, None, None]:
+def mock_capabilities_request() -> Generator[MagicMock]:
     """Mock harmony.CapabilitiesRequest within the tool."""
     with patch("tools.get_transformation_options.tool.harmony.CapabilitiesRequest") as mock_req:
         yield mock_req
 
 
 def test_get_transformation_options_concept_id_success(
-    mock_get_client: MagicMock, 
+    mock_get_client: MagicMock,
     mock_capabilities_request: MagicMock,
     mock_get_access_token: MagicMock
 ) -> None:
@@ -90,7 +90,7 @@ def test_get_transformation_options_concept_id_success(
 
     # Assert
     assert result == MOCK_CAPABILITIES_RESPONSE
-    
+
     # Verify the token function was called and passed to get_client
     mock_get_access_token.assert_called_once()
     mock_get_client.assert_called_once_with("fake-jwt-token")
@@ -99,7 +99,7 @@ def test_get_transformation_options_concept_id_success(
 
 
 def test_get_transformation_options_short_name_success(
-    mock_get_client: MagicMock, 
+    mock_get_client: MagicMock,
     mock_capabilities_request: MagicMock,
     mock_get_access_token: MagicMock
 ) -> None:
@@ -128,13 +128,13 @@ def test_get_transformation_options_short_name_success(
 
 
 def test_get_transformation_options_calls_trace_update(
-    mock_get_client: MagicMock, 
+    mock_get_client: MagicMock,
     mock_capabilities_request: MagicMock,
     mock_get_access_token: MagicMock
 ) -> None:
     """Test telemetry tracing is called correctly."""
     tool = _load_tool()
-    
+
     mock_get_client.return_value.submit.return_value = {}
 
     with patch.object(tool, "trace_update") as mock_trace_update:
@@ -146,37 +146,38 @@ def test_get_transformation_options_calls_trace_update(
 
 
 def test_get_transformation_options_validation_error_missing_both() -> None:
-    """Test that providing neither ID nor short_name returns the gracefully handled error output."""
+    """Test that providing neither ID nor short_name raises a ToolError."""
     tool = _load_tool()
 
-    # Act
-    result = tool.get_transformation_options(
-        collection_concept_id=None,
-        short_name=None,
-    )
+    # Act / Assert
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_options(
+            collection_concept_id=None,
+            short_name=None,
+        )
 
-    # Assert
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "Must specify either collection_concept_id or short_name" in result.get("description", "")
+    assert "Must specify either collection_concept_id or short_name" in str(exc_info.value)
 
 
 def test_get_transformation_options_validation_error_provides_both() -> None:
-    """Test that providing both ID and short_name returns the gracefully handled error output."""
+    """Test that providing both ID and short_name raises a ToolError."""
     tool = _load_tool()
 
-    # Act
-    result = tool.get_transformation_options(
-        collection_concept_id="C1234567-PROV",
-        short_name="MOD09GQ",
-    )
+    # Act / Assert
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_options(
+            collection_concept_id="C1234567-PROV",
+            short_name="MOD09GQ",
+        )
 
-    # Assert
-    assert result.get("code") in ["ValueError", "ValidationError"]
-    assert "Must specify only one of collection_concept_id or short_name, not both" in result.get("description", "")
+    assert (
+        "Must specify only one of collection_concept_id or short_name, not both"
+        in str(exc_info.value)
+    )
 
 
 def test_get_transformation_options_client_error(
-    mock_get_client: MagicMock, 
+    mock_get_client: MagicMock,
     mock_capabilities_request: MagicMock,
     mock_get_access_token: MagicMock
 ) -> None:
@@ -185,15 +186,17 @@ def test_get_transformation_options_client_error(
 
     mock_client_instance = MagicMock()
     mock_get_client.return_value = mock_client_instance
-    
+
     # Simulate an error from the Harmony API
     mock_client_instance.submit.side_effect = Exception("Upstream Harmony error")
 
-    # Act
-    result = tool.get_transformation_options(
-        short_name="ERROR_CASE"
-    )
-    
-    # Assert
-    assert result.get("code") == "Exception"
-    assert "Failed to fetch capabilities from Harmony: Upstream Harmony error" in result.get("description", "")
+    # Act / Assert
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_transformation_options(
+            short_name="ERROR_CASE"
+        )
+
+    assert "Exception" in str(exc_info.value)
+    assert "Upstream Harmony error" in str(exc_info.value)
+    # Confirm the original exception is chained
+    assert isinstance(exc_info.value.__cause__, Exception)
