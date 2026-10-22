@@ -14,6 +14,7 @@ from models.tools.get_events import (
     EventResult,
     GeoJSONResult,
     CategoryResult,
+    LayerResult,
 )
 from util.eonet.client import (
     EONET_BASE_URL,
@@ -41,7 +42,28 @@ def _build_response_dict(endpoint: str, results: dict):
     try:
         if (endpoint == Endpoints.EVENTS) or (endpoint == Endpoints.CATEGORIES):
             event_list = []
+            event_category_list = []
+            layer_list = []
             for event in results["events"]:
+                for event_category in results["categories"]:
+                    for layer in event_category["layers"]:
+                        layer_list.append(
+                            LayerResult(
+                                name=layer["name"],
+                                serviceUrl=layer["serviceUrl"],
+                                serviceTypeId=layer["serviceTypeId"],
+                                parameters=layer["parameters"],
+                            )
+                        )
+                    event_category_list.append(
+                        CategoryResult(
+                            id=event_category["id"],
+                            title=event_category["title"],
+                            link=event_category["link"],
+                            description=event_category["description"],
+                            layers=layer_list,
+                        )
+                    )
                 event_list.append(
                     EventResult(
                         id=event["id"],
@@ -49,7 +71,7 @@ def _build_response_dict(endpoint: str, results: dict):
                         description=event["description"],
                         link=event["link"],
                         closed=event["closed"],
-                        categories=event["categories"],
+                        categories=event_category_list,
                         sources=event["sources"],
                         geometry=event["geometry"],
                     )
@@ -80,12 +102,22 @@ def _build_response_dict(endpoint: str, results: dict):
             ).model_dump()
         elif endpoint == Endpoints.LAYERS:
             category_list = []
+            category_layer_list = []
             for category in results["categories"]:
+                for layer in category["layers"]:
+                    category_layer_list.append(
+                        LayerResult(
+                            name=layer["name"],
+                            serviceUrl=layer["serviceUrl"],
+                            serviceTypeId=layer["serviceTypeId"],
+                            parameters=layer["parameters"],
+                        )
+                    )
                 category_list.append(
                     CategoryResult(
                         id=category["id"],
                         title=category["title"],
-                        layers=category["layers"],
+                        layers=category_layer_list,
                     )
                 )
             return GetEventsOutput(
