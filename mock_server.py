@@ -47,6 +47,9 @@ from prefab_ui.components.charts import ChartSeries, LineChart
 from prefab_ui.components.embed import Embed
 from prefab_ui.components.markdown import Markdown
 
+from util.visualization import GeoTiffLayer, GibsLayer, MapSpec, map_card
+from util.visualization.delivery import prepare_geotiff_layers, prepare_gibs_layers
+
 HERE = Path(__file__).resolve().parent
 
 HARMONY_URL = (
@@ -604,6 +607,75 @@ def show_geotiff_map(
     else:
         summary = (f"Rendered terra-map with MUR SST GeoTIFF (server-side viridis PNG, {orig_w}×{orig_h} px). "
                    f"Range: {vmin:.1f}–{vmax:.1f} {units}. Layer has a visibility toggle.")
+    return ToolResult(
+        content=[TextContent(type="text", text=summary)],
+        structured_content=PrefabApp(title=title, view=card),
+    )
+
+
+# ----------------------------------------------------------------------------- modular map cards (util.visualization)
+
+@mcp.tool(app=MAP_APP)
+def show_map_geotiff(
+    title: str = "MUR25 SST — 2024-06-15",
+    geotiff_url: str = HARMONY_URL,
+    units: str = "K",
+    vmin: float = 271.0,
+    vmax: float = 305.0,
+) -> ToolResult:
+    """Show a terra-map with a GeoTIFF layer, built via MapSpec (util.visualization).
+
+    The file is fetched server-side using the EDL token and embedded as raw base64
+    bytes in the card; the browser decodes it via geotiff.js in terra_map_runtime.
+    """
+    token = load_token()
+    spec = MapSpec(title=title, layers=[
+        GeoTiffLayer(name="sst", title="Analysed SST",
+                     url=geotiff_url, units=units, vmin=vmin, vmax=vmax),
+    ])
+    spec, notes = prepare_geotiff_layers(spec, token)
+    card = map_card(spec, extra_notes=notes)
+    summary = f"Rendered GeoTIFF terra-map via MapSpec: {geotiff_url}."
+    if notes:
+        summary += " Notes: " + "; ".join(notes)
+    return ToolResult(
+        content=[TextContent(type="text", text=summary)],
+        structured_content=PrefabApp(title=title, view=card),
+    )
+
+
+@mcp.tool(app=MAP_APP)
+def show_map_gibs(
+    title: str = "GIBS MUR SST — 2024-06-15",
+    layer: str = "GHRSST_L4_MUR_Sea_Surface_Temperature",
+    date: str = "2024-06-15",
+    tile_matrix_set: str = "GoogleMapsCompatible_Level7",
+    fmt: str = "png",
+    west: float = -180.0,
+    south: float = -90.0,
+    east: float = 180.0,
+    north: float = 90.0,
+) -> ToolResult:
+    """Show a terra-map with a GIBS imagery layer, built via MapSpec (util.visualization).
+
+    The GIBS WMS image is fetched server-side for the given bounds and embedded as base64,
+    so no tile requests are made from the browser (avoids iframe CORS/CSP issues).
+    """
+    bounds = [west, south, east, north]
+    spec = MapSpec(
+        title=title,
+        bounds=bounds,
+        layers=[
+            GibsLayer(name="gibs", title=layer,
+                      layer=layer, tile_matrix_set=tile_matrix_set,
+                      format=fmt, date=date),  # type: ignore[arg-type]
+        ],
+    )
+    spec, notes = prepare_gibs_layers(spec, bounds=bounds)
+    card = map_card(spec, extra_notes=notes)
+    summary = f"Rendered GIBS terra-map via MapSpec: {layer} ({date})."
+    if notes:
+        summary += " Notes: " + "; ".join(notes)
     return ToolResult(
         content=[TextContent(type="text", text=summary)],
         structured_content=PrefabApp(title=title, view=card),

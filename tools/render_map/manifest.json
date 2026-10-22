@@ -1,0 +1,26 @@
+{
+    "name": "render_map",
+    "module": "tool",
+    "description": "Render an interactive map card (NASA terra-map) for the user. Use when the user wants to SEE data on a map: Harmony GeoTIFF outputs (pass the .tif links from get_transformation_job_status), a collection's GIBS imagery (pass collection_concept_id and a date), explicit GIBS layer ids, a request bbox, or granule footprints from get_granules. The map is shown to the user; you receive a short text summary only. Only call this when a visual is wanted or clearly useful, not for every search result.",
+    "version": "0.1.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "visualization",
+        "map",
+        "gibs",
+        "geotiff",
+        "harmony"
+    ],
+    "entry_function": "render_map",
+    "enabled": true,
+    "app": {
+        "csp_profile": "map"
+    },
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    }
+}

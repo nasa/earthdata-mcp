@@ -41,3 +41,10 @@ terraform_backend.tf
 
 .claude/
 CLAUDE.md
+
+# local card previews (scripts/preview_card.py)
+preview/
+*_card_preview.html
+
+# local exploratory archive
+archive/

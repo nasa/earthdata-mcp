@@ -14,6 +14,8 @@ For a detailed breakdown of how tool inputs and outputs map to the underlying CM
 - **`get_tools`**: Finds web portals (e.g., Giovanni, Worldview) and downloadable software (e.g., Panoply) associated with a collection, returning URLs and deep-linking templates.
 - **`get_citations`**: Discovers citation records (publications, DOIs) associated with a collection, or looks up citations directly by identifier.
 - **`get_variables`**: Discovers scientific variables and measurements associated with a collection, or looks up variables by keyword. Use this to understand specific data parameters (scale, offset, fill values) before downloading or analyzing data.
+- **`render_map`**: Renders an interactive map card (NASA terra-map) with Harmony GeoTIFF outputs, a collection's GIBS imagery, request areas and granule footprints. MCP Apps clients only.
+- **`render_visualization`**: Renders a chart (line, bar, scatter, histogram) or an image gallery, e.g. Harmony PNG outputs. MCP Apps clients only. See [visualization cards](docs/developers/visualization-cards.md).
 
 ### Agent Workflow Instructions
 

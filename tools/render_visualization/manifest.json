@@ -1,0 +1,24 @@
+{
+    "name": "render_visualization",
+    "module": "tool",
+    "description": "Render a chart (line, bar, scatter, histogram) or an image gallery card for the user. Use for time series or comparisons built from tool results, value distributions, or Harmony image outputs (pass the .png/.jpg links from get_transformation_job_status). Use render_map instead for anything geographic. The card is shown to the user; you receive a short text summary only.",
+    "version": "0.1.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "visualization",
+        "chart",
+        "harmony"
+    ],
+    "entry_function": "render_visualization",
+    "enabled": true,
+    "app": {
+        "csp_profile": "viz"
+    },
+    "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    }
+}

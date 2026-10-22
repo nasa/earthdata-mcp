@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Map</title>
+  <link rel="stylesheet" href="__TERRA_CSS__">
+  <link rel="stylesheet" href="__OL_CSS__">
+  <script src="__OL_JS__"></script>
+  <script src="__GEOTIFF_JS__"></script>
+  <script type="module" src="__TERRA_AUTOLOADER__"></script>
+  <style>
+    :root { --panel-bg: rgba(255,255,255,0.92); --panel-fg: #1c1f26; --panel-border: rgba(0,0,0,0.12); }
+    @media (prefers-color-scheme: dark) {
+      :root { --panel-bg: rgba(28,31,38,0.92); --panel-fg: #e8eaef; --panel-border: rgba(255,255,255,0.14); }
+    }
+    html, body { margin: 0; padding: 0; background: transparent; font: 12px/1.4 system-ui, sans-serif; }
+    #wrap { position: relative; width: 100%; height: __HEIGHT__px; }
+    terra-map { display: block; width: 100%; height: 100%; }
+    .panel { position: absolute; z-index: 5; background: var(--panel-bg); color: var(--panel-fg);
+             border: 1px solid var(--panel-border); border-radius: 6px; padding: 6px 8px; }
+    #legend { right: 8px; top: 8px; min-width: 170px; max-width: 240px; max-height: calc(100% - 60px); overflow: auto; }
+    .legend-row + .legend-row { margin-top: 6px; }
+    .legend-row label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+    .colorbar { height: 8px; border-radius: 2px; margin: 4px 0 2px 20px; }
+    .ticks { display: flex; justify-content: space-between; gap: 10px; margin-left: 20px; font-variant-numeric: tabular-nums; }
+    #readout { right: 8px; bottom: 28px; font-variant-numeric: tabular-nums; }
+    #status { left: 44px; top: 8px; max-width: calc(100% - 300px); white-space: pre-wrap; }
+    #status.problem { color: #b42318; }
+    @media (prefers-color-scheme: dark) { #status.problem { color: #fda29b; } }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <terra-map id="map" fill __COORDS_ATTR__></terra-map>
+    <div id="legend" class="panel" hidden></div>
+    <div id="readout" class="panel" hidden></div>
+    <div id="status" class="panel" role="status" hidden></div>
+  </div>
+  <script type="application/json" id="map-spec">__SPEC_JSON__</script>
+  <script type="module">
+__RUNTIME_JS__
+  </script>
+</body>
+</html>
