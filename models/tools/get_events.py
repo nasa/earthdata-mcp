@@ -4,7 +4,6 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models.pagination import LimitParam
 from models.tools.cmr_search import BaseToolOutput
 
 
@@ -12,43 +11,43 @@ class LayerResult(BaseModel):
     """A single EONET layer object."""
 
     name: str = Field(..., description="The EONET-provided name of the layer")
-    serviceUrl: str | None = Field(None, description="The link to the provider of the layer")
-    serviceTypeId: str | None = Field(None, description="Type and version of provider's data")
-    parameters: list | None = Field(None, description="Query parameters required for the provider's request URL")
+    serviceUrl: str = Field("", description="The link to the provider of the layer")
+    serviceTypeId: str = Field("", description="Type and version of provider's data")
+    parameters: list = Field([], description="Query parameters required for the provider's request URL")
 
 
 class CategoryResult(BaseModel):
     """A single EONET category object."""
 
-    id: int = Field(..., description="The unique ID of the category")
+    id: str | int = Field(..., description="The unique ID of the category")
     title: str = Field("", description="The EONET-provided title of the category")
-    link: str | None = Field(None, description="The API endpoint URL for the category")
-    description: str | None = Field(
-            None, description="The primary description of the category, if available"
+    link: str = Field("", description="The API endpoint URL for the category")
+    description: str = Field(
+            "", description="The primary description of the category, if available"
         )
-    layers: list[LayerResult] | None = Field(None, description="EONET endpoint URL for the category's layers")
+    layers: list[LayerResult] = Field([], description="EONET endpoint URL for the category's layers")
 
 
 class EventResult(BaseModel):
     """A single EONET event object."""
 
     id: str = Field(..., description="The unique ID of the event")
-    title: str | None = Field(None, description="The EONET-provided title of the event")
-    description: str | None = Field(
-        None, description="The primary description of the event, if available"
+    title: str = Field("", description="The EONET-provided title of the event")
+    description: str = Field(
+        "", description="The primary description of the event, if available"
     )
-    link: str | None = Field(None, description="The API endpoint URL for the event")
-    closed: str | None = Field(
-        None, description="Indicates if the event is closed, and if so, when it closed"
+    link: str = Field("", description="The API endpoint URL for the event")
+    closed: str = Field(
+        "", description="Indicates if the event is closed, and if so, when it closed"
     )
-    categories: list[CategoryResult] | None = Field(
-        None, description="The list of categories to which the event belongs"
+    categories: list[CategoryResult] = Field(
+        [], description="The list of categories to which the event belongs"
     )
-    sources: list | None = Field(
-        None, description="The list of sources that reference the event"
+    sources: list = Field(
+        [], description="The list of sources that reference the event"
     )
-    geometry: list | None = Field(
-        None, description="The list of locations/times associated with the event"
+    geometry: list = Field(
+        [], description="The list of locations/times associated with the event"
     )
 
 
@@ -89,7 +88,6 @@ class GetEventsInput(BaseModel):
             ),
         ),
     ]
-    limit: LimitParam = 5
     category: Annotated[
         str,
         Field(
