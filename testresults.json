@@ -1,0 +1,166 @@
+{
+    "status": "success",
+    "error_message": null,
+    "title": "EONET Events",
+    "description": "Natural events from EONET.",
+    "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+    "type": "",
+    "events": [
+        {
+            "id": "EONET_25457",
+            "title": "Tropical Cyclone Agueda",
+            "description": null,
+            "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_25457",
+            "closed": null,
+            "categories": [
+                {
+                    "id": "severeStorms",
+                    "title": "Severe Storms",
+                    "link": "",
+                    "description": "",
+                    "layers": []
+                }
+            ],
+            "sources": [
+                {
+                    "id": "JTWC",
+                    "url": "https://www.metoc.navy.mil/jtwc/products/sh0227.tcw"
+                }
+            ],
+            "geometry": [
+                {
+                    "magnitudeValue": 35,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-20T06:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        53.8,
+                        -4.5
+                    ]
+                },
+                {
+                    "magnitudeValue": 40,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-20T12:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        53.3,
+                        -5
+                    ]
+                },
+                {
+                    "magnitudeValue": 40,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-20T18:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        52.7,
+                        -5.1
+                    ]
+                },
+                {
+                    "magnitudeValue": 45,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-21T00:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        52.5,
+                        -5.1
+                    ]
+                },
+                {
+                    "magnitudeValue": 45,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-21T06:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        52.2,
+                        -5.3
+                    ]
+                },
+                {
+                    "magnitudeValue": 50,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-21T12:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        51.6,
+                        -5.7
+                    ]
+                },
+                {
+                    "magnitudeValue": 50,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-21T18:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        50.8,
+                        -6
+                    ]
+                },
+                {
+                    "magnitudeValue": 45,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-22T00:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        51.2,
+                        -5.8
+                    ]
+                },
+                {
+                    "magnitudeValue": 50,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-22T06:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        50.8,
+                        -6
+                    ]
+                },
+                {
+                    "magnitudeValue": 55,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-22T12:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        50.1,
+                        -6.2
+                    ]
+                },
+                {
+                    "magnitudeValue": 50,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-22T18:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        49.7,
+                        -6.7
+                    ]
+                },
+                {
+                    "magnitudeValue": 35,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-23T00:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        49.9,
+                        -5.8
+                    ]
+                },
+                {
+                    "magnitudeValue": 35,
+                    "magnitudeUnit": "kts",
+                    "date": "2026-10-23T06:00:00Z",
+                    "type": "Point",
+                    "coordinates": [
+                        49.5,
+                        -5.7
+                    ]
+                }
+            ]
+        }
+    ],
+    "features": [],
+    "categories": []
+}

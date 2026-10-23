@@ -35,6 +35,9 @@ class Endpoints:
     LAYERS = "layers"
 
 
+DEFAULT_LIMIT: LimitParam = 5
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -156,7 +159,6 @@ def get_events(
     endpoint: str,
     params: dict = {},
     category: str = "",
-    limit: LimitParam = 5,
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
@@ -178,7 +180,6 @@ def get_events(
             endpoint=endpoint,
             category=category,
             params=params,
-            limit=limit,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_events input validation failed: %s", exc)
@@ -193,7 +194,7 @@ def get_events(
     category = eonet_params.category
     params = eonet_params.params
     if "limit" not in params:
-        params["limit"] = eonet_params.limit
+        params["limit"] = DEFAULT_LIMIT
 
     if not endpoint:
         return GetEventsOutput(
@@ -263,5 +264,4 @@ def get_events(
             description="Failed EONET API request",
         ).model_dump()
 
-    logger.info("RESULTS: %s", results)
     return _build_response_dict(endpoint, results)
