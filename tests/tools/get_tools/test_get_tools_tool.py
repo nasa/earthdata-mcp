@@ -3,6 +3,9 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+from fastmcp.exceptions import ToolError  # verify this matches your project's import path
+
 import util.cmr.search_tools as _search_tools_mod
 from util.cmr.client import CMRError, CMRSearchResponse
 from util.pagination import decode_cursor, encode_cursor
@@ -177,7 +180,7 @@ class TestGetToolsNoResults:
 
 
 class TestGetToolsErrors:
-    """Tests for error-response scenarios."""
+    """Tests for ToolError-raising scenarios."""
 
     def test_returns_error_on_collection_cmr_error(self, monkeypatch):
         tool = _load_tool()
@@ -187,9 +190,11 @@ class TestGetToolsErrors:
             yield
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
-        output = tool.get_tools(collection_concept_id="C1-PROV")
-        assert output["status"] == "error"
-        assert "Collection lookup failed" in output["error_message"]
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV")
+
+        assert "Collection lookup failed" in str(exc_info.value)
 
     def test_returns_error_on_tool_cmr_error(self, monkeypatch):
         tool = _load_tool()
@@ -202,15 +207,19 @@ class TestGetToolsErrors:
                 yield
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
-        output = tool.get_tools(collection_concept_id="C1-PROV")
-        assert output["status"] == "error"
-        assert "Tool fetch failed" in output["error_message"]
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV")
+
+        assert "Tool fetch failed" in str(exc_info.value)
 
     def test_returns_error_on_input_validation(self, monkeypatch):
         tool = _load_tool()
-        output = tool.get_tools(collection_concept_id="invalid_format")
-        assert output["status"] == "error"
-        assert "Invalid collection concept ID format" in output["error_message"]
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="invalid_format")
+
+        assert "Invalid collection concept ID format" in str(exc_info.value)
 
     def test_returns_error_on_unexpected_collection_error(self, monkeypatch):
         tool = _load_tool()
@@ -220,11 +229,13 @@ class TestGetToolsErrors:
             yield
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
-        output = tool.get_tools(collection_concept_id="C1-PROV")
-        assert output["status"] == "error"
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV")
+
         assert (
-            output["error_message"]
-            == "An unexpected internal error occurred during collection lookup."
+            "an unexpected internal error occurred during collection lookup"
+            in str(exc_info.value).lower()
         )
 
     def test_returns_error_on_unexpected_tool_error(self, monkeypatch):
@@ -238,13 +249,25 @@ class TestGetToolsErrors:
                 yield
 
         _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
-        output = tool.get_tools(collection_concept_id="C1-PROV")
-        assert output["status"] == "error"
-        assert output["error_message"] == "An unexpected internal error occurred during tool fetch."
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV")
+
+        assert (
+            "an unexpected internal error occurred during tool fetch"
+            in str(exc_info.value).lower()
+        )
 
 
 def test_get_tools_calls_trace_update(monkeypatch):
-    """Test telemetry tracing."""
+    """Test telemetry tracing.
+
+    NOTE: Uses _patch_search_cmr (not a bare monkeypatch.setattr on the tool module
+    alone) so that fetch_association_ids -- which calls search_cmr via the
+    util.cmr.search_tools module namespace -- is also mocked. Without this, the
+    real search_cmr would be hit and raise an unmocked-network ToolError, the same
+    latent bug found in the equivalent get_services test.
+    """
     tool = _load_tool()
 
     page = _collection_page([])
@@ -252,7 +275,7 @@ def test_get_tools_calls_trace_update(monkeypatch):
     def fake_search_cmr(**kwargs):
         yield page
 
-    monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
+    _patch_search_cmr(monkeypatch, tool, fake_search_cmr)
 
     with patch.object(tool, "trace_update") as mock_trace_update:
         tool.get_tools(collection_concept_id="C1-PROV")
@@ -265,9 +288,11 @@ class TestGetToolsPagination:
 
     def test_no_args_returns_error(self, monkeypatch):
         tool = _load_tool()
-        output = tool.get_tools()
-        assert output["status"] == "error"
-        assert "collection_concept_id or keyword" in output["error_message"]
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools()
+
+        assert "collection_concept_id or keyword" in str(exc_info.value)
 
     def test_keyword_only(self, monkeypatch):
         tool = _load_tool()
@@ -328,18 +353,20 @@ class TestGetToolsPagination:
 
     def test_invalid_cursor_returns_error(self, monkeypatch):
         tool = _load_tool()
-        output = tool.get_tools(collection_concept_id="C1-PROV", cursor="!!!")
-        assert output["status"] == "error"
-        assert "cursor" in output["error_message"].lower()
-        assert output["next_cursor"] is None
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV", cursor="!!!")
+
+        assert "cursor" in str(exc_info.value).lower()
 
     def test_cross_backend_cursor_returns_error(self, monkeypatch):
         tool = _load_tool()
         cursor = encode_cursor("kms", 10)
-        output = tool.get_tools(collection_concept_id="C1-PROV", cursor=cursor)
-        assert output["status"] == "error"
-        assert "cursor" in output["error_message"].lower()
-        assert output["next_cursor"] is None
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV", cursor=cursor)
+
+        assert "cursor" in str(exc_info.value).lower()
 
     def test_fields_filter_returns_only_requested_fields(self, monkeypatch):
         tool = _load_tool()
@@ -365,16 +392,17 @@ class TestGetToolsPagination:
         assert "version" not in item
 
     def test_old_format_cursor_returns_error(self, monkeypatch):
-        """An old-format (scalar string) cursor must return a clean error."""
+        """An old-format (scalar string) cursor must raise a clean ToolError."""
         tool = _load_tool()
         old_cursor = encode_cursor("cmr", "some-legacy-token")
-        output = tool.get_tools(collection_concept_id="C1-PROV", cursor=old_cursor)
-        assert output["status"] == "error"
-        assert output["next_cursor"] is None
-        assert "outdated" in output["error_message"].lower()
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(collection_concept_id="C1-PROV", cursor=old_cursor)
+
+        assert "outdated" in str(exc_info.value).lower()
 
     def test_cursor_rejects_changed_params(self, monkeypatch):
-        """When cursor is present, stored params are used and incoming params ignored."""
+        """When cursor is present, changing query params must raise a ToolError."""
         tool = _load_tool()
         captured = {}
 
@@ -392,9 +420,11 @@ class TestGetToolsPagination:
                 "inputs": {"keyword": "original"},
             },
         )
-        output = tool.get_tools(keyword="changed", cursor=cursor)
-        assert output["status"] == "error"
-        assert "query-scoped" in output["error_message"].lower()
+
+        with pytest.raises(ToolError) as exc_info:
+            tool.get_tools(keyword="changed", cursor=cursor)
+
+        assert "query-scoped" in str(exc_info.value).lower()
 
     def test_phase1_skipped_on_page2(self, monkeypatch):
         """Page 2 with cursor must not perform the Phase 1 collection lookup."""

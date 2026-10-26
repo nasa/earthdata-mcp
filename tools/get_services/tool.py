@@ -1,7 +1,9 @@
 """Direct CMR service search tool."""
 
+import builtins
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -77,11 +79,7 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_services input validation failed: %s", exc)
-        return GetServicesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
+        raise ToolError(f"get_services {builtins.type(exc).__name__}: {str(exc)}") from exc
 
     # Decode cursor before Phase 1.
 
@@ -111,15 +109,12 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
                     normalized_cursor[k] = sorted(v)
 
             if normalized_search != normalized_cursor:
-                return GetServicesOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    next_cursor=None,
-                ).model_dump()
+                raise ToolError(
+                    "get_services CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
         except ValueError as exc:
-            return GetServicesOutput(
-                status=SearchStatus.ERROR, next_cursor=None, error_message=str(exc)
-            ).model_dump()
+            raise ToolError(f"get_services {builtins.type(exc).__name__}: {str(exc)}") from exc
 
     service_ids: list[str] = []
 
@@ -132,21 +127,16 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
                 logger.warning(
                     "Collection lookup failed for %s: %s", params.collection_concept_id, exc
                 )
-                return GetServicesOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message=str(exc),
-                ).model_dump()
-            except Exception:  # pylint: disable=broad-exception-caught
+                raise ToolError(f"get_services {builtins.type(exc).__name__}: {str(exc)}") from exc
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.exception(
                     "Unexpected error during collection lookup for %s",
                     params.collection_concept_id,
                 )
-                return GetServicesOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message="An unexpected internal error occurred during collection lookup.",
-                ).model_dump()
+                raise ToolError(
+                    "get_services InternalError: An unexpected internal error occurred "
+                    "during collection lookup."
+                ) from exc
 
             if found_ids is None:
                 return GetServicesOutput(
@@ -181,20 +171,15 @@ def get_services(  # pylint: disable=too-many-return-statements,redefined-builti
         logger.warning(
             "Service fetch failed for collection %s: %s", params.collection_concept_id, exc
         )
-        return GetServicesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
+        raise ToolError(f"get_services {builtins.type(exc).__name__}: {str(exc)}") from exc
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception(
             "Unexpected error during service fetch for %s", params.collection_concept_id
         )
-        return GetServicesOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message="An unexpected internal error occurred during service fetch.",
-        ).model_dump()
+        raise ToolError(
+            "get_services InternalError: An unexpected internal error occurred "
+            "during service fetch."
+        ) from exc
 
     if service_page is None:
         return GetServicesOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from fastmcp.exceptions import ToolError
 
 from models.tools.cmr_search import SearchStatus
 from util.pagination import decode_cursor, encode_cursor
@@ -101,12 +102,10 @@ def test_get_keywords_api_error(mock_search_kms_pattern: MagicMock) -> None:
 
     mock_search_kms_pattern.side_effect = requests.RequestException("Connection Timeout")
 
-    result = tool.get_keywords(query="ERROR_TERM")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="ERROR_TERM")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert result["total_hits"] == 0
-    assert len(result["keywords"]) == 0
-    assert "Failed to communicate with KMS API" in result["error_message"]
+    assert "Failed to communicate with KMS API" in str(exc_info.value)
 
 
 def test_get_keywords_malformed_response_types(mock_search_kms_pattern: MagicMock) -> None:
@@ -140,10 +139,10 @@ def test_get_keywords_unexpected_error(mock_search_kms_pattern):
     tool = _load_tool()
     mock_search_kms_pattern.side_effect = RuntimeError("Boom")
 
-    result = tool.get_keywords(query="TEST")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="TEST")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert "unexpected error" in result["error_message"].lower()
+    assert "unexpected error" in str(exc_info.value).lower()
 
 
 def test_get_keywords_calls_trace_update(mock_search_kms_pattern):
@@ -220,56 +219,53 @@ def test_get_keywords_pagination_exact_multiple(mock_search_kms_pattern: MagicMo
 
 
 def test_get_keywords_invalid_cursor(mock_search_kms_pattern: MagicMock) -> None:
-    """Garbage cursor returns an error response, not an unhandled exception."""
+    """Garbage cursor raises a clean ToolError, not an unhandled exception."""
     tool = _load_tool()
     mock_search_kms_pattern.return_value = [_make_concept(0)]
 
-    result = tool.get_keywords(query="KEYWORD", cursor="not-valid-base64!!!")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="KEYWORD", cursor="not-valid-base64!!!")
 
-    assert result["status"] == SearchStatus.ERROR
-    assert result["total_hits"] == 0
-    assert result["next_cursor"] is None
-    assert "cursor" in result["error_message"].lower()
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_keywords_cross_backend_cursor(mock_search_kms_pattern: MagicMock) -> None:
-    """A CMR cursor passed to get_keywords returns a clean error, not an exception."""
+    """A CMR cursor passed to get_keywords raises a clean ToolError, not an exception."""
     tool = _load_tool()
     mock_search_kms_pattern.return_value = [_make_concept(0)]
 
     cmr_cursor = encode_cursor("cmr", "some-cmr-token")
-    result = tool.get_keywords(query="KEYWORD", cursor=cmr_cursor)
 
-    assert result["status"] == SearchStatus.ERROR
-    assert result["total_hits"] == 0
-    assert result["next_cursor"] is None
-    assert "cursor" in result["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="KEYWORD", cursor=cmr_cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_keywords_old_format_cursor_returns_error(mock_search_kms_pattern: MagicMock) -> None:
-    """An old-format (scalar int) cursor must return a clean error."""
+    """An old-format (scalar int) cursor must raise a clean ToolError."""
     tool = _load_tool()
     mock_search_kms_pattern.return_value = [_make_concept(0)]
 
     old_cursor = encode_cursor("kms", 10)
-    result = tool.get_keywords(query="KEYWORD", cursor=old_cursor)
 
-    assert result["status"] == SearchStatus.ERROR
-    assert result["total_hits"] == 0
-    assert result["next_cursor"] is None
-    assert "cursor" in result["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="KEYWORD", cursor=old_cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_keywords_cursor_rejects_changed_params(mock_search_kms_pattern: MagicMock) -> None:
-    """When cursor is present, search uses stored query/scheme, not incoming params."""
+    """When cursor is present, changing query/scheme params must raise a ToolError."""
     tool = _load_tool()
     mock_search_kms_pattern.return_value = [_make_concept(0)]
 
     cursor = encode_cursor("kms", {"offset": 10, "query": "ORIGINAL", "scheme": "sciencekeywords"})
-    output = tool.get_keywords(query="CHANGED", scheme=None, limit=10, cursor=cursor)
 
-    assert output["status"] == "error"
-    assert "query-scoped" in output["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_keywords(query="CHANGED", scheme=None, limit=10, cursor=cursor)
+
+    assert "query-scoped" in str(exc_info.value).lower()
 
 
 def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:
@@ -288,36 +284,42 @@ def test_get_keywords_fields_filter(mock_search_kms_pattern: MagicMock) -> None:
 
 
 def test_get_keywords_validation_error():
+    """Empty query should trigger an input validation ToolError."""
     from tools.get_keywords.tool import get_keywords
 
-    # Pass an invalid field configuration to trigger ValueError/TypeError in GetKeywordsInput
-    res = get_keywords(query="")  # min_length is 1, triggers validation error
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_keywords(query="")  # min_length is 1, triggers validation error
 
 
 def test_get_keywords_validation_error_too_big_limit():
+    """Oversized limit should trigger an input validation ToolError."""
     from tools.get_keywords.tool import get_keywords
 
-    res = get_keywords(query="", limit=100)
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_keywords(query="", limit=100)
 
 
 def test_get_keywords_safe_exception_surfacing(monkeypatch):
+    """Known exceptions should surface their message; unknown exceptions must not leak detail."""
     from tools.get_keywords.tool import get_keywords
 
     def fake_search_value_error(*args, **kwargs):
         raise ValueError("Safe validation error")
 
     monkeypatch.setattr("tools.get_keywords.tool.search_kms_pattern", fake_search_value_error)
-    output = get_keywords(query="modis")
-    assert output["status"] == "error"
-    assert "Safe validation error" in output["error_message"]
+
+    with pytest.raises(ToolError) as exc_info:
+        get_keywords(query="modis")
+
+    assert "Safe validation error" in str(exc_info.value)
 
     def fake_search_generic_error(*args, **kwargs):
         raise Exception("Fake secret")
 
     monkeypatch.setattr("tools.get_keywords.tool.search_kms_pattern", fake_search_generic_error)
-    output = get_keywords(query="modis")
-    assert output["status"] == "error"
-    assert "Fake secret" not in output["error_message"]
-    assert "unexpected error" in output["error_message"].lower()
+
+    with pytest.raises(ToolError) as exc_info:
+        get_keywords(query="modis")
+
+    assert "Fake secret" not in str(exc_info.value)
+    assert "unexpected error" in str(exc_info.value).lower()

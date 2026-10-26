@@ -2,13 +2,13 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ConceptType(str, Enum):
+class ConceptType(StrEnum):
     """Valid concept types in the CMR system."""
 
     COLLECTION = "collection"

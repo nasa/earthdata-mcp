@@ -1,12 +1,12 @@
 """Shared models for lightweight CMR search tools."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class SearchStatus(str, Enum):
+class SearchStatus(StrEnum):
     """Status for direct CMR search tools."""
 
     SUCCESS = "success"

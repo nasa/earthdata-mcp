@@ -3,6 +3,9 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+from fastmcp.exceptions import ToolError
+
 from util.cmr.client import CMRError, CMRSearchResponse
 
 
@@ -120,7 +123,7 @@ def test_get_granules_includes_temporal_filter(monkeypatch):
 
 
 def test_get_granules_returns_error_on_cmr_failure(monkeypatch):
-    """CMR failures should be converted into stable tool errors."""
+    """CMR failures should be converted into a ToolError."""
     tool = _load_tool()
 
     def fake_search_cmr(**_kwargs):
@@ -129,10 +132,10 @@ def test_get_granules_returns_error_on_cmr_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_granules(collection_concept_id="C123-PROV")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(collection_concept_id="C123-PROV")
 
-    assert output["status"] == "error"
-    assert output["error_message"] == "CMR granule request failed"
+    assert "CMR granule request failed" in str(exc_info.value)
 
 
 def test_get_granules_returns_no_results_when_cmr_yields_nothing(monkeypatch):
@@ -151,7 +154,7 @@ def test_get_granules_returns_no_results_when_cmr_yields_nothing(monkeypatch):
 
 
 def test_get_granules_returns_error_on_unexpected_failure(monkeypatch):
-    """Unexpected failures should still return a stable tool error payload."""
+    """Unexpected failures should still raise a stable ToolError."""
     tool = _load_tool()
 
     def fake_search_cmr(**_kwargs):
@@ -160,23 +163,25 @@ def test_get_granules_returns_error_on_unexpected_failure(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_granules(collection_concept_id="C123-PROV")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(collection_concept_id="C123-PROV")
 
-    assert output["status"] == "error"
-    assert output["error_message"] == "An unexpected internal error occurred during granule search."
+    assert "an unexpected internal error occurred during granule search" in str(
+        exc_info.value
+    ).lower()
 
 
 def test_get_granules_returns_error_on_invalid_spatial_wkt():
-    """Invalid WKT should be returned as a stable tool error payload."""
+    """Invalid WKT should raise a ToolError."""
     tool = _load_tool()
 
-    output = tool.get_granules(
-        collection_concept_id="C123-PROV",
-        spatial_wkt_geometry="POINT((1 2))",
-    )
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(
+            collection_concept_id="C123-PROV",
+            spatial_wkt_geometry="POINT((1 2))",
+        )
 
-    assert output["status"] == "error"
-    assert "Invalid WKT geometry" in output["error_message"]
+    assert "Invalid WKT geometry" in str(exc_info.value)
 
 
 def test_get_granules_includes_cloud_cover_max_only(monkeypatch):
@@ -265,20 +270,20 @@ def test_get_granules_omits_cloud_cover_when_not_provided(monkeypatch):
 
 
 def test_get_granules_rejects_cloud_cover_out_of_range():
-    """Cloud cover values outside 0-100 should produce a validation error."""
+    """Cloud cover values outside 0-100 should raise a ToolError."""
     tool = _load_tool()
 
-    output = tool.get_granules(
-        collection_concept_id="C123-PROV",
-        cloud_cover_max=150,
-    )
-    assert output["status"] == "error"
+    with pytest.raises(ToolError):
+        tool.get_granules(
+            collection_concept_id="C123-PROV",
+            cloud_cover_max=150,
+        )
 
-    output = tool.get_granules(
-        collection_concept_id="C123-PROV",
-        cloud_cover_min=-10,
-    )
-    assert output["status"] == "error"
+    with pytest.raises(ToolError):
+        tool.get_granules(
+            collection_concept_id="C123-PROV",
+            cloud_cover_min=-10,
+        )
 
 
 def test_get_granules_calls_trace_update(monkeypatch):
@@ -383,19 +388,19 @@ def test_get_granules_passes_limit_as_page_size(monkeypatch):
 
 
 def test_get_granules_returns_error_on_invalid_cursor(monkeypatch):
-    """An invalid cursor string must produce a clean error response, not an exception."""
+    """An invalid cursor string must raise a clean ToolError, not an unhandled exception."""
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
-    output = tool.get_granules(collection_concept_id="C1-PROV", cursor="not-valid-cursor!@#")
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(collection_concept_id="C1-PROV", cursor="not-valid-cursor!@#")
 
-    assert output["status"] == "error"
-    assert "cursor" in output["error_message"].lower()
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_granules_returns_error_on_cross_backend_cursor(monkeypatch):
-    """A KMS cursor passed to get_granules must produce a clean error response."""
+    """A KMS cursor passed to get_granules must raise a clean ToolError."""
     from util.pagination import encode_cursor
 
     tool = _load_tool()
@@ -403,10 +408,11 @@ def test_get_granules_returns_error_on_cross_backend_cursor(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     kms_cursor = encode_cursor("kms", 20)
-    output = tool.get_granules(collection_concept_id="C1-PROV", cursor=kms_cursor)
 
-    assert output["status"] == "error"
-    assert "cursor" in output["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(collection_concept_id="C1-PROV", cursor=kms_cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 # --- field filtering ---
@@ -542,7 +548,7 @@ def test_get_granules_new_response_fields_present(monkeypatch):
 
 
 def test_get_granules_old_format_cursor_returns_error(monkeypatch):
-    """An old-format (scalar value) cursor must return a clean error."""
+    """An old-format (scalar value) cursor must raise a clean ToolError."""
     from util.pagination import encode_cursor
 
     tool = _load_tool()
@@ -550,13 +556,15 @@ def test_get_granules_old_format_cursor_returns_error(monkeypatch):
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     old_cursor = encode_cursor("cmr", "some-legacy-token")
-    output = tool.get_granules(collection_concept_id="C1-PROV", cursor=old_cursor)
 
-    assert output["status"] == "error"
-    assert "outdated" in output["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(collection_concept_id="C1-PROV", cursor=old_cursor)
+
+    assert "outdated" in str(exc_info.value).lower()
 
 
 def test_get_granules_cursor_override():
+    """Ensure changing query parameters on page 2 rejects the cursor."""
     from tools.get_granules.tool import get_granules
     from util.pagination import encode_cursor
 
@@ -567,31 +575,37 @@ def test_get_granules_cursor_override():
             "params": {"collection_concept_id": "C1-PROV", "temporal": "2024-01-01,2024-01-31"},
         },
     )
-    res = get_granules(
-        collection_concept_id="C1-PROV", temporal_start_date="2025-01-01T00:00:00Z", cursor=cursor
-    )
-    assert res["status"] == "error"
-    assert "query-scoped" in res["error_message"]
+
+    with pytest.raises(ToolError) as exc_info:
+        get_granules(
+            collection_concept_id="C1-PROV",
+            temporal_start_date="2025-01-01T00:00:00Z",
+            cursor=cursor,
+        )
+
+    assert "query-scoped" in str(exc_info.value).lower()
 
 
 def test_get_granules_validation_error():
+    """limit=100 should trigger an input validation ToolError."""
     from tools.get_granules.tool import get_granules
 
-    res = get_granules(
-        collection_concept_id="C123-PROV", limit=100
-    )  # limit=100 triggers validation error
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_granules(collection_concept_id="C123-PROV", limit=100)
 
 
 def test_get_granules_wkt_error():
+    """Malformed WKT should raise a ToolError mentioning the invalid geometry."""
     from tools.get_granules.tool import get_granules
 
-    res = get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="INVALID WKT")
-    assert res["status"] == "error"
-    assert "Invalid WKT" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="INVALID WKT")
+
+    assert "Invalid WKT" in str(exc_info.value)
 
 
 def test_get_granules_cursor_post():
+    """A spatial cursor on page 2 should still trigger exactly one search_cmr call."""
     from unittest.mock import patch
 
     from tools.get_granules.tool import get_granules

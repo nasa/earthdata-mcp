@@ -2,6 +2,7 @@
 
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -60,11 +61,7 @@ def get_tools(  # pylint: disable=too-many-return-statements
         )
     except (ValueError, TypeError) as exc:
         logger.warning("get_tools input validation failed: %s", exc)
-        return GetToolsOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
+        raise ToolError(f"get_tools {type(exc).__name__}: {str(exc)}") from exc
 
     current_inputs = {
         "collection_concept_id": params.collection_concept_id,
@@ -91,17 +88,12 @@ def get_tools(  # pylint: disable=too-many-return-statements
                     normalized_cursor[k] = sorted(v)
 
             if normalized_search != normalized_cursor:
-                return GetToolsOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Cursor parameters are query-scoped. You cannot change search parameters when paginating.",
-                    next_cursor=None,
-                ).model_dump()
+                raise ToolError(
+                    "get_tools CursorScopeError: Cursor parameters are query-scoped. "
+                    "You cannot change search parameters when paginating."
+                )
         except ValueError as exc:
-            return GetToolsOutput(
-                status=SearchStatus.ERROR,
-                next_cursor=None,
-                error_message=str(exc),
-            ).model_dump()
+            raise ToolError(f"get_tools {type(exc).__name__}: {str(exc)}") from exc
 
     tool_ids: list[str] = []
 
@@ -114,21 +106,16 @@ def get_tools(  # pylint: disable=too-many-return-statements
                 logger.warning(
                     "Collection lookup failed for %s: %s", params.collection_concept_id, exc
                 )
-                return GetToolsOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message=str(exc),
-                ).model_dump()
-            except Exception:  # pylint: disable=broad-exception-caught
+                raise ToolError(f"get_tools {type(exc).__name__}: {str(exc)}") from exc
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.exception(
                     "Unexpected error during collection lookup for %s",
                     params.collection_concept_id,
                 )
-                return GetToolsOutput(
-                    status=SearchStatus.ERROR,
-                    next_cursor=None,
-                    error_message="An unexpected internal error occurred during collection lookup.",
-                ).model_dump()
+                raise ToolError(
+                    "get_tools InternalError: An unexpected internal error occurred "
+                    "during collection lookup."
+                ) from exc
 
             if found_ids is None:
                 return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()
@@ -155,18 +142,12 @@ def get_tools(  # pylint: disable=too-many-return-statements
         )
     except (CMRError, ValueError, TypeError) as exc:
         logger.warning("Tool fetch failed for collection %s: %s", params.collection_concept_id, exc)
-        return GetToolsOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message=str(exc),
-        ).model_dump()
-    except Exception:  # pylint: disable=broad-exception-caught
+        raise ToolError(f"get_tools {type(exc).__name__}: {str(exc)}") from exc
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during tool fetch for %s", params.collection_concept_id)
-        return GetToolsOutput(
-            status=SearchStatus.ERROR,
-            next_cursor=None,
-            error_message="An unexpected internal error occurred during tool fetch.",
-        ).model_dump()
+        raise ToolError(
+            "get_tools InternalError: An unexpected internal error occurred during tool fetch."
+        ) from exc
 
     if tool_page is None:
         return GetToolsOutput(status=SearchStatus.NO_RESULTS, next_cursor=None).model_dump()

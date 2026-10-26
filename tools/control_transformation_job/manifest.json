@@ -1,0 +1,25 @@
+{
+    "name": "control_transformation_job",
+    "module": "tool",
+    "description": "Cancel/Pause/Resume a transformation job in Harmony.",
+    "version": "1.0.0",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "cmr",
+        "search",
+        "discovery",
+        "transformation",
+        "collections",
+        "harmony"
+    ],
+    "entry_function": "control_transformation_job",
+    "require_auth": true,
+    "enabled": true,
+    "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+    }
+}

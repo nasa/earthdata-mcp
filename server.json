@@ -3,7 +3,7 @@
   "name": "io.github.nasa/earthdata-mcp",
   "title": "NASA Earthdata MCP",
   "description": "Discover NASA Earth science datasets, verify coverage for a time and place, and find access methods",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "remotes": [
     {
       "type": "streamable-http",

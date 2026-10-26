@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from models.tools.cmr_search import SearchStatus
 from util.cmr.client import CMRError, CMRSearchResponse
@@ -63,19 +64,19 @@ def test_get_citations_invalid_input() -> None:
     tool = _load_tool()
 
     # Missing both
-    res = tool.get_citations()
-    assert res["status"] == SearchStatus.ERROR
-    assert "exactly one" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations()
+    assert "exactly one" in str(exc_info.value).lower()
 
     # Provide both
-    res = tool.get_citations(collection_concept_id="C12345-PROV", identifier="10.x/test")
-    assert res["status"] == SearchStatus.ERROR
-    assert "exactly one" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C12345-PROV", identifier="10.x/test")
+    assert "exactly one" in str(exc_info.value).lower()
 
     # Invalid collection ID format
-    res = tool.get_citations(collection_concept_id="INVALID")
-    assert res["status"] == SearchStatus.ERROR
-    assert "Invalid collection concept ID format" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="INVALID")
+    assert "invalid collection concept id format" in str(exc_info.value).lower()
 
 
 def test_get_citations_collection_flow_success(mock_search_cmr: MagicMock) -> None:
@@ -152,9 +153,10 @@ def test_get_citations_collection_error(mock_search_cmr: MagicMock) -> None:
 
     mock_search_cmr.side_effect = CMRError("CMR is down")
 
-    res = tool.get_citations(collection_concept_id="C123-PROV")
-    assert res["status"] == SearchStatus.ERROR
-    assert "CMR is down" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV")
+
+    assert "CMR is down" in str(exc_info.value)
 
 
 def test_get_citations_citation_fetch_error(mock_search_cmr: MagicMock) -> None:
@@ -166,9 +168,10 @@ def test_get_citations_citation_fetch_error(mock_search_cmr: MagicMock) -> None:
         CMRError("CMR citations down"),
     ]
 
-    res = tool.get_citations(collection_concept_id="C123-PROV")
-    assert res["status"] == SearchStatus.ERROR
-    assert "CMR citations down" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV")
+
+    assert "CMR citations down" in str(exc_info.value)
 
 
 def test_get_citations_no_citations_returned(mock_search_cmr: MagicMock) -> None:
@@ -189,17 +192,17 @@ def test_get_citations_generic_exception(mock_search_cmr: MagicMock) -> None:
     tool = _load_tool()
 
     mock_search_cmr.side_effect = [RuntimeError("Unexpected internal crash")]
-    res = tool.get_citations(collection_concept_id="C123-PROV")
-    assert res["status"] == SearchStatus.ERROR
-    assert "unexpected internal error" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV")
+    assert "unexpected internal error" in str(exc_info.value).lower()
 
     mock_search_cmr.side_effect = [
         iter([_collection_page(citation_ids=["CIT1-PROV"])]),
         RuntimeError("Unexpected internal crash 2"),
     ]
-    res = tool.get_citations(collection_concept_id="C123-PROV")
-    assert res["status"] == SearchStatus.ERROR
-    assert "unexpected internal error" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV")
+    assert "unexpected internal error" in str(exc_info.value).lower()
 
 
 def test_get_citations_calls_trace_update(mock_search_cmr: MagicMock) -> None:
@@ -303,36 +306,36 @@ def test_get_citations_provider_identifier_flow(mock_search_cmr: MagicMock) -> N
 
 
 def test_get_citations_invalid_cursor(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
-    """Test that an invalid cursor returns an error."""
+    """Test that an invalid cursor raises a ToolError."""
     tool = _load_tool()
 
-    res = tool.get_citations(collection_concept_id="C123-PROV", cursor="not-valid-base64!!!")
-    assert res["status"] == SearchStatus.ERROR
-    assert "cursor" in res["error_message"].lower()
-    assert res["next_cursor"] is None
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV", cursor="not-valid-base64!!!")
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_citations_cross_backend_cursor(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
-    """Test that a cursor from a different backend returns an error."""
+    """Test that a cursor from a different backend raises a ToolError."""
     tool = _load_tool()
 
     cursor = encode_cursor("kms", 10)
-    res = tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
-    assert res["status"] == SearchStatus.ERROR
-    assert "cursor" in res["error_message"].lower()
-    assert res["next_cursor"] is None
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV", cursor=cursor)
+
+    assert "cursor" in str(exc_info.value).lower()
 
 
 def test_get_citations_old_format_cursor_returns_error(mock_search_cmr: MagicMock) -> None:  # pylint: disable=unused-argument
-    """An old-format (scalar string) cursor must return a clean error."""
+    """An old-format (scalar string) cursor must raise a clean ToolError."""
     tool = _load_tool()
 
     old_cursor = encode_cursor("cmr", "some-legacy-token")
-    res = tool.get_citations(collection_concept_id="C123-PROV", cursor=old_cursor)
 
-    assert res["status"] == SearchStatus.ERROR
-    assert res["next_cursor"] is None
-    assert "outdated" in res["error_message"].lower()
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_citations(collection_concept_id="C123-PROV", cursor=old_cursor)
+
+    assert "outdated" in str(exc_info.value).lower()
 
 
 def test_get_citations_cursor_override():
@@ -347,9 +350,10 @@ def test_get_citations_cursor_override():
             "inputs": {"identifier": "10.original/test"},
         },
     )
-    res = get_citations(identifier="10.changed/test", cursor=cursor)
-    assert res["status"] == "error"
-    assert "query-scoped" in res["error_message"]
+    with pytest.raises(ToolError) as exc_info:
+        get_citations(identifier="10.changed/test", cursor=cursor)
+
+    assert "query-scoped" in str(exc_info.value).lower()
 
 
 def test_get_citations_phase1_skipped_on_page2(mock_search_cmr: MagicMock) -> None:
@@ -393,10 +397,9 @@ def test_get_citations_validation_error():
     """Test validation error for get_citations."""
     from tools.get_citations.tool import get_citations
 
-    res = get_citations(
-        collection_concept_id="C123", limit=100
-    )  # limit=100 triggers validation error
-    assert res["status"] == "error"
+    # limit=100 triggers validation error
+    with pytest.raises(ToolError):
+        get_citations(collection_concept_id="C123", limit=100)
 
 
 def test_get_citations_model_validation_errors():
@@ -404,29 +407,30 @@ def test_get_citations_model_validation_errors():
     from tools.get_citations.tool import get_citations
 
     # Test exactly one of identifier/concept_id error
-    res1 = get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
-    assert res1["status"] == "error"
-    assert "exactly one" in res1["error_message"]
+    with pytest.raises(ToolError) as exc_info_1:
+        get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
+    assert "exactly one" in str(exc_info_1.value).lower()
 
     # Test invalid concept id
-    res2 = get_citations(collection_concept_id="INVALID")
-    assert res2["status"] == "error"
-    assert "Invalid collection concept ID format" in res2["error_message"]
+    with pytest.raises(ToolError) as exc_info_2:
+        get_citations(collection_concept_id="INVALID")
+    assert "invalid collection concept id format" in str(exc_info_2.value).lower()
 
 
 def test_get_citations_validation_error2():
     """Test another validation error for get_citations."""
     from tools.get_citations.tool import get_citations
 
-    res = get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
-    assert res["status"] == "error"
+    with pytest.raises(ToolError):
+        get_citations(collection_concept_id="C1-PROV", identifier="10.123/456")
 
 
 def test_get_citations_validation_error_empty():
     """Test empty string validation error for get_citations."""
     from tools.get_citations.tool import get_citations
 
-    res = get_citations(collection_concept_id="")
-    assert res["status"] == "error"
-    res2 = get_citations(identifier="")
-    assert res2["status"] == "error"
+    with pytest.raises(ToolError):
+        get_citations(collection_concept_id="")
+
+    with pytest.raises(ToolError):
+        get_citations(identifier="")
