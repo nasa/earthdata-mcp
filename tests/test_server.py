@@ -78,6 +78,7 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert json.loads(response.body) == {"earthdata-mcp": {"ok?": True}}
 
+
 class TestArdEndpoint:
     """Test the .well-known/ard.json endpoint."""
 
@@ -92,6 +93,7 @@ class TestArdEndpoint:
         assert response.status_code == 200
         assert response.headers.get("access-control-allow-origin") == "*"
         assert json.loads(response.body) == {"name": "earthdata-mcp"}
+
 
 class TestMainFunction:
     """Test the main() function with different modes."""

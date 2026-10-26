@@ -59,18 +59,14 @@ auth = OAuthProxy(
     # Provider's OAuth endpoints (from their documentation)
     upstream_authorization_endpoint=URS_HOST + "/oauth/authorize",
     upstream_token_endpoint=URS_HOST + "/oauth/token",
-
     # Your registered app credentials
     upstream_client_id=URS_CLIENT_ID,
     upstream_client_secret=URS_CLIENT_SECRET,
-
     # Token validation (see Token Verification guide)
     token_verifier=token_verifier,
-
     # Your FastMCP server's public URL
     base_url=CMR_HOST + MCP_PATH,
     resource_base_url=CMR_HOST,
-
     # EDL handles the consent
     require_authorization_consent="external",
     # Do not forward the resource to the upstream provider
@@ -100,12 +96,16 @@ async def health(_request):
     """Health check endpoint for load balancer."""
     return JSONResponse({"earthdata-mcp": {"ok?": True}})
 
+
 middleware = list(auth.get_middleware())
 
 metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{CMR_HOST}{MCP_PATH}"))
 
-middleware.append(ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url))
+middleware.append(
+    ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url)
+)
 middleware.append(cors)
+
 
 # Serve ard.json from .well-known path
 async def serve_ard(_request):
@@ -123,6 +123,7 @@ async def serve_ard(_request):
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
 
+
 # Build the app with middleware and the intended path
 app = mcp.http_app(path=MCP_PATH, middleware=middleware)
 
@@ -134,8 +135,16 @@ operational = [route for route in auth_routes if not route.path.startswith("/.we
 app.routes.extend(auth_routes)
 
 # Mount the well-known OAuth authorization server route with the MCP path
-as_metadata = next(route for route in well_known if route.path == "/.well-known/oauth-authorization-server")
-app.routes.append(Route("/.well-known/oauth-authorization-server" + MCP_PATH, as_metadata.endpoint, methods=["GET", "OPTIONS"]))
+as_metadata = next(
+    route for route in well_known if route.path == "/.well-known/oauth-authorization-server"
+)
+app.routes.append(
+    Route(
+        "/.well-known/oauth-authorization-server" + MCP_PATH,
+        as_metadata.endpoint,
+        methods=["GET", "OPTIONS"],
+    )
+)
 
 # Mount the operational routes under the MCP_PATH
 app.routes.append(Mount(MCP_PATH, routes=operational))

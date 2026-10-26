@@ -1,43 +1,8 @@
-# Earthdata MCP Server User Guide
-
-The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR) and NASA's Harmony transformation service. This integration enables consumers to agentically discover, verify, access, and transform Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
-
-## Table of Contents
-* [Glossary](#glossary)
-* [Connecting a client to the MCP Server](#connecting-a-client-to-the-mcp-server)
-  * [ChatGPT.com](#chatgptcom)
-  * [Claude.ai](#claudeai)
-  * [Claude Code](#claude-code)
-  * [Cursor](#cursor)
-  * [Github Copilot Chat](#github-copilot-chat)
-  * [Connecting Other MCP Clients](#connecting-other-mcp-clients)
-* [What tools are available?](#what-tools-are-available)
-* [How should I use the MCP server in my client?](#how-should-i-use-the-mcp-server-in-my-client)
-* [Tips for Better Queries](#tips-for-better-queries)
-* [Example Walkthrough](#example-walkthrough)
-* [Example Walkthrough: Server-Side Transformation](#example-walkthrough-server-side-transformation)
-* [Authentication](#authentication)
-* [Limitations](#limitations)
-* [Programmatic Access and End-to-end Workflows](#programmatic-access-and-end-to-end-workflows)
-* [Troubleshooting](#troubleshooting)
-* [Feedback and Issues](#feedback-and-issues)
-
+---
+title: Earthdata MCP Server User Guide
 ---
 
-## Glossary
-NASA's Common Metadata Repository (CMR) organizes Earth science data into a hierarchy of concepts. Understanding these terms will help you interpret the results from the MCP server.
-
-| CMR Term | What it means | Example |
-| :--- | :--- | :--- |
-| **Collection** | A dataset (a named, versioned group of related data files produced by an instrument or model) | "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m" |
-| **Granule** | Data files within a collection, covering a specific time and location | `MOD13Q1.A2026161.h13v08.061` |
-| **Variable** | A measured quantity stored inside a granule file, with its own units, scale, and dimensions | `_250m_16_days_NDVI` |
-| **Service** | A data access or visualization endpoint associated with a collection | OPeNDAP, Harmony subsetting |
-| **Tool** | A web application or downloadable software that works with a collection | AppEEARS, Worldview, Panoply |
-| **Citation** | A published paper or DOI that references a collection's data | A journal article citing GRACE mascon data |
-| **Keyword** | An official term from NASA's controlled vocabulary (GCMD) used to categorize collections | `DEFORESTATION`, `SEA SURFACE TEMPERATURE` |
-| **Harmony** | NASA's server-side data transformation service. Performs subsetting, reprojection, and reformatting of data on NASA's cloud infrastructure so you download only what you need, already in the format you want | Cropping a global collection down to a bounding box and converting it to GeoTIFF |
-| **Transformation Job** | An asynchronous processing request submitted to Harmony. Runs in the background and produces downloadable result files once complete | A job that subsets 250 granules to the Amazon basin and reprojects them to EPSG:4326 |
+The Earthdata MCP (Model Context Protocol) Server provides LLM agents with direct access to NASA's Common Metadata Repository (CMR) and NASA's Harmony transformation service. This integration enables consumers to agentically discover, verify, access, and transform Earth science datasets through natural language interfaces like ChatGPT, Claude, etc. This guide was created to help users connect to and use the Earthdata MCP server in compatible clients.
 
 ---
 
@@ -112,10 +77,10 @@ Consult your client's documentation for where to configure remote MCP server con
 
 ---
 
-# What tools are available?
+## What tools are available?
 The Earthdata MCP Server configures the following tools to search across the CMR concept types, plus a set of tools that submit and track server-side data transformation requests through NASA's Harmony service:
 
-## Discovery & Metadata Tools
+### Discovery & Metadata Tools
 
 *   **`get_keywords`**: Discovers official Earthdata scientific vocabulary terms (from NASA KMS) to translate colloquial user inputs (e.g. "rain") into precise search labels (e.g. "PRECIPITATION AMOUNT").
 *   **`get_collections`**: Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
@@ -126,7 +91,7 @@ The Earthdata MCP Server configures the following tools to search across the CMR
 *   **`get_variables`**: Discovers scientific variables and measurements associated with a collection, or looks up variables by keyword. Use this to understand specific data parameters (scale, offset, fill values) before downloading or analyzing data.
 
 
-## Data Transformation Tools (Harmony) (require Earthdata Login authentication — see Authentication)
+### Data Transformation Tools (Harmony) (require Earthdata Login authentication — see Authentication)
 
 *   **`get_transformation_options`**: Looks up what server-side operations (subsetting, reprojection, reformatting) a collection supports, which services implement them, the available output formats, and the collection's variables. Useful for checking capabilities before or after submitting a job, but is not required beforehand.
 *   **`submit_transformation_job`**: Submits a request to subset, reformat, or reproject a collection's data — by bounding box, shapefile, time range, and/or a specific list of granules. Returns a job ID you can track.
@@ -135,7 +100,7 @@ The Earthdata MCP Server configures the following tools to search across the CMR
 
 ---
 
-# How should I use the MCP server in my client?
+## How should I use the MCP server in my client?
 When a client is connected to the MCP server, it receives instructions for how it should interact with the tools. In a chat client, a query like "I want to find the sea surface temperature in the gulf yesterday" will be orchestrated into a series of tool calls and their parameters as determined by the client. The clients are encouraged to follow a **Discover → Verify → Access** pattern, in which keywords, citations, variables, and collections are used to discover appropriate collections, then granules are used to confirm data availability within the selected region, and finally services, tools are used to guide the consumer to the data.
 
 You can ask for data using queries like:
@@ -149,7 +114,7 @@ You can ask for data using queries like:
 
 ---
 
-# Tips for Better Queries
+## Tips for Better Queries
 These tips help your AI client produce more accurate, relevant results from the Earthdata MCP server.
 
 **Be specific about where and when**
@@ -188,7 +153,7 @@ These tips help your AI client produce more accurate, relevant results from the 
 
 ---
 
-# Example Walkthrough
+## Example Walkthrough
 This example shows the full **Discover -> Verify -> Access** workflow in action. The user asks a single natural-language question, and the agent orchestrates multiple tool calls behind the scenes.
 
 ### User prompt
@@ -271,7 +236,7 @@ The agent synthesizes everything into a clear answer:
 
 ---
 
-# Example Walkthrough: Server-Side Transformation
+## Example Walkthrough: Server-Side Transformation
 This example shows the **Discover → Verify → Transform** workflow in action, where the user wants the data itself modified server-side — not just downloaded as-is — using the Harmony transformation tools. **All four Harmony tools used below require the user to be authenticated with Earthdata Login.**
 
 ### User prompt
@@ -377,7 +342,7 @@ get_transformation_options(collection_concept_id="C1748066515-LPCLOUD")
 
 ...to check what output formats, subsetting types, and reprojection options are actually available for that collection, then retry the job with corrected parameters and explain the correction to the user.
 
-4. What if the user wants to stop the job early?
+### 5. What if the user wants to stop the job early?
 If, while a job is still running, the user says "actually, cancel that job," the agent calls:
 
 **Tool call:**
@@ -402,7 +367,7 @@ The agent synthesizes everything into a clear answer:
 
 ---
 
-# Authentication
+## Authentication
 The Earthdata MCP server supports two distinct levels of access:
 
 **Discovery (no authentication required):** Searching for collections, granules, keywords, variables, services, tools, and citations is open and requires no login. You can discover and verify data availability anonymously.
@@ -415,7 +380,7 @@ Collections that require authentication to view their metadata (e.g., restricted
 
 ---
 
-# Limitations
+## Limitations
 The Earthdata MCP server helps you discover, verify, and transform data — but it does not download or store data files itself.
 
 *   **No direct file download or streaming.** The server returns metadata and URLs. Downloading requires Earthdata Login and a separate client (browser, `earthaccess`, `wget`).
@@ -430,7 +395,7 @@ The Earthdata MCP server helps you discover, verify, and transform data — but 
 
 ---
 
-# Programmatic Access and End-to-end Workflows
+## Programmatic Access and End-to-end Workflows
 Connected clients are instructed to suggest [earthaccess](https://github.com/nsidc/earthaccess) for programmatic data access. When you ask "how do I download this?", the agent will typically generate working Python code using the collection and granule information it already discovered. You don't need to manually translate MCP results into code yourself.
 
 If you instead want the data modified before download — subset, reformatted, or reprojected — the agent will use the `submit_transformation_job` and `get_transformation_job_status` tools (and `control_transformation_job` if you need to cancel/pause/resume the work) to run that transformation through Harmony, then hand you the resulting download links once the job completes. Remember that all of these Harmony actions require you to be logged in with Earthdata Login first.
@@ -450,7 +415,7 @@ Learn more: [earthaccess documentation](https://earthaccess.readthedocs.io/)
 
 ---
 
-# Troubleshooting
+## Troubleshooting
 
 | Symptom | Likely cause | Solution |
 | :--- | :--- | :--- |
@@ -469,7 +434,24 @@ Learn more: [earthaccess documentation](https://earthaccess.readthedocs.io/)
 
 ---
 
-# Feedback and Issues
+## Feedback and Issues
 If you encounter problems with the Earthdata MCP server (incorrect results, missing data, tool errors, or unexpected behavior), please report them:
 *   **MCP server issues:** File an issue in the [Earthdata MCP Github repository](https://github.com/nasa/earthdata-mcp/issues) or contact the Earthdata support team at [support@earthdata.nasa.gov](mailto:support@earthdata.nasa.gov)
 *   **Client-specific issues:** If the problem is with how a specific client (ChatGPT, Claude, etc.) interprets results, check that client's documentation or community forums.
+
+---
+
+## Glossary
+NASA's Common Metadata Repository (CMR) organizes Earth science data into a hierarchy of concepts. Understanding these terms will help you interpret the results from the MCP server.
+
+| CMR Term | What it means | Example |
+| :--- | :--- | :--- |
+| **Collection** | A dataset (a named, versioned group of related data files produced by an instrument or model) | "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m" |
+| **Granule** | Data files within a collection, covering a specific time and location | `MOD13Q1.A2026161.h13v08.061` |
+| **Variable** | A measured quantity stored inside a granule file, with its own units, scale, and dimensions | `_250m_16_days_NDVI` |
+| **Service** | A data access or visualization endpoint associated with a collection | OPeNDAP, Harmony subsetting |
+| **Tool** | A web application or downloadable software that works with a collection | AppEEARS, Worldview, Panoply |
+| **Citation** | A published paper or DOI that references a collection's data | A journal article citing GRACE mascon data |
+| **Keyword** | An official term from NASA's controlled vocabulary (GCMD) used to categorize collections | `DEFORESTATION`, `SEA SURFACE TEMPERATURE` |
+| **Harmony** | NASA's server-side data transformation service. Performs subsetting, reprojection, and reformatting of data on NASA's cloud infrastructure so you download only what you need, already in the format you want | Cropping a global collection down to a bounding box and converting it to GeoTIFF |
+| **Transformation Job** | An asynchronous processing request submitted to Harmony. Runs in the background and produces downloadable result files once complete | A job that subsets 250 granules to the Amazon basin and reprojects them to EPSG:4326 |
