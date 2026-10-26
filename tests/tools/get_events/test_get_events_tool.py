@@ -3,20 +3,18 @@
 import importlib
 import types
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 
 import pytest
 
-from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
-    GetEventsInput,
-    GetEventsOutput,
     EventResult,
     GeoJSONResult,
+    GetEventsOutput,
     CategoryResult,
     LayerResult,
 )
-from util.eonet.client import EONET_BASE_URL
+from util.eonet.client import EONET_BASE_URL, EONETError
 
 
 def _load_tool() -> types.ModuleType:
@@ -42,16 +40,17 @@ def mock_layers_endpoint() -> Generator[MagicMock]:
     with patch("util.eonet.client.layers") as mock_layers:
         yield mock_layers
 
+
 def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an event successfully."""
     tool = _load_tool()
 
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural event from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "type": "",
-        "events": [EventResult(
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="EONET Event",
+        description="Natural event from EONET.",
+        link=f"{EONET_BASE_URL}/events",
+        type="",
+        events=[EventResult(
             id="exampleEvent",
             title="Event Title",
             description="Event description",
@@ -61,9 +60,9 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
             sources=[],
             geometry=[],
         )],
-        "features": [],
-        "categories": [],
-    }
+        features=[],
+        categories=[],
+    )
 
     params = {"limit": "1"}
 
@@ -74,29 +73,31 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     assert result["link"] == f"{EONET_BASE_URL}/events"
     assert result["type"] == ""
     assert result["events"] == [EventResult(
-                                    id="exampleEvent",
-                                    title="Event Title",
-                                    description="Event description",
-                                    link=f"{EONET_BASE_URL}/events/exampleEvent",
-                                    closed=None,
-                                    categories=[],
-                                    sources=[],
-                                    geometry=[],
-                                )]
+            id="exampleEvent",
+            title="Event Title",
+            description="Event description",
+            link=f"{EONET_BASE_URL}/events/exampleEvent",
+            closed=None,
+            categories=[],
+            sources=[],
+            geometry=[],
+        )
+    ]
     assert result["features"] == []
     assert result["categories"] == []
     mock_events_endpoint.assert_called_once_with(params, False)
+
 
 def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns multiple results successfully."""
     tool = _load_tool()
     
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural events from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "type": "",
-        "events": [EventResult(
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="EONET Event",
+        description="Natural events from EONET.",
+        link=f"{EONET_BASE_URL}/events",
+        type="",
+        events=[EventResult(
             id="exampleEvent",
             title="Event Title",
             description="Event description",
@@ -116,9 +117,9 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
             sources=[],
             geometry=[],
         )],
-        "features": [],
-        "categories": [],
-    }
+        features=[],
+        categories=[],
+    )
 
     params = {"limit": "2"}
     
@@ -129,42 +130,44 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
     assert result["link"] == f"{EONET_BASE_URL}/events"
     assert result["type"] == ""
     assert result["events"] == [EventResult(
-                                    id="exampleEvent",
-                                    title="Event Title",
-                                    description="Event description",
-                                    link=f"{EONET_BASE_URL}/events/exampleEvent",
-                                    closed=None,
-                                    categories=[],
-                                    sources=[],
-                                    geometry=[],
-                                ),
-                                EventResult(
-                                    id="exampleEvent2",
-                                    title="Event2 Title",
-                                    description="Event2 description",
-                                    link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                                    closed=None,
-                                    categories=[],
-                                    sources=[],
-                                    geometry=[],
-                                )]
+            id="exampleEvent",
+            title="Event Title",
+            description="Event description",
+            link=f"{EONET_BASE_URL}/events/exampleEvent",
+            closed=None,
+            categories=[],
+            sources=[],
+            geometry=[],
+        ),
+        EventResult(
+            id="exampleEvent2",
+            title="Event2 Title",
+            description="Event2 description",
+            link=f"{EONET_BASE_URL}/events/exampleEvent2",
+            closed=None,
+            categories=[],
+            sources=[],
+            geometry=[],
+        )
+    ]
     assert result["features"] == []
     assert result["categories"] == []
     mock_events_endpoint.assert_called_once_with(params, False)
+
 
 def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return no results successfully."""
     tool = _load_tool()
         
-    mock_events_endpoint.return_value = {
-        "title": "EONET Events",
-        "description": "Natural events from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [],
-    }
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="EONET Events",
+        description="Natural events from EONET.",
+        link=f"{EONET_BASE_URL}/events",
+        type="",
+        events=[],
+        features=[],
+        categories=[],
+    )
 
     params = {"limit": "1"}
         
@@ -179,16 +182,17 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     assert result["categories"] == []
     mock_events_endpoint.assert_called_once_with(params, False)
 
+
 def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns all results if an invalid EONET request is made."""
     tool = _load_tool()
             
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural events from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "type": "",
-        "events": [EventResult(
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="EONET Event",
+        description="Natural events from EONET.",
+        link=f"{EONET_BASE_URL}/events",
+        type="",
+        events=[EventResult(
             id="exampleEvent",
             title="Event Title",
             description="Event description",
@@ -208,9 +212,9 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
             sources=[],
             geometry=[],
         )],
-        "features": [],
-        "categories": [],
-    }
+        features=[],
+        categories=[],
+    )
     
     params = {"limit": "-1"}
             
@@ -221,40 +225,42 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
     assert result["link"] == f"{EONET_BASE_URL}/events"
     assert result["type"] == ""
     assert result["events"] == [EventResult(
-                                    id="exampleEvent",
-                                    title="Event Title",
-                                    description="Event description",
-                                    link=f"{EONET_BASE_URL}/events/exampleEvent",
-                                    closed=None,
-                                    categories=[],
-                                    sources=[],
-                                    geometry=[],
-                                ),
-                                EventResult(
-                                    id="exampleEvent2",
-                                    title="Event2 Title",
-                                    description="Event2 description",
-                                    link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                                    closed=None,
-                                    categories=[],
-                                    sources=[],
-                                    geometry=[],
-                                )]
+            id="exampleEvent",
+            title="Event Title",
+            description="Event description",
+            link=f"{EONET_BASE_URL}/events/exampleEvent",
+            closed=None,
+            categories=[],
+            sources=[],
+            geometry=[],
+        ),
+        EventResult(
+            id="exampleEvent2",
+            title="Event2 Title",
+            description="Event2 description",
+            link=f"{EONET_BASE_URL}/events/exampleEvent2",
+            closed=None,
+            categories=[],
+            sources=[],
+            geometry=[],
+        )
+    ]
     assert result["features"] == []
     assert result["categories"] == []
     mock_events_endpoint.assert_called_once_with(params, False)
+
 
 def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return a geojson result successfully."""
     tool = _load_tool()
                 
-    mock_events_endpoint.return_value = {
-        "title": "",
-        "description": "",
-        "link": "",
-        "type": "FeatureCollection",
-        "events": [],
-        "features": [GeoJSONResult(
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="",
+        description="",
+        link="",
+        type="FeatureCollection",
+        events=[],
+        features=[GeoJSONResult(
                 type="Feature",
                 geometry={
                   "type": "Point",
@@ -266,8 +272,8 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
                 }
             )
         ],
-        "categories": [],
-    }
+        categories=[],
+    )
 
     params = {"limit": "1"}
 
@@ -279,31 +285,32 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
     assert result["type"] == "FeatureCollection"
     assert result["events"] == []
     assert result["features"] == [GeoJSONResult(
-                                        type="Feature",
-                                        geometry={
-                                          "type": "Point",
-                                          "coordinates": [0.0, 0.0] 
-                                        },
-                                        properties={
-                                          "name": "A Cool Place",
-                                          "location": "Anytown, USA"
-                                        }
-                                    )
-                                ]
+            type="Feature",
+            geometry={
+              "type": "Point",
+              "coordinates": [0.0, 0.0] 
+            },
+            properties={
+              "name": "A Cool Place",
+              "location": "Anytown, USA"
+            }
+        )
+    ]
     assert result["categories"] == []
     mock_events_endpoint.assert_called_once_with(params, True)
+
 
 def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return multiple geojson results successfully."""
     tool = _load_tool()
                     
-    mock_events_endpoint.return_value = {
-        "title": "",
-        "description": "",
-        "link": "",
-        "type": "FeatureCollection",
-        "events": [],
-        "features": [GeoJSONResult(
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="",
+        description="",
+        link="",
+        type="FeatureCollection",
+        events=[],
+        features=[GeoJSONResult(
                 type="Feature",
                 geometry={
                   "type": "Point",
@@ -326,8 +333,8 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
                 }
             )
         ],
-        "categories": [],
-    }
+        categories=[],
+    )
 
     params = {"limit": "2"}
 
@@ -336,6 +343,105 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
     assert result["title"] == ""
     assert result["description"] == ""
     assert result["link"] == ""
+    assert result["type"] == "FeatureCollection"
+    assert result["events"] == []
+    assert result["features"] == [GeoJSONResult(
+            type="Feature",
+            geometry={
+              "type": "Point",
+              "coordinates": [0.0, 0.0] 
+            },
+            properties={
+              "name": "A Cool Place",
+              "location": "Anytown, USA"
+            }
+        ),
+        GeoJSONResult(
+            type="Feature",
+            geometry={
+              "type": "Point",
+              "coordinates": [1.0, 1.0] 
+            },
+            properties={
+              "name": "Another Cool Place",
+              "location": "Anothertown, USA"
+            }
+        )
+    ]
+    assert result["categories"] == []
+    mock_events_endpoint.assert_called_once_with(params, True)
+
+
+def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events can return no geojson results successfully."""
+    tool = _load_tool()
+                        
+    mock_events_endpoint.return_value = GetEventsOutput(
+        title="",
+        description="",
+        link="",
+        type="FeatureCollection",
+        events=[],
+        features=[],
+        categories=[], 
+    )
+
+    params = {"limit": "1"}
+
+    result = tool.events(params, True)
+
+    assert result["title"] == ""
+    assert result["description"] == ""
+    assert result["link"] == ""    
+    assert result["type"] == "FeatureCollection"
+    assert result["events"] == []
+    assert result["features"] == []
+    assert result["categories"] == []    
+    mock_events_endpoint.assert_called_once_with(params, True)
+
+
+def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns all results if an invalid geojson request is made."""
+    tool = _load_tool()
+                            
+    mock_events_endpoint.return_value = {
+        "title": "",
+        "description": "",
+        "link": "",
+        "type": "FeatureCollection",
+        "events": [],
+        "features": [GeoJSONResult(
+                        type="Feature",
+                        geometry={
+                          "type": "Point",
+                          "coordinates": [0.0, 0.0] 
+                        },
+                        properties={
+                          "name": "A Cool Place",
+                          "location": "Anytown, USA"
+                        }
+                    ),
+                    GeoJSONResult(
+                        type="Feature",
+                        geometry={
+                          "type": "Point",
+                          "coordinates": [1.0, 1.0] 
+                        },
+                        properties={
+                          "name": "Another Cool Place",
+                          "location": "Anothertown, USA"
+                        }
+                    )],
+        "categories": [],
+    }
+    
+    params = {"limit": "-1"}
+    
+    result = tool.events(params, True)
+    
+    assert result["title"] == ""
+    assert result["description"] == ""
+    assert result["link"] == ""    
     assert result["type"] == "FeatureCollection"
     assert result["events"] == []
     assert result["features"] == [GeoJSONResult(
@@ -361,399 +467,632 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
                                         }
                                     )
                                 ]
-    assert result["categories"] == []
-    mock_events_endpoint.assert_called_once_with(params, True)
-
-def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events can return no geojson results successfully."""
-    tool = _load_tool()
-                        
-    mock_events_endpoint.return_value = {
-        "title": "",
-        "description": "",
-        "link": "",
-        "type": "FeatureCollection",
-        "events": [],
-        "features": [],
-        "categories": [], 
-    }
-
-    params = {"limit": "1"}
-
-    result = tool.events(params, True)
-
-    assert result["title"] == ""
-    assert result["description"] == ""
-    assert result["link"] == ""    
-    assert result["type"] == "FeatureCollection"
-    assert result["events"] == []
-    assert result["features"] == []
     assert result["categories"] == []    
     mock_events_endpoint.assert_called_once_with(params, True)
 
-def test_events_geojson_return_failed(self, monkeypatch):
-    """Test that events returns all results if an invalid geojson request is made."""
-    expected = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0] 
-                },
-                "properties": {
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            },
-            {
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [1.0, 1.0] 
-                },
-                "properties": {
-                  "name": "Another Cool Place",
-                  "location": "Anothertown, USA"
-                }
-            }
-        ]
-    }
-    
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    params = {"limit": "-1"}
-    
-    result = events(params, True)
-    assert result == expected
 
-def test_events_returns_all_events_for_fake_category(self, monkeypatch):
-    """Test that events returns all events if a fake category is given."""
-    expected = {
+def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns all events if a fake category is given."""
+    tool = _load_tool()
+                                
+    mock_events_endpoint.return_value = {
         "title": "EONET Event",
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
-        "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
+        "type": "",
+        "events": [EventResult(
+                        id="exampleEvent",
+                        title="Event Title",
+                        description="Event description",
+                        link=f"{EONET_BASE_URL}/events/exampleEvent",
+                        closed=None,
+                        categories=[],
+                        sources=[],
+                        geometry=[],
+                    ),
+                    EventResult(
+                        id="exampleEvent2",
+                        title="Event2 Title",
+                        description="Event2 description",
+                        link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                        closed=None,
+                        categories=[],
+                        sources=[],
+                        geometry=[],
+                    )],
+        "features": [],
+        "categories": [],
     }
-
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
     params = {"category": "fakecategory"}
 
-    result = events(params, False)
-    assert result == expected
+    result = tool.events(params, False)
+        
+    assert result["title"] == "EONET Event"
+    assert result["description"] == "Natural events from EONET."
+    assert result["link"] == f"{EONET_BASE_URL}/events"    
+    assert result["type"] == ""
+    assert result["events"] == [EventResult(
+                                    id="exampleEvent",
+                                    title="Event Title",
+                                    description="Event description",
+                                    link=f"{EONET_BASE_URL}/events/exampleEvent",
+                                    closed=None,
+                                    categories=[],
+                                    sources=[],
+                                    geometry=[],
+                                ),
+                                EventResult(
+                                    id="exampleEvent2",
+                                    title="Event2 Title",
+                                    description="Event2 description",
+                                    link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                                    closed=None,
+                                    categories=[],
+                                    sources=[],
+                                    geometry=[],
+                                )]
+    assert result["features"] == []
+    assert result["categories"] == []    
+    mock_events_endpoint.assert_called_once_with(params, False)
 
-def test_returns_event_from_category(self, monkeypatch):
-    """Test that categories returns events from the specified category."""
-    expected = {
+
+def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicMock) -> None:
+    """Test that get_events returns events from the specified category."""
+    tool = _load_tool()
+                                    
+    mock_categories_endpoint.return_value = {
         "title": "EONET Events: Category",
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [
-            { 
-                "id": "exampleEvent",
-                "categories": [
-                    {
-                        "id": "categoryId",
-                        "title": "Category Title"
-                    }
-                ]
-            }
-        ]
+        "type": "",
+        "events": [EventResult(
+                    id="exampleEvent",
+                    title="Event Title",
+                    description="Event description",
+                    link=f"{EONET_BASE_URL}/events/exampleEvent",
+                    closed=None,
+                    categories=[CategoryResult(
+                        id="categoryId",
+                        title="Category Title",
+                    )],
+                    sources=[],
+                    geometry=[],
+                )
+        ],
+        "features": [],
+        "categories": [],
     }
-    
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
     params = {"limit": "1"}
 
-    result = categories("categoryId", params)
-    assert result == expected
+    result = tool.categories("categoryId", params)
+            
+    assert result["title"] == "EONET Events: Category"
+    assert result["description"] == "Category description."
+    assert result["link"] == f"{EONET_BASE_URL}/categories/categoryId"    
+    assert result["type"] == ""
+    assert result["events"] == [EventResult(
+                                    id="exampleEvent",
+                                    title="Event Title",
+                                    description="Event description",
+                                    link=f"{EONET_BASE_URL}/events/exampleEvent",
+                                    closed=None,
+                                    categories=[CategoryResult(
+                                        id="categoryId",
+                                        title="Category Title",
+                                    )],
+                                    sources=[],
+                                    geometry=[],
+                                )]
+    assert result["features"] == []
+    assert result["categories"] == []    
+    mock_categories_endpoint.assert_called_once_with("categoryId", params)
 
-def test_returns_multiple_events_from_category(self, monkeypatch):
-    """Test that categories returns multiple events from the specified category."""
-    expected = {
+
+def test_get_events_returns_multiple_events_from_category(mock_categories_endpoint: MagicMock) -> None:
+    """Test that get_events returns multiple events from the specified category."""
+    tool = _load_tool()
+                                        
+    mock_categories_endpoint.return_value = {
         "title": "EONET Events: Category",
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [
-            { 
-                "id": "exampleEvent1",
-                "categories": [
-                    {
-                        "id": "categoryId",
-                        "title": "Category Title"
-                    }
-                ]
-            },
-            { 
-                "id": "exampleEvent2",
-                "categories": [
-                    {
-                        "id": "categoryId",
-                        "title": "Category Title"
-                    }
-                ]
-            }
-        ]
+        "type": "",
+        "events": [EventResult(
+                            id="exampleEvent",
+                            title="Event Title",
+                            description="Event description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        ),
+                        EventResult(
+                            id="exampleEvent2",
+                            title="Event2 Title",
+                            description="Event2 description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        )
+                    ],
+        "features": [],
+        "categories": [],
     }
-    
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
     params = {"limit": "2"}
 
-    result = categories("categoryId", params)
-    assert result == expected
+    result = tool.categories("categoryId", params)
+            
+    assert result["title"] == "EONET Events: Category"
+    assert result["description"] == "Category description."
+    assert result["link"] == f"{EONET_BASE_URL}/categories/categoryId"    
+    assert result["type"] == ""
+    assert result["events"] == [EventResult(
+                                        id="exampleEvent",
+                                        title="Event Title",
+                                        description="Event description",
+                                        link=f"{EONET_BASE_URL}/events/exampleEvent",
+                                        closed=None,
+                                        categories=[CategoryResult(
+                                            id="categoryId",
+                                            title="Category Title",
+                                        )],
+                                        sources=[],
+                                        geometry=[],
+                                    ),
+                                    EventResult(
+                                        id="exampleEvent2",
+                                        title="Event2 Title",
+                                        description="Event2 description",
+                                        link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                                        closed=None,
+                                        categories=[CategoryResult(
+                                            id="categoryId",
+                                            title="Category Title",
+                                        )],
+                                        sources=[],
+                                        geometry=[],
+                                    )
+                                ]
+    assert result["features"] == []
+    assert result["categories"] == []    
+    mock_categories_endpoint.assert_called_once_with("categoryId", params)
 
-def test_returns_no_events_from_category(self, monkeypatch):
-    """Test that categories returns no events for a category without events."""
-    expected = {
+
+def test_get_events_returns_no_events_from_category(mock_categories_endpoint: MagicMock) -> None:
+    """Test that get_events returns no events for a category without events."""
+    tool = _load_tool()
+                                            
+    mock_categories_endpoint.return_value = {
         "title": ANY,
         "description": ANY,
         "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": []
+        "type": "",
+        "events": [],
+        "features": [],
+        "categories": [],
     }
-    
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
     params = {"limit": "1"}
 
-    result = categories("categoryId", params)
-    assert result == expected
+    result = tool.categories("categoryId", params)
+                
+    assert result["title"] == ANY
+    assert result["description"] == ANY
+    assert result["link"] == f"{EONET_BASE_URL}/categories/categoryId"    
+    assert result["type"] == ""
+    assert result["events"] == []
+    assert result["features"] == []
+    assert result["categories"] == []    
+    mock_categories_endpoint.assert_called_once_with("categoryId", params)
 
-def test_returns_all_categories(self, monkeypatch):
+
+def test_get_events_returns_all_categories(mock_categories_endpoint: MagicMock) -> None:
     """
-    Test that categories returns all categories if just the category 
+    Test that get_events returns all categories if just the category 
     endpoint itself is passed via the request.
     """
-    expected = {
+    tool = _load_tool()
+                                                
+    mock_categories_endpoint.return_value = {
         "title": "EONET Event Categories",
         "description": "List of all the available event categories in the EONET system",
         "link": f"{EONET_BASE_URL}/categories",
-        "categories": [
-            {
-                "id": "cat_01",
-                "title": "category1",
-                "link": f"{EONET_BASE_URL}/categories/cat_01",
-                "description": "Category 1 description.",
-                "layers": f"{EONET_BASE_URL}/layers/cat_01_layers"
-            },
-            {
-                "id": "cat_02",
-                "title": "category2",
-                "link": f"{EONET_BASE_URL}/categories/cat_02",
-                "description": "Category 2 description.",
-                "layers": f"{EONET_BASE_URL}/layers/cat_02_layers"
-            }
-        ]
+        "type": "",
+        "events": [],
+        "features": [],
+        "categories": [CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                                link=f"{EONET_BASE_URL}/categories/categoryId",
+                                description="Category description.",
+                                layers=f"{EONET_BASE_URL}/layers/categoryId_layers"
+                            ),
+                            CategoryResult(
+                                id="categoryId2",
+                                title="Category2 Title",
+                                link=f"{EONET_BASE_URL}/categories/categoryId2",
+                                description="Category2 description.",
+                                layers=f"{EONET_BASE_URL}/layers/categoryId2_layers"
+                            )
+                        ]
     }
     
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    result = categories("", {})
-    assert result == expected
+    result = tool.categories("", {})
+                    
+    assert result["title"] == "EONET Event Categories"
+    assert result["description"] == "List of all the available event categories in the EONET system"
+    assert result["link"] == f"{EONET_BASE_URL}/categories"
+    assert result["type"] == ""
+    assert result["events"] == []
+    assert result["features"] == []
+    assert result["categories"] == [CategoryResult(
+                                            id="categoryId",
+                                            title="Category Title",
+                                            link=f"{EONET_BASE_URL}/categories/categoryId",
+                                            description="Category description.",
+                                            layers=f"{EONET_BASE_URL}/layers/categoryId_layers"
+                                        ),
+                                        CategoryResult(
+                                            id="categoryId2",
+                                            title="Category2 Title",
+                                            link=f"{EONET_BASE_URL}/categories/categoryId2",
+                                            description="Category2 description.",
+                                            layers=f"{EONET_BASE_URL}/layers/categoryId2_layers"
+                                        )
+                                    ]   
+    mock_categories_endpoint.assert_called_once_with("", {})
 
-def test_returns_all_events_for_category(self, monkeypatch):
+
+def test_get_events_returns_all_events_for_category(mock_categories_endpoint: MagicMock) -> None   :
     """
-    Test that categories returns all events for a given category if just the category's
+    Test that get_events returns all events for a given category if just the category's
     endpint is called without any parameters, or with an invalid parameter.
     """
-    expected = {
+    tool = _load_tool()
+                                                    
+    mock_categories_endpoint.return_value = {
         "title": "EONET Events: Category Title",
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [
-            { 
-                "id": "exampleEvent1",
-                "categories": [
-                    {
-                        "id": "categoryId",
-                        "title": "Category Title"
-                    }
-                ]
-            },
-            { 
-                "id": "exampleEvent2",
-                "categories": [
-                    {
-                        "id": "categoryId",
-                        "title": "Category Title"
-                    }
-                ]
-            }
-        ]
+        "type": "",
+        "events": [EventResult(
+                            id="exampleEvent",
+                            title="Event Title",
+                            description="Event description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        ),
+                        EventResult(
+                            id="exampleEvent2",
+                            title="Event2 Title",
+                            description="Event2 description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        )
+                    ],
+        "features": [],
+        "categories": [],
     }
-    
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    result_no_params = categories("wildfires", {})
-    result_invalid_param = categories("wildfires", {"limit": "-1"})
-    assert result_no_params == expected
-    assert result_invalid_param == expected
 
-def test_returns_error_for_fake_category(self, monkeypatch):
-    """Test that categories returns an error for a fake category."""
-    mock_get = Mock(side_effect=EONETError("That category doesn't exist."))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+    expected_events = [EventResult(
+                            id="exampleEvent",
+                            title="Event Title",
+                            description="Event description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        ),
+                        EventResult(
+                            id="exampleEvent2",
+                            title="Event2 Title",
+                            description="Event2 description",
+                            link=f"{EONET_BASE_URL}/events/exampleEvent2",
+                            closed=None,
+                            categories=[CategoryResult(
+                                id="categoryId",
+                                title="Category Title",
+                            )],
+                            sources=[],
+                            geometry=[],
+                        )
+                    ]
+    
+    result_no_params = tool.categories("categoryId", {})
+    result_invalid_param = tool.categories("categoryId", {"limit": "-1"})
+    assert result_no_params["title"] == "EONET Events: Category Title" and \
+        result_invalid_param["title"] == "EONET Events: Category Title"
+    assert result_no_params["description"] == "Category description." and \
+        result_invalid_param["description"] == "Category description."
+    assert result_no_params["link"] == f"{EONET_BASE_URL}/categories/categoryId" and \
+        result_invalid_param["link"] == f"{EONET_BASE_URL}/categories/categoryId"
+    assert result_no_params["type"] == "" and \
+        result_invalid_param["type"] == ""
+    assert result_no_params["events"] == expected_events and \
+        result_invalid_param["events"] == expected_events
+    assert result_no_params["features"] == [] and \
+        result_invalid_param["features"] == []
+    assert result_no_params["categories"] == [] and \
+        result_invalid_param["categories"] == []
+    mock_categories_endpoint.assert_called_once_with("categoryId", {})
+    mock_categories_endpoint.assert_called_once_with("categoryId", {"limit": "-1"})
+
+
+def test_get_events_returns_error_for_fake_category(mock_categories_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error for a fake category."""
+    tool = _load_tool()
+                                                        
+    mock_categories_endpoint.side_effect=EONETError("That category doesn't exist.")
 
     with pytest.raises(EONETError) as e:
-        categories("fakecategory", {})
+        tool.categories("fakecategory", {})
     
     assert "That category doesn't exist." in str(e.value)
 
-def test_returns_layer_from_category(self, monkeypatch):
-    """Test that layers can return a single layer from the specified category."""
-    expected = {
+def test_get_events_returns_layer_from_category(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events can return a single layer from the specified category."""
+    tool = _load_tool()
+
+    mock_layers_endpoint.return_value = {
         "title": "EONET Web Service Layers",
         "description": "List of web service layers in the EONET system.",
         "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [
-            { 
-                "id": "categoryId",
-                "title": "Category Title",
-                "layers": [
-                    {
-                        "name": "layerName",
-                        "serviceUrl": "https://www.layer-service.com",
-                        "serviceTypeId": "typeId",
-                        "parameters": [
-                            {
-                                "param1": "value1",
-                                "param2": "value2"
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
+        "type": "",
+        "events": [],
+        "features": [],
+        "categories": [CategoryResult(
+                            id="categoryId",
+                            title="Category Title",
+                            layers=[LayerResult(
+                                    name="layerName",
+                                    serviceUrl="https://www.layer-service.com",
+                                    serviceTypeId="typeId",
+                                    parameters=[
+                                        {
+                                            "param1": "value1",
+                                            "param2": "value2"
+                                        }
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
     }
     
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    result = layers("categoryId")
-    assert result == expected
+    result = tool.layers("categoryId")
+    assert result["title"] == "EONET Web Service Layers"
+    assert result["description"] == "List of web service layers in the EONET system."
+    assert result["link"] == f"{EONET_BASE_URL}/layers/categoryId"
+    assert result["type"] == ""
+    assert result["events"] == []
+    assert result["features"] == []
+    assert result["categories"] == [CategoryResult(
+                                            id="categoryId",
+                                            title="Category Title",
+                                            layers=[LayerResult(
+                                                    name="layerName",
+                                                    serviceUrl="https://www.layer-service.com",
+                                                    serviceTypeId="typeId",
+                                                    parameters=[
+                                                        {
+                                                            "param1": "value1",
+                                                            "param2": "value2"
+                                                        }
+                                                    ]
+                                                )
+                                            ]
+                                        )
+                                    ]
+    mock_layers_endpoint.assert_called_once_with("categoryId")
 
-def test_returns_multiple_layers_from_category(self, monkeypatch):
-    """Test that layers returns multiple layers from the specified category."""
-    expected = {
+
+def test_get_events_returns_multiple_layers_from_category(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events returns multiple layers from the specified category."""
+    tool = _load_tool()
+    
+    mock_layers_endpoint.return_value = {
         "title": "EONET Web Service Layers",
         "description": "List of web service layers in the EONET system.",
         "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [
-            { 
-                "id": "categoryId",
-                "title": "Category Title",
-                "layers": [
-                    {
-                        "name": "layer1Name",
-                        "serviceUrl": "https://www.layer1-service.com",
-                        "serviceTypeId": "typeId1",
-                        "parameters": [
-                            {
-                                "layer1Param1": "layer1Value1",
-                                "layer1Param2": "layer1Value2"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "layer2Name",
-                        "serviceUrl": "https://www.layer2-service.com",
-                        "serviceTypeId": "typeId2",
-                        "parameters": [
-                            {
-                                "layer2Param1": "layer2Value1",
-                                "layer2Param2": "layer2Value2"
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
+        "type": "",
+        "events": [],
+        "features": [],
+        "categories": [CategoryResult(
+                            id="categoryId",
+                            title="Category Title",
+                            layers=[LayerResult(
+                                    name="layerName",
+                                    serviceUrl="https://www.layer-service.com",
+                                    serviceTypeId="typeId",
+                                    parameters=[
+                                        {
+                                            "layer1param1": "layer1value1",
+                                            "layer1param2": "layer1value2"
+                                        }
+                                    ]
+                                ),
+                                LayerResult(
+                                    name="layer2Name",
+                                    serviceUrl="https://www.layer2-service.com",
+                                    serviceTypeId="typeId2",
+                                    parameters=[
+                                        {
+                                            "layer2Param1": "layer2Value1",
+                                            "layer2Param2": "layer2Value2"
+                                        }
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
     }
     
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    result = layers("categoryId")
-    assert result == expected
+    result = tool.layers("categoryId")
+    assert result["title"] == "EONET Web Service Layers"
+    assert result["description"] == "List of web service layers in the EONET system."
+    assert result["link"] == f"{EONET_BASE_URL}/layers/categoryId"
+    assert result["type"] == ""
+    assert result["events"] == []
+    assert result["features"] == []
+    assert result["categories"] == [LayerResult(
+                                            name="layerName",
+                                            serviceUrl="https://www.layer-service.com",
+                                            serviceTypeId="typeId",
+                                            parameters=[
+                                                {
+                                                    "layer1param1": "layer1value1",
+                                                    "layer1param2": "layer1value2"
+                                                }
+                                            ]
+                                        ),
+                                        LayerResult(
+                                            name="layer2Name",
+                                            serviceUrl="https://www.layer2-service.com",
+                                            serviceTypeId="typeId2",
+                                            parameters=[
+                                                {
+                                                    "layer2Param1": "layer2Value1",
+                                                    "layer2Param2": "layer2Value2"
+                                                }
+                                            ]
+                                        )
+                                    ]
+    mock_layers_endpoint.assert_called_once_with("categoryId")
 
-def test_returns_no_layers_from_category(self, monkeypatch):
-    """Test that layers returns no layers for a category without layers."""
-    expected = {
+
+def test_get_events_returns_no_layers_from_category(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events returns no layers for a category without layers."""
+    tool = _load_tool()
+        
+    mock_layers_endpoint.return_value = {
         "title": ANY,
         "description": ANY,
         "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [
-            { 
-                "id": ANY,
-                "title": ANY,
-                "layers": []
-            }
-        ]
+        "categories": [CategoryResult(
+                            id=ANY,
+                            title=ANY,
+                            layers=[]
+                        )
+                    ]
     }
     
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
-    result = layers("categoryId")
-    assert result == expected
+    result = tool.layers("categoryId")
+    assert result["title"] == ANY
+    assert result["description"] == ANY
+    assert result["link"] == f"{EONET_BASE_URL}/layers/categoryId"
+    assert result["categories"] == [CategoryResult(
+                                            id=ANY,
+                                            title=ANY,
+                                            layers=[]
+                                        )
+                                    ]
+    mock_layers_endpoint.assert_called_once_with("categoryId")
 
-def test_returns_all_layers(self, monkeypatch):
-    """Test that layers returns all layers when no category is given."""
-    expected = {
+
+def test_get_events_returns_all_layers(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events returns all layers when no category is given."""
+    tool = _load_tool()
+            
+    mock_layers_endpoint.return_value = {
         "title": "EONET Web Service Layers",
         "description": "List of web service layers in the EONET system",
         "link": f"{EONET_BASE_URL}/layers",
-        "categories": [
-            {
-                "layers": [
-                    {
-                        "name": "Layer_01",
-                        "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_01",
-                        "serviceTypeId": "Layer_01_ID",
-                        "parameters": [
-                            {
-                                "TILEMATRIXSET": "2km",
-                                "FORMAT": "image/png"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "Layer_02",
-                        "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_02",
-                        "serviceTypeId": "Layer_02_ID",
-                        "parameters": [
-                            {
-                                "TILEMATRIXSET": "2km",
-                                "FORMAT": "image/png"
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
+        "categories": [CategoryResult(
+                            layers=[LayerResult(
+                                    name="Layer_01",
+                                    serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_01",
+                                    serviceTypeId="Layer_01_ID",
+                                    parameters=[
+                                        {
+                                            "TILEMATRIXSET": "2km",
+                                            "FORMAT": "image/png"
+                                        }
+                                    ]
+                                ),
+                                LayerResult(
+                                    name="Layer_02",
+                                    serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_02",
+                                    serviceTypeId="Layer_02_ID",
+                                    parameters=[
+                                        {
+                                            "TILEMATRIXSET": "2km",
+                                            "FORMAT": "image/png"
+                                        }
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
     }
     
-    mock_get = Mock(return_value=_make_response(json_data=expected))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
+    result = tool.layers("categoryId")
+    assert result["title"] == "EONET Web Service Layers"
+    assert result["description"] == "List of web service layers in the EONET system"
+    assert result["link"] == f"{EONET_BASE_URL}/layers"
+    assert result["categories"] == [CategoryResult(
+                                            layers=[LayerResult(
+                                                    name="Layer_01",
+                                                    serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_01",
+                                                    serviceTypeId="Layer_01_ID",
+                                                    parameters=[
+                                                        {
+                                                            "TILEMATRIXSET": "2km",
+                                                            "FORMAT": "image/png"
+                                                        }
+                                                    ]
+                                                ),
+                                                LayerResult(
+                                                    name="Layer_02",
+                                                    serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_02",
+                                                    serviceTypeId="Layer_02_ID",
+                                                    parameters=[
+                                                        {
+                                                            "TILEMATRIXSET": "2km",
+                                                            "FORMAT": "image/png"
+                                                        }
+                                                    ]
+                                                )
+                                            ]
+                                        )
+                                    ]
+    mock_layers_endpoint.assert_called_once_with("categoryId")
     
-    result = layers("categoryId")
-    assert result == expected
 
-def test_layers_returns_error_for_fake_category(self, monkeypatch):
-    """Test that layers returns an error if a fake category is given."""
-    mock_get = Mock(side_effect=EONETError("That category doesn't exist."))
-    monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-
+def test_get_events_returns_error_for_fake_category(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error if a fake category is given."""
+    tool = _load_tool()
+                                                            
+    mock_categories_endpoint.side_effect=EONETError("That category doesn't exist.")
+    
     with pytest.raises(EONETError) as e:
-        layers("fakecategory")
-
+        tool.layers("fakecategory")
+    
     assert "That category doesn't exist." in str(e.value)
