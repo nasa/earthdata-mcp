@@ -25,7 +25,7 @@ class CategoryResult(BaseModel):
     description: str | None = Field(
             None, description="The primary description of the category, if available"
         )
-    layers: list[LayerResult] | None = Field(None, description="EONET endpoint URL for the category's layers")
+    layers: list[LayerResult] | str = Field(None, description="EONET endpoint URL for the category's layers")
 
 
 class EventResult(BaseModel):
