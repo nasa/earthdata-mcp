@@ -19,8 +19,8 @@ class LayerResult(BaseModel):
 class CategoryResult(BaseModel):
     """A single EONET category object."""
 
-    id: str | int = Field(..., description="The unique ID of the category")
-    title: str = Field("", description="The EONET-provided title of the category")
+    id: str | int | None = Field(None, description="The unique ID of the category")
+    title: str | None = Field(None, description="The EONET-provided title of the category")
     link: str | None = Field(None, description="The API endpoint URL for the category")
     description: str | None = Field(
             None, description="The primary description of the category, if available"
