@@ -2,6 +2,7 @@
 
 import logging
 
+from fastmcp.exceptions import ToolError
 from langfuse import observe
 
 from models.pagination import (
@@ -41,7 +42,7 @@ DEFAULT_LIMIT: LimitParam = 5
 logger = logging.getLogger(__name__)
 
 
-def _build_response(endpoint: str, results: dict) -> GetEventsOutput:
+def _build_response(endpoint: str, results: dict) -> dict:
     try:
         if (endpoint == Endpoints.EVENTS) or (endpoint == Endpoints.CATEGORIES):
             event_list = []
@@ -53,7 +54,7 @@ def _build_response(endpoint: str, results: dict) -> GetEventsOutput:
                     if "categories" in event:
                         for event_category in event["categories"]:
                             if "layers" in event_category:
-                                if (type(event_category["layers"]) == list) and (len(event_category["layers"] != 0)):
+                                if (type(event_category["layers"]) == list) and (len(event_category["layers"]) != 0):
                                     for layer in event_category["layers"]:
                                         layer_list.append(
                                             LayerResult(
@@ -129,7 +130,7 @@ def _build_response(endpoint: str, results: dict) -> GetEventsOutput:
             if "categories" in results:
                 for category in results["categories"]:
                     if "layers" in category:
-                        if (type(category["layers"]) == list) and (len(category["layers"] != 0)):
+                        if (type(category["layers"]) == list) and (len(category["layers"]) != 0):
                             for layer in category["layers"]:
                                 category_layer_list.append(
                                     LayerResult(
@@ -178,12 +179,7 @@ def _build_response(endpoint: str, results: dict) -> GetEventsOutput:
             ).model_dump()
     except (ValueError, TypeError) as e:
         logger.error("Results could not be saved: %s", e)
-        return GetEventsOutput(
-            status=SearchStatus.ERROR,
-            error_message=f"Attempted to store malformed results: {e}",
-            title=SearchStatus.ERROR,
-            link=f"{get_request_url()}",
-        ).model_dump()
+        raise ToolError(f"Attempted to store malformed results: {e}") from e
 
 
 @observe(name="get_events")
@@ -191,7 +187,7 @@ def get_events(
     endpoint: str,
     params: dict = {},
     category: str = "",
-) -> GetEventsOutput:
+) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
     This tool takes an EONET API endpoint name, list of parameters, and a results limit,
@@ -215,7 +211,7 @@ def get_events(
         )
     except (ValueError, TypeError) as e:
         logger.warning("get_events input validation failed: %s", e)
-        raise EONETError(str(e)) from e
+        raise ToolError(str(e)) from e
 
     endpoint = eonet_params.endpoint
     category = eonet_params.category
@@ -304,22 +300,12 @@ def get_events(
                 events=[],
                 features=[],
                 categories=[],
-            )
+            ).model_dump()
         response = _build_response(endpoint, results)
-        if response.status == SearchStatus.ERROR:
-            raise EONETError(response.error_message)
+        if response["status"] == SearchStatus.ERROR:
+            raise EONETError(response["error_message"])
         else:
             return response
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
-        return GetEventsOutput(
-            status=SearchStatus.ERROR,
-            error_message=f"EONET could not process the request: {e}",
-            title=SearchStatus.ERROR,
-            description="Failed EONET API request",
-            link=f"{get_request_url()}",
-            type="",
-            events=[],
-            features=[],
-            categories=[],
-        ).model_dump()
+        raise ToolError(f"Failed to communicate with EONET API: {e}") from e
