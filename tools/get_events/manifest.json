@@ -15,14 +15,14 @@
         "global_search": {
             "description": "Search for events across all categories",
             "params": {
-                "endpoint": "v3/events",
+                "endpoint": "/events",
                 "event_params": {}
             }
         },
         "targeted_search": {
             "description": "Search for events within a specific category",
             "params": {
-                "endpoint": "v3/events",
+                "endpoint": "/events",
                 "event_params": {
                     "category": "wildfires",
                     "status": "open"

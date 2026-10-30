@@ -4,17 +4,11 @@ import importlib
 import types
 from fastmcp.exceptions import ToolError
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 
 import pytest
 
 from models.tools.cmr_search import SearchStatus
-from models.tools.get_events import (
-    EventResult,
-    GeoJSONResult,
-    CategoryResult,
-    LayerResult,
-)
 from util.eonet.client import (
     EONET_BASE_URL, 
     EONETError,
@@ -71,23 +65,23 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
         "description": "Natural event from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [EventResult(
-            id="exampleEvent",
-            title="Event Title",
-            description="Event description",
-            link=f"{EONET_BASE_URL}/events/exampleEvent",
-            closed=None,
-            categories=[],
-            sources=[],
-            geometry=[],
-        )],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -136,33 +130,33 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [EventResult(
-            id="exampleEvent",
-            title="Event Title",
-            description="Event description",
-            link=f"{EONET_BASE_URL}/events/exampleEvent",
-            closed=None,
-            categories=[],
-            sources=[],
-            geometry=[],
-        ),
-        EventResult(
-            id="exampleEvent2",
-            title="Event2 Title",
-            description="Event2 description",
-            link=f"{EONET_BASE_URL}/events/exampleEvent2",
-            closed=None,
-            categories=[],
-            sources=[],
-            geometry=[],
-        )],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = {"limit": "2"}
     
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -199,7 +193,7 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
 
     params = {"limit": "1"}
         
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -248,33 +242,33 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [EventResult(
-            id="exampleEvent",
-            title="Event Title",
-            description="Event description",
-            link=f"{EONET_BASE_URL}/events/exampleEvent",
-            closed=None,
-            categories=[],
-            sources=[],
-            geometry=[],
-        ),
-        EventResult(
-            id="exampleEvent2",
-            title="Event2 Title",
-            description="Event2 description",
-            link=f"{EONET_BASE_URL}/events/exampleEvent2",
-            closed=None,
-            categories=[],
-            sources=[],
-            geometry=[],
-        )],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
     
     params = {"limit": "-1"}
             
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -313,24 +307,23 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
         "link": "",
         "type": "FeatureCollection",
         "events": [],
-        "features": [GeoJSONResult(
-                type="Feature",
-                geometry={
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0] 
-                },
-                properties={
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            )
-        ],
+        "features": [{
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [0.0, 0.0] 
+            },
+            "properties": {
+              "name": "A Cool Place",
+              "location": "Anytown, USA"
+            }
+        }],
         "categories": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -380,35 +373,34 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
         "link": "",
         "type": "FeatureCollection",
         "events": [],
-        "features": [GeoJSONResult(
-                type="Feature",
-                geometry={
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0] 
-                },
-                properties={
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            ),
-            GeoJSONResult(
-                type="Feature",
-                geometry={
-                  "type": "Point",
-                  "coordinates": [1.0, 1.0] 
-                },
-                properties={
-                  "name": "Another Cool Place",
-                  "location": "Anothertown, USA"
-                }
-            )
-        ],
+        "features": [{
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [0.0, 0.0] 
+            },
+            "properties": {
+              "name": "A Cool Place",
+              "location": "Anytown, USA"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [1.0, 1.0] 
+            },
+            "properties": {
+              "name": "Another Cool Place",
+              "location": "Anothertown, USA"
+            }
+        }],
         "categories": [],
     }
 
     params = {"limit": "2"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -443,7 +435,7 @@ def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -493,35 +485,34 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
         "link": "",
         "type": "FeatureCollection",
         "events": [],
-        "features": [GeoJSONResult(
-                type="Feature",
-                geometry={
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0] 
-                },
-                properties={
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            ),
-            GeoJSONResult(
-                type="Feature",
-                geometry={
-                  "type": "Point",
-                  "coordinates": [1.0, 1.0] 
-                },
-                properties={
-                  "name": "Another Cool Place",
-                  "location": "Anothertown, USA"
-                }
-            )
-        ],
+        "features": [{
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [0.0, 0.0] 
+            },
+            "properties": {
+              "name": "A Cool Place",
+              "location": "Anytown, USA"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [1.0, 1.0] 
+            },
+            "properties": {
+              "name": "Another Cool Place",
+              "location": "Anothertown, USA"
+            }
+        }],
         "categories": [],
     }
     
     params = {"limit": "-1"}
     
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -570,34 +561,35 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [EventResult(
-                id="exampleEvent",
-                title="Event Title",
-                description="Event description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent",
-                closed=None,
-                categories=[],
-                sources=[],
-                geometry=[],
-            ),
-            EventResult(
-                id="exampleEvent2",
-                title="Event2 Title",
-                description="Event2 description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                closed=None,
-                categories=[],
-                sources=[],
-                geometry=[],
-            )
-        ],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = {"category": "fakecategory"}
 
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+
+    expected_params = {"category": "fakecategory", "limit": 5}
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -607,7 +599,7 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
     assert result["events"] == expected["events"]
     assert result["features"] == expected["features"]
     assert result["categories"] == expected["categories"]
-    mock_events_endpoint.assert_called_once_with(params, False)
+    mock_events_endpoint.assert_called_once_with(expected_params, False)
 
 
 def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicMock) -> None:
@@ -624,10 +616,10 @@ def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicM
             "description": "Event description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         }],
@@ -639,27 +631,29 @@ def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicM
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
         "type": "",
-        "events": [EventResult(
-                id="exampleEvent",
-                title="Event Title",
-                description="Event description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            )
-        ],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -686,10 +680,10 @@ def test_get_events_returns_multiple_events_from_category(mock_categories_endpoi
             "description": "Event description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         },
@@ -699,10 +693,10 @@ def test_get_events_returns_multiple_events_from_category(mock_categories_endpoi
             "description": "Event2 description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent2",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         }],
@@ -714,40 +708,45 @@ def test_get_events_returns_multiple_events_from_category(mock_categories_endpoi
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
         "type": "",
-        "events": [EventResult(
-                id="exampleEvent",
-                title="Event Title",
-                description="Event description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            ),
-            EventResult(
-                id="exampleEvent2",
-                title="Event2 Title",
-                description="Event2 description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            )
-        ],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = {"limit": "2"}
 
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -784,7 +783,7 @@ def test_get_events_returns_no_events_from_category(mock_categories_endpoint: Ma
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -832,24 +831,23 @@ def test_get_events_returns_all_categories(mock_categories_endpoint: MagicMock) 
         "type": "",
         "events": [],
         "features": [],
-        "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-                link=f"{EONET_BASE_URL}/categories/categoryId",
-                description="Category description.",
-                layers=f"{EONET_BASE_URL}/layers/categoryId_layers"
-            ),
-            CategoryResult(
-                id="categoryId2",
-                title="Category2 Title",
-                link=f"{EONET_BASE_URL}/categories/categoryId2",
-                description="Category2 description.",
-                layers=f"{EONET_BASE_URL}/layers/categoryId2_layers"
-            )
-        ]
+        "categories": [{
+            "id": "categoryId",
+            "title": "Category Title",
+            "link": f"{EONET_BASE_URL}/categories/categoryId",
+            "description": "Category description.",
+            "layers": f"{EONET_BASE_URL}/layers/categoryId_layers"
+        },
+        {
+            "id": "categoryId2",
+            "title": "Category2 Title",
+            "link": f"{EONET_BASE_URL}/categories/categoryId2",
+            "description": "Category2 description.",
+            "layers": f"{EONET_BASE_URL}/layers/categoryId2_layers"
+        }]
     }
     
-    result = tool.get_events(endpoint="categories", params={}, category="")
+    result = tool.get_events(endpoint="categories", params={}, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -859,7 +857,7 @@ def test_get_events_returns_all_categories(mock_categories_endpoint: MagicMock) 
     assert result["events"] == expected["events"]
     assert result["features"] == expected["features"]
     assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("", {})
+    mock_categories_endpoint.assert_called_once_with("", {"limit": 5})
 
 
 def test_get_events_returns_all_events_for_category_endpoint(mock_categories_endpoint: MagicMock) -> None   :
@@ -879,10 +877,10 @@ def test_get_events_returns_all_events_for_category_endpoint(mock_categories_end
             "description": "Event description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         },
@@ -892,10 +890,10 @@ def test_get_events_returns_all_events_for_category_endpoint(mock_categories_end
             "description": "Event2 description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent2",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         }],
@@ -907,38 +905,44 @@ def test_get_events_returns_all_events_for_category_endpoint(mock_categories_end
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
         "type": "",
-        "events": [EventResult(
-                id="exampleEvent",
-                title="Event Title",
-                description="Event description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            ),
-            EventResult(
-                id="exampleEvent2",
-                title="Event2 Title",
-                description="Event2 description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            )
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        }
         ],
         "features": [],
         "categories": [],
     }
     
-    result = tool.get_events(endpoint="categories", params={}, category="categoryId")
+    result = tool.get_events(endpoint="categories", params={}, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -948,7 +952,7 @@ def test_get_events_returns_all_events_for_category_endpoint(mock_categories_end
     assert result["events"] == expected["events"]
     assert result["features"] == expected["features"]
     assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", {})
+    mock_categories_endpoint.assert_called_once_with("categoryId", {"limit": 5})
 
 
 def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock_categories_endpoint: MagicMock) -> None   :
@@ -968,10 +972,10 @@ def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock
             "description": "Event description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         },
@@ -981,10 +985,10 @@ def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock
             "description": "Event2 description",
             "link": f"{EONET_BASE_URL}/events/exampleEvent2",
             "closed": None,
-            "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-            )],
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+            }],
             "sources": [],
             "geometry": [],
         }],
@@ -996,40 +1000,45 @@ def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock
         "description": "Category description.",
         "link": f"{EONET_BASE_URL}/categories/categoryId",
         "type": "",
-        "events": [EventResult(
-                id="exampleEvent",
-                title="Event Title",
-                description="Event description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            ),
-            EventResult(
-                id="exampleEvent2",
-                title="Event2 Title",
-                description="Event2 description",
-                link=f"{EONET_BASE_URL}/events/exampleEvent2",
-                closed=None,
-                categories=[CategoryResult(
-                    id="categoryId",
-                    title="Category Title",
-                )],
-                sources=[],
-                geometry=[],
-            )
-        ],
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        },
+        {
+            "id": "exampleEvent2",
+            "title": "Event2 Title",
+            "description": "Event2 description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
+            "closed": None,
+            "categories": [{
+                "id": "categoryId",
+                "title": "Category Title",
+                "link": "",
+                "description": "",
+                "layers": [],
+            }],
+            "sources": [],
+            "geometry": [],
+        }],
         "features": [],
         "categories": [],
     }
 
     params = { "limit": "-1" }
 
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1046,12 +1055,12 @@ def test_get_events_categories_returns_error_for_fake_category(mock_categories_e
     """Test that get_events returns an error for a fake category (for category endpoint)."""
     tool = _load_tool()
 
-    mock_categories_endpoint.side_effect=EONETError("That category doesn't exist.")
+    mock_categories_endpoint.side_effect=EONETError(f"Failed to fetch events for category 'fakecategory', or all categories, from EONET: {ANY}")
 
     with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="categories", params={}, category="fakecategory")
+        results = tool.get_events(endpoint="categories", params={}, event_id="", category="fakecategory")
         
-    assert "Failed to fetch layers for category 'fakecategory'" in str(e.value)
+    assert "Failed to fetch events for category 'fakecategory'" in str(e.value)
 
 
 def test_get_events_returns_layer_from_category(mock_layers_endpoint: MagicMock) -> None:
@@ -1087,26 +1096,26 @@ def test_get_events_returns_layer_from_category(mock_layers_endpoint: MagicMock)
         "type": "",
         "events": [],
         "features": [],
-        "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-                layers=[LayerResult(
-                        name="layerName",
-                        serviceUrl="https://www.layer-service.com",
-                        serviceTypeId="typeId",
-                        parameters=[
-                            {
-                                "param1": "value1",
-                                "param2": "value2"
-                            }
-                        ]
-                    )
+        "categories": [{
+            "id": "categoryId",
+            "title": "Category Title",
+            "link": "",
+            "description": "",
+            "layers": [{
+                "name": "layerName",
+                "serviceUrl": "https://www.layer-service.com",
+                "serviceTypeId": "typeId",
+                "parameters": [
+                    {
+                        "param1": "value1",
+                        "param2": "value2"
+                    }
                 ]
-            )
-        ]
+            }]
+        }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1163,37 +1172,37 @@ def test_get_events_returns_multiple_layers_from_category(mock_layers_endpoint: 
         "type": "",
         "events": [],
         "features": [],
-        "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-                layers=[LayerResult(
-                        name="layerName",
-                        serviceUrl="https://www.layer-service.com",
-                        serviceTypeId="typeId",
-                        parameters=[
-                            {
-                                "layer1param1": "layer1value1",
-                                "layer1param2": "layer1value2"
-                            }
-                        ]
-                    ),
-                    LayerResult(
-                        name="layer2Name",
-                        serviceUrl="https://www.layer2-service.com",
-                        serviceTypeId="typeId2",
-                        parameters=[
-                            {
-                                "layer2Param1": "layer2Value1",
-                                "layer2Param2": "layer2Value2"
-                            }
-                        ]
-                    )
+        "categories": [{
+            "id": "categoryId",
+            "title": "Category Title",
+            "link": "",
+            "description": "",
+            "layers": [{
+                "name": "layerName",
+                "serviceUrl": "https://www.layer-service.com",
+                "serviceTypeId": "typeId",
+                "parameters": [
+                    {
+                        "layer1param1": "layer1value1",
+                        "layer1param2": "layer1value2"
+                    }
                 ]
-            )
-        ]
+            },
+            {
+                "name": "layer2Name",
+                "serviceUrl": "https://www.layer2-service.com",
+                "serviceTypeId": "typeId2",
+                "parameters": [
+                    {
+                        "layer2Param1": "layer2Value1",
+                        "layer2Param2": "layer2Value2"
+                    }
+                ]
+            }]
+        }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1229,15 +1238,16 @@ def test_get_events_returns_no_layers_from_category(mock_layers_endpoint: MagicM
         "type": "",
         "events": [],
         "features": [],
-        "categories": [CategoryResult(
-                id="categoryId",
-                title="Category Title",
-                layers=[]
-            )
-        ]
+        "categories": [{
+            "id": "categoryId",
+            "title": "Category Title",
+            "link": "",
+            "description": "",
+            "layers": []
+        }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1247,6 +1257,7 @@ def test_get_events_returns_no_layers_from_category(mock_layers_endpoint: MagicM
     assert result["events"] == expected["events"]
     assert result["features"] == expected["features"]
     assert result["categories"] == expected["categories"]
+    assert result["categories"][0]["layers"] == expected["categories"][0]["layers"]
     mock_layers_endpoint.assert_called_once_with("categoryId")
 
 
@@ -1292,35 +1303,37 @@ def test_get_events_returns_all_layers(mock_layers_endpoint: MagicMock) -> None:
         "type": "",
         "events": [],
         "features": [],
-        "categories": [CategoryResult(
-                layers=[LayerResult(
-                        name="Layer_01",
-                        serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_01",
-                        serviceTypeId="Layer_01_ID",
-                        parameters=[
-                            {
-                                "TILEMATRIXSET": "2km",
-                                "FORMAT": "image/png"
-                            }
-                        ]
-                    ),
-                    LayerResult(
-                        name="Layer_02",
-                        serviceUrl="https://gibs.earthdata.nasa.gov/link/to/Layer_02",
-                        serviceTypeId="Layer_02_ID",
-                        parameters=[
-                            {
-                                "TILEMATRIXSET": "2km",
-                                "FORMAT": "image/png"
-                            }
-                        ]
-                    )
+        "categories": [{
+            "id": "",
+            "title": "",
+            "link": "",
+            "description": "",
+            "layers": [{
+                "name": "Layer_01",
+                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_01",
+                "serviceTypeId": "Layer_01_ID",
+                "parameters": [
+                    {
+                        "TILEMATRIXSET": "2km",
+                        "FORMAT": "image/png"
+                    }
                 ]
-            )
-        ]
+            },
+            {
+                "name": "Layer_02",
+                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_02",
+                "serviceTypeId": "Layer_02_ID",
+                "parameters": [
+                    {
+                        "TILEMATRIXSET": "2km",
+                        "FORMAT": "image/png"
+                    }
+                ]
+            }]
+        }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, category="")
+    result = tool.get_events(endpoint="layers", params={}, event_id="", category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1337,9 +1350,9 @@ def test_get_events_layers_returns_error_for_fake_category(mock_layers_endpoint:
     """Test that get_events returns an error if a fake category is given (for layers endpoint)."""
     tool = _load_tool()
 
-    mock_layers_endpoint.side_effect=EONETError("That category doesn't exist.")
+    mock_layers_endpoint.side_effect=EONETError(f"Failed to fetch layers for category 'fakecategory' from EONET: {ANY}")
     
     with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="layers", params={}, category="fakecategory")
+        results = tool.get_events(endpoint="layers", params={}, event_id="", category="fakecategory")
     
     assert "Failed to fetch layers for category 'fakecategory'" in str(e.value)

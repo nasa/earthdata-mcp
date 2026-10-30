@@ -16,6 +16,7 @@ from models.tools.get_events import (
     GeoJSONResult,
     CategoryResult,
     LayerResult,
+    Endpoints,
 )
 from util.eonet.client import (
     EONET_BASE_URL,
@@ -28,79 +29,114 @@ from util.eonet.client import (
 from util.langfuse import trace_update
 
 
-class Endpoints:
-    """Available EONET API endpoints."""
-    EVENTS = "events"
-    GEOJSON = "events/geojson"
-    CATEGORIES = "categories"
-    LAYERS = "layers"
-
-
 DEFAULT_LIMIT: LimitParam = 5
 
 
 logger = logging.getLogger(__name__)
 
 
-def _build_response(endpoint: str, results: dict) -> dict:
+def _build_response(endpoint: str, results: dict, event_id_used: bool = False) -> dict:
     try:
         if (endpoint == Endpoints.EVENTS) or (endpoint == Endpoints.CATEGORIES):
-            event_list = []
-            event_category_list = []
-            layer_list = []
-            layer_string = ""
             if "events" in results:
+                event_list = []
                 for event in results["events"]:
                     if "categories" in event:
+                        event_category_list = []
                         for event_category in event["categories"]:
                             if "layers" in event_category:
+                                layer_list = []
+                                layer_string = ""
                                 if (type(event_category["layers"]) == list) and (len(event_category["layers"]) != 0):
                                     for layer in event_category["layers"]:
                                         layer_list.append(
                                             LayerResult(
                                                 name=layer["name"] if "name" in layer else "",
-                                                serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else None,
-                                                serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else None,
-                                                parameters=layer["parameters"] if "parameters" in layer else None,
+                                                serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
+                                                serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
+                                                parameters=layer["parameters"] if "parameters" in layer else [],
                                             )
                                         )
                                 elif type(event_category["layers"]) == str:
                                     layer_string = event_category["layers"]
-                                else:
-                                    layer_list = None
-                                    layer_string = None
-                            event_category_list.append(
-                                CategoryResult(
-                                    id=event_category["id"] if "id" in event_category else "",
-                                    title=event_category["title"] if "title" in event_category else None,
-                                    link=event_category["link"] if "link" in event_category else None,
-                                    description=event_category["description"] if "description" in event_category else None,
-                                    layers=layer_list if type(event_category["layers"]) == list else layer_string,
+                                event_category_list.append(
+                                    CategoryResult(
+                                        id=event_category["id"] if "id" in event_category else "",
+                                        title=event_category["title"] if "title" in event_category else "",
+                                        link=event_category["link"] if "link" in event_category else "",
+                                        description=event_category["description"] if "description" in event_category else "",
+                                        layers=layer_list if type(event_category["layers"]) == list else layer_string,
+                                    )
                                 )
+                            else:
+                                event_category_list.append(
+                                    CategoryResult(
+                                        id=event_category["id"] if "id" in event_category else "",
+                                        title=event_category["title"] if "title" in event_category else "",
+                                        link=event_category["link"] if "link" in event_category else "",
+                                        description=event_category["description"] if "description" in event_category else "",
+                                        layers=[],
+                                    )
+                                )
+                        event_list.append(
+                            EventResult(
+                                id=event["id"] if "id" in event else "",
+                                title=event["title"] if "title" in event else "",
+                                description=event["description"] if "description" in event else "",
+                                link=event["link"] if "link" in event else "",
+                                closed=event["closed"] if "closed" in event else "",
+                                categories=event_category_list if event_category_list != [] else [],
+                                sources=event["sources"] if "sources" in event else [],
+                                geometry=event["geometry"] if "geometry" in event else [],
                             )
-                    event_list.append(
-                        EventResult(
-                            id=event["id"] if "id" in event else "",
-                            title=event["title"] if "title" in event else None,
-                            description=event["description"] if "description" in event else None,
-                            link=event["link"] if "link" in event else None,
-                            closed=event["closed"] if "closed" in event else None,
-                            categories=event_category_list if event_category_list != [] else None,
-                            sources=event["sources"] if "sources" in event else None,
-                            geometry=event["geometry"] if "geometry" in event else None,
                         )
-                    )
-            return GetEventsOutput(
-                status=SearchStatus.SUCCESS,
-                error_message=None,
-                title=results["title"],
-                description=results["description"],
-                link=results["link"],
-                type="",
-                events=event_list if event_list != [] else [],
-                features=[],
-                categories=[],
-            ).model_dump()
+                    else:
+                        return GetEventsOutput(
+                            status=SearchStatus.ERROR,
+                            error_message="Unexpected events results shape: No 'categories' key in event item",
+                            title=results["title"],
+                            description=results["description"],
+                            link=results["link"],
+                            type="",
+                            events=[],
+                            features=[],
+                            categories=[],
+                        ).model_dump()
+                return GetEventsOutput(
+                    status=SearchStatus.SUCCESS if event_list != [] else SearchStatus.NO_RESULTS,
+                    error_message=None,
+                    title=results["title"],
+                    description=results["description"],
+                    link=results["link"],
+                    type="",
+                    events=event_list if event_list != [] else [],
+                    features=[],
+                    categories=[],
+                ).model_dump()
+            elif "categories" in results:
+                return GetEventsOutput(
+                    status=SearchStatus.SUCCESS,
+                    error_message=None,
+                    title=results["title"],
+                    description=results["description"],
+                    link=results["link"],
+                    type="",
+                    events=[],
+                    features=[],
+                    categories=results["categories"],
+                ).model_dump()
+            else:
+                return GetEventsOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Unexpected events or categories results shape: No 'events' or 'categories' key in EONET response",
+                    title=results["title"],
+                    description=results["description"],
+                    link=results["link"],
+                    type="",
+                    events=[],
+                    features=[],
+                    categories=[],
+                ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
             feature_list = []
             if "features" in results:
@@ -112,50 +148,73 @@ def _build_response(endpoint: str, results: dict) -> dict:
                             geometry=feature["geometry"] if "geometry" in feature else {},
                         )
                     )
-            return GetEventsOutput(
-                status=SearchStatus.SUCCESS,
-                error_message=None,
-                title="",
-                description="",
-                link="",
-                type=results["type"],
-                events=[],
-                features=feature_list if feature_list != [] else [],
-                categories=[],
-            ).model_dump()
+                return GetEventsOutput(
+                    status=SearchStatus.SUCCESS if feature_list != [] else SearchStatus.NO_RESULTS,
+                    error_message=None,
+                    title="",
+                    description="",
+                    link="",
+                    type=results["type"],
+                    events=[],
+                    features=feature_list if feature_list != [] else [],
+                    categories=[],
+                ).model_dump()
+            else:
+                return GetEventsOutput(
+                    status=SearchStatus.ERROR,
+                    error_message="Unexpected geojson results shape: No 'features' key in EONET response",
+                    title=results["title"],
+                    description=results["description"],
+                    link=results["link"],
+                    type="",
+                    events=[],
+                    features=[],
+                    categories=[],
+                ).model_dump()
         elif endpoint == Endpoints.LAYERS:
-            category_list = []
-            category_layer_list = []
-            category_layer_string = ""
+            found_layers = False
             if "categories" in results:
+                category_list = []
                 for category in results["categories"]:
                     if "layers" in category:
+                        category_layer_list = []
+                        category_layer_string = ""
                         if (type(category["layers"]) == list) and (len(category["layers"]) != 0):
                             for layer in category["layers"]:
                                 category_layer_list.append(
                                     LayerResult(
                                         name=layer["name"] if "name" in layer else "",
-                                        serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else None,
-                                        serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else None,
-                                        parameters=layer["parameters"] if "parameters" in layer else None,
+                                        serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
+                                        serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
+                                        parameters=layer["parameters"] if "parameters" in layer else [],
                                     )
                                 )
                         elif type(category["layers"]) == str:
                             category_layer_string = category["layers"]
-                        else:
-                            category_layer_list = None
-                            category_layer_string = None
-                    category_list.append(
-                        CategoryResult(
-                            id=category["id"] if "id" in category else None,
-                            title=category["title"] if "title" in category else "",
-                            link=None,
-                            description=None,
-                            layers=category_layer_list if type(category["layers"]) == list else category_layer_string,
+                        category_list.append(
+                            CategoryResult(
+                                id=category["id"] if "id" in category else "",
+                                title=category["title"] if "title" in category else "",
+                                link="",
+                                description="",
+                                layers=category_layer_list if type(category["layers"]) == list else category_layer_string,
+                            )
                         )
-                    )
+                    else:
+                        category_list.append(
+                            CategoryResult(
+                                id=category["id"] if "id" in category else "",
+                                title=category["title"] if "title" in category else "",
+                                link="",
+                                description="",
+                                layers=[],
+                            )
+                        )
+            for cat in category_list:
+                if (cat.layers != []) and (cat.layers != ""):
+                    found_layers = True
             return GetEventsOutput(
-                status=SearchStatus.SUCCESS,
+                status=SearchStatus.SUCCESS if found_layers else SearchStatus.NO_RESULTS,
                 error_message=None,
                 title=results["title"],
                 description=results["description"],
@@ -186,18 +245,20 @@ def _build_response(endpoint: str, results: dict) -> dict:
 def get_events(
     endpoint: str,
     params: dict = {},
+    event_id: str = "",
     category: str = "",
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
-    This tool takes an EONET API endpoint name, list of parameters, and a results limit,
-    sending a request with this information to the given endpoint. It then returns the
-    results of the API call.
+    This tool takes an EONET API endpoint name, list of parameters, and optional 
+    event/category IDs, sending a request with this information to the given endpoint. 
+    It then returns the results of the API request.
     """
     trace_update(
         tags=["eonet", "eventsapi"],
         metadata={
             "endpoint": endpoint,
+            "event_id": event_id,
             "category": category,
             "params": params,
         },
@@ -206,16 +267,18 @@ def get_events(
     try:
         eonet_params = GetEventsInput(
             endpoint=endpoint,
-            category=category,
             params=params,
+            category=category,
+            event_id=event_id,
         )
     except (ValueError, TypeError) as e:
         logger.warning("get_events input validation failed: %s", e)
         raise ToolError(str(e)) from e
 
     endpoint = eonet_params.endpoint
-    category = eonet_params.category
     params = eonet_params.params
+    event_id = eonet_params.event_id
+    category = eonet_params.category
     if "limit" not in params:
         params["limit"] = DEFAULT_LIMIT
 
@@ -231,10 +294,22 @@ def get_events(
             features=[],
             categories=[],
         ).model_dump()
+    elif (endpoint != Endpoints.EVENTS) and event_id:
+        return GetEventsOutput(
+            status=SearchStatus.ERROR,
+            error_message="An event ID can only be used with the `/events' endpoint.",
+            title=SearchStatus.ERROR,
+            description="",
+            link=f"{EONET_BASE_URL}/{endpoint}/{event_id}",
+            type="",
+            events=[],
+            features=[],
+            categories=[],
+        ).model_dump()
 
     try:
         if endpoint == Endpoints.EVENTS:
-            results = events(params, False)
+            results = events(params, event_id, False)
             if len(results["events"]) == 0:
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
@@ -248,7 +323,7 @@ def get_events(
                     categories=[],
                 ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
-            results = events(params, True)
+            results = events(params, "", True) # geojson endpoint doesn't accept event IDs
             if len(results["features"]) == 0:
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
@@ -263,7 +338,7 @@ def get_events(
                 ).model_dump()
         elif endpoint == Endpoints.CATEGORIES:
             results = categories(category, params)
-            if len(results["events"]) == 0:
+            if ("events" in results) and (len(results["events"]) == 0):
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
                     error_message=None,

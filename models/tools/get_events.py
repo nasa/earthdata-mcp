@@ -7,6 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from models.tools.cmr_search import BaseToolOutput
 
 
+class Endpoints:
+    """Available EONET API endpoints."""
+    EVENTS = "events"
+    GEOJSON = "events/geojson"
+    CATEGORIES = "categories"
+    LAYERS = "layers"
+
+
 class LayerResult(BaseModel):
     """A single EONET layer object."""
 
@@ -25,7 +33,7 @@ class CategoryResult(BaseModel):
     description: str | None = Field(
             None, description="The primary description of the category, if available"
         )
-    layers: list[LayerResult] | str = Field(None, description="EONET endpoint URL for the category's layers")
+    layers: list[LayerResult] | str | None = Field(None, description="EONET endpoint URL for the category's layers")
 
 
 class EventResult(BaseModel):
@@ -56,11 +64,11 @@ class GeoJSONResult(BaseModel):
     type: str = Field(
         ..., description="The GeoJSON object's type"
     )
-    properties: dict = Field(
-        ..., description="GeoJSON result metadata"
-    )
     geometry: dict = Field(
         ..., description="Location info and object type for the GeoJSON result"
+    )
+    properties: dict = Field(
+        ..., description="GeoJSON result metadata"
     )
 
 
@@ -73,7 +81,7 @@ class GetEventsInput(BaseModel):
         str,
         Field(
             ...,
-            pattern=r"[a-z]+/?[a-z]*?",
+            pattern=r"events/geojson|events|categories|layers",
             description="The EONET endpoint for the API call (e.g. 'events').",
         ),
     ]
@@ -87,6 +95,13 @@ class GetEventsInput(BaseModel):
                 "https://eonet.gsfc.nasa.gov/docs/v3"
             ),
         ),
+    ]
+    event_id: Annotated[
+        str,
+        Field(
+            "",
+            description="The optional ID of a specific event. Can be used only in the '/events' endpoint"
+        )
     ]
     category: Annotated[
         str,
