@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="__TERRA_CSS__">
   <script type="module" src="__TERRA_AUTOLOADER__"></script>
-  <script src="__OL_JS__" defer></script>
   <style>
     html, body { margin: 0; height: 100%; background: var(--eds-color-surface-default, #1c1f26); }
     terra-map { display: block; width: 100%; height: __HEIGHT__px; }
@@ -13,17 +12,5 @@
 </head>
 <body>
   <terra-map id="terra-map" __COLLECTION_ATTR__ __COORDS_ATTR__ show-layer-picker></terra-map>
-  <script type="module">
-    const layers = __LAYERS_JSON__;
-    if (layers.length) {
-      customElements.whenDefined('terra-map').then(() => {
-        const today = new Date().toISOString().slice(0, 10);
-        const map = document.getElementById('terra-map');
-        layers.forEach((layer) => {
-          map.addLayer(layer, {});
-        });
-      });
-    }
-  </script>
 </body>
 </html>

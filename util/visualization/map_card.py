@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from functools import cache
 from pathlib import Path
@@ -30,11 +29,9 @@ def map_html(spec: MapSpec) -> str:
     values = {
         "TERRA_CSS": config.TERRA_CSS,
         "TERRA_AUTOLOADER": config.TERRA_AUTOLOADER,
-        "OL_JS": config.OL_JS,
         "HEIGHT": str(int(spec.height)),
         "COLLECTION_ATTR": collection_attr,
         "COORDS_ATTR": coords_attr,
-        "LAYERS_JSON": json.dumps(spec.layers),
     }
     return _PLACEHOLDER.sub(lambda m: values.get(m.group(1), m.group(0)), _asset("terra_map.html"))
 
