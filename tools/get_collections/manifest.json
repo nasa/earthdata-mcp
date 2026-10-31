@@ -13,6 +13,7 @@
     ],
     "entry_function": "get_collections",
     "enabled": true,
+    "app": {"csp_profile": "map"},
     "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
