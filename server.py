@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from loader import load_tools_from_directory
-from util.mcp_apps import MCPAppsMiddleware
+
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
 from util.stepup import StepUpAuth
@@ -80,7 +80,6 @@ mcp = FastMCP(
     instructions=MCP_SERVER_INSTRUCTIONS,
     version=server_version,
 )
-mcp.add_middleware(MCPAppsMiddleware())
 cors = get_cors_middleware()
 
 try:
