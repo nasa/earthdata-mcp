@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from loader import load_tools_from_directory
+
 from middleware import get_cors_middleware
 from prompts.instructions import MCP_SERVER_INSTRUCTIONS
 from util.stepup import StepUpAuth
@@ -102,7 +103,9 @@ middleware = list(auth.get_middleware())
 metadata_url = build_resource_metadata_url(AnyHttpUrl(f"{CMR_HOST}{MCP_PATH}"))
 
 middleware.append(
-    ASGIMiddleware(StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url)
+    ASGIMiddleware(
+        StepUpAuth, tool_manifests=manifests, resource_metadata_url=metadata_url
+    )
 )
 middleware.append(cors)
 
@@ -130,13 +133,17 @@ app = mcp.http_app(path=MCP_PATH, middleware=middleware)
 auth_routes = auth.get_routes(mcp_path=MCP_PATH)
 
 well_known = [route for route in auth_routes if route.path.startswith("/.well-known")]
-operational = [route for route in auth_routes if not route.path.startswith("/.well-known")]
+operational = [
+    route for route in auth_routes if not route.path.startswith("/.well-known")
+]
 
 app.routes.extend(auth_routes)
 
 # Mount the well-known OAuth authorization server route with the MCP path
 as_metadata = next(
-    route for route in well_known if route.path == "/.well-known/oauth-authorization-server"
+    route
+    for route in well_known
+    if route.path == "/.well-known/oauth-authorization-server"
 )
 app.routes.append(
     Route(

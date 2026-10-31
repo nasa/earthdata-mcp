@@ -17,6 +17,7 @@ from util.langfuse import flush_langfuse, log_tool_call, trace_update
 
 logger = logging.getLogger(__name__)
 
+
 class ToolManifest:
     """Handles manifest loading with sensible defaults."""
 
@@ -77,6 +78,45 @@ class ToolManifest:
         """Get the tool auth requirement from the manifest, returning False if not specified."""
         return self.manifest.get("require_auth", False)
 
+    @property
+    def app(self) -> bool | dict[str, Any] | None:
+        """MCP Apps (Prefab UI) settings from the manifest, if the tool renders a UI.
+
+        ``"app": true`` or ``"app": {"csp_profile": "map", "csp": {...}}``.
+        """
+        return self.manifest.get("app")
+
+
+def build_app_config(app: bool | dict[str, Any] | None):
+    """Turn a manifest ``app`` entry into a FastMCP PrefabAppConfig (or None).
+
+    ``csp_profile`` names a domain set from util.visualization.config ("map", "viz");
+    ``csp`` adds explicit ``connect_domains`` / ``resource_domains`` / ``frame_domains``.
+    Imported lazily so servers without UI tools don't need prefab-ui installed.
+    """
+    if not app:
+        return None
+    from fastmcp.apps.config import PrefabAppConfig, ResourceCSP
+
+    if app is True:
+        return PrefabAppConfig()
+    if not isinstance(app, dict):
+        raise ValueError("manifest.json 'app' must be true or an object")
+
+    domains: dict[str, list[str]] = {}
+    profile = app.get("csp_profile")
+    if profile:
+        from util.visualization.config import CSP_PROFILES
+
+        if profile not in CSP_PROFILES:
+            raise ValueError(
+                f"unknown csp_profile {profile!r}; expected one of {sorted(CSP_PROFILES)}"
+            )
+        domains = CSP_PROFILES[profile]()
+    for key, extra in (app.get("csp") or {}).items():
+        domains[key] = list(dict.fromkeys([*domains.get(key, []), *extra]))
+    return PrefabAppConfig(csp=ResourceCSP(**domains) if domains else None)
+
 
 def create_simple_tool(
     manifest_path: Path,
@@ -103,16 +143,19 @@ def create_simple_tool(
     manifest = ToolManifest(manifest_path)
 
     def register(mcp):
+        app_config = build_app_config(manifest.app)
         tool_kwargs = {
             "name": manifest.name,
             "description": manifest.description,
             "version": manifest.version,
-            "output_schema": output_schema,
+            # MCP Apps uses structured_content for the Prefab UI; output_schema
+            # also validates structured_content — the two conflict, so skip it.
+            "output_schema": None if app_config else output_schema,
         }
         if manifest.annotations:
             tool_kwargs["annotations"] = manifest.annotations
 
-        @mcp.tool(**tool_kwargs)
+        @mcp.tool(**tool_kwargs, **({"app": app_config} if app_config else {}))
         @wraps(func)
         @observe(name=manifest.name)
         async def wrapper(*args, **kwargs):
@@ -134,6 +177,8 @@ def create_simple_tool(
 
 
 ToolsReturnType = dict[str, dict[str, ToolManifest]]
+
+
 def load_tools_from_directory(mcp, tools_dir="tools") -> ToolsReturnType:
     """Load all tools from the tools directory."""
     tools_dir = Path(tools_dir)
