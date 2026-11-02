@@ -35,7 +35,7 @@ DEFAULT_LIMIT: LimitParam = 5
 logger = logging.getLogger(__name__)
 
 
-def _build_response(endpoint: str, results: dict, event_id_used: bool = False) -> dict:
+def _build_response(endpoint: str, results: dict) -> dict:
     try:
         if (endpoint == Endpoints.EVENTS) or (endpoint == Endpoints.CATEGORIES):
             if "events" in results:
@@ -245,20 +245,18 @@ def _build_response(endpoint: str, results: dict, event_id_used: bool = False) -
 def get_events(
     endpoint: str,
     params: dict = {},
-    event_id: str = "",
     category: str = "",
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
     This tool takes an EONET API endpoint name, list of parameters, and optional 
-    event/category IDs, sending a request with this information to the given endpoint. 
+    category ID, sending a request with this information to the given endpoint. 
     It then returns the results of the API request.
     """
     trace_update(
         tags=["eonet", "eventsapi"],
         metadata={
             "endpoint": endpoint,
-            "event_id": event_id,
             "category": category,
             "params": params,
         },
@@ -269,7 +267,6 @@ def get_events(
             endpoint=endpoint,
             params=params,
             category=category,
-            event_id=event_id,
         )
     except (ValueError, TypeError) as e:
         logger.warning("get_events input validation failed: %s", e)
@@ -277,7 +274,6 @@ def get_events(
 
     endpoint = eonet_params.endpoint
     params = eonet_params.params
-    event_id = eonet_params.event_id
     category = eonet_params.category
     if "limit" not in params:
         params["limit"] = DEFAULT_LIMIT
@@ -294,22 +290,10 @@ def get_events(
             features=[],
             categories=[],
         ).model_dump()
-    elif (endpoint != Endpoints.EVENTS) and event_id:
-        return GetEventsOutput(
-            status=SearchStatus.ERROR,
-            error_message="An event ID can only be used with the `/events' endpoint.",
-            title=SearchStatus.ERROR,
-            description="",
-            link=f"{EONET_BASE_URL}/{endpoint}/{event_id}",
-            type="",
-            events=[],
-            features=[],
-            categories=[],
-        ).model_dump()
 
     try:
         if endpoint == Endpoints.EVENTS:
-            results = events(params, event_id, False)
+            results = events(params, False)
             if len(results["events"]) == 0:
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
@@ -323,7 +307,7 @@ def get_events(
                     categories=[],
                 ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
-            results = events(params, "", True) # geojson endpoint doesn't accept event IDs
+            results = events(params, True) # geojson endpoint doesn't accept event IDs
             if len(results["features"]) == 0:
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,

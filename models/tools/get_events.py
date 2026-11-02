@@ -96,13 +96,6 @@ class GetEventsInput(BaseModel):
             ),
         ),
     ]
-    event_id: Annotated[
-        str,
-        Field(
-            "",
-            description="The optional ID of a specific event. Can be used only in the '/events' endpoint"
-        )
-    ]
     category: Annotated[
         str,
         Field(
