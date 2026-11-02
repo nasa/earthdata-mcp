@@ -49,11 +49,12 @@ def _layers_js(layers: list[dict]) -> str:
     body = "\n".join(stmts)
     return (
         f'<script src="{config.OL_JS}"></script>\n'
-        f'<script type="module">\n'
-        f"(async()=>{{\n"
+        f"<script>\n"
+        f"(async function(){{\n"
         f"  await customElements.whenDefined('terra-map');\n"
         f"  const el=document.getElementById('terra-map');\n"
         f"  await el.updateComplete;\n"
+        f"  if(typeof el.addLayer!=='function')return;\n"
         f"{body}\n"
         f"}})();\n"
         f"</script>"
