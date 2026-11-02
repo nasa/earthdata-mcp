@@ -7,15 +7,11 @@ Layout:
     result.py    Card + text summary -> ToolResult
 """
 
-from util.visualization.layers import image_layer, vector_layer, wms_layer
 from util.visualization.map_card import map_card, map_html
 from util.visualization.specs import MapSpec
 
 __all__ = [
     "MapSpec",
-    "image_layer",
     "map_card",
     "map_html",
-    "vector_layer",
-    "wms_layer",
 ]
