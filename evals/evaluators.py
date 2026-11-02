@@ -19,8 +19,11 @@ from pydantic import BaseModel, Field
 from evals.sandbox_agent import _AgentResult, _bedrock_agent_task
 
 # ---------------------------------------------------------------------------
-# Inlined from mcpevals (mcp-agent is incompatible with mcp>=2; server.py
-# requires mcp>=2 for build_resource_metadata_url added in that release)
+# Inlined from mcp-eval <https://github.com/lastmile-ai/mcp-eval> 
+# (Apache 2.0 License) 
+# Source: src/mcp_eval/evaluators, src/mcp_eval/metrics.py 
+# Reason: mcp-agent is incompatible with mcp>=2; server.py requires mcp>=2 for
+# build_resource_metadata_url added in that release
 # ---------------------------------------------------------------------------
 
 
