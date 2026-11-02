@@ -19,43 +19,43 @@ class LayerResult(BaseModel):
     """A single EONET layer object."""
 
     name: str = Field(..., description="The EONET-provided name of the layer")
-    serviceUrl: str | None = Field(None, description="The link to the provider of the layer")
-    serviceTypeId: str | None = Field(None, description="Type and version of provider's data")
-    parameters: list[dict] | None = Field(None, description="Query parameters required for the provider's request URL")
+    serviceUrl: str | None = Field("", description="The link to the provider of the layer")
+    serviceTypeId: str | None = Field("", description="Type and version of provider's data")
+    parameters: list[dict] | None = Field([], description="Query parameters required for the provider's request URL")
 
 
 class CategoryResult(BaseModel):
     """A single EONET category object."""
 
-    id: str | int | None = Field(None, description="The unique ID of the category")
-    title: str | None = Field(None, description="The EONET-provided title of the category")
-    link: str | None = Field(None, description="The API endpoint URL for the category")
+    id: str | int | None = Field("", description="The unique ID of the category")
+    title: str | None = Field("", description="The EONET-provided title of the category")
+    link: str | None = Field("", description="The API endpoint URL for the category")
     description: str | None = Field(
-            None, description="The primary description of the category, if available"
+            "", description="The primary description of the category, if available"
         )
-    layers: list[LayerResult] | str | None = Field(None, description="EONET endpoint URL for the category's layers")
+    layers: list[LayerResult] | str | None = Field([], description="EONET endpoint URL for the category's layers")
 
 
 class EventResult(BaseModel):
     """A single EONET event object."""
 
     id: str = Field(..., description="The unique ID of the event")
-    title: str | None = Field(None, description="The EONET-provided title of the event")
+    title: str | None = Field("", description="The EONET-provided title of the event")
     description: str | None = Field(
-        None, description="The primary description of the event, if available"
+        "", description="The primary description of the event, if available"
     )
-    link: str | None = Field(None, description="The API endpoint URL for the event")
+    link: str | None = Field("", description="The API endpoint URL for the event")
     closed: str | None = Field(
-        None, description="Indicates if the event is closed, and if so, when it closed"
+        "", description="Indicates if the event is closed, and if so, when it closed"
     )
     categories: list[CategoryResult] | None = Field(
-        None, description="The list of categories to which the event belongs"
+        [], description="The list of categories to which the event belongs"
     )
     sources: list[dict] | None = Field(
-        None, description="The list of sources that reference the event"
+        [], description="The list of sources that reference the event"
     )
     geometry: list[dict] | None = Field(
-        None, description="The list of locations/times associated with the event"
+        [], description="The list of locations/times associated with the event"
     )
 
 
@@ -81,7 +81,7 @@ class GetEventsInput(BaseModel):
         str,
         Field(
             ...,
-            pattern=r"events/geojson|events|categories|layers",
+            pattern=r"^(events/geojson|events|categories|layers)$",
             description="The EONET endpoint for the API call (e.g. 'events').",
         ),
     ]

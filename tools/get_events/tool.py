@@ -4,6 +4,7 @@ import logging
 
 from fastmcp.exceptions import ToolError
 from langfuse import observe
+from pydantic import ValidationError
 
 from models.pagination import (
     LimitParam,
@@ -19,7 +20,6 @@ from models.tools.get_events import (
     Endpoints,
 )
 from util.eonet.client import (
-    EONET_BASE_URL,
     EONETError,
     categories,
     events,
@@ -59,6 +59,9 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                         )
                                 elif type(event_category["layers"]) == str:
                                     layer_string = event_category["layers"]
+                                else:
+                                    if (type(event_category["layers"]) != str) or (type(event_category["layers"]) != list):
+                                        raise EONETError("Unexpected layers results shape: Event category's 'layers' key is not a string or list")
                                 event_category_list.append(
                                     CategoryResult(
                                         id=event_category["id"] if "id" in event_category else "",
@@ -91,17 +94,7 @@ def _build_response(endpoint: str, results: dict) -> dict:
                             )
                         )
                     else:
-                        return GetEventsOutput(
-                            status=SearchStatus.ERROR,
-                            error_message="Unexpected events results shape: No 'categories' key in event item",
-                            title=results["title"],
-                            description=results["description"],
-                            link=results["link"],
-                            type="",
-                            events=[],
-                            features=[],
-                            categories=[],
-                        ).model_dump()
+                        raise EONETError("Unexpected events results shape: No 'categories' key in event item")
                 return GetEventsOutput(
                     status=SearchStatus.SUCCESS if event_list != [] else SearchStatus.NO_RESULTS,
                     error_message=None,
@@ -126,17 +119,7 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     categories=results["categories"],
                 ).model_dump()
             else:
-                return GetEventsOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Unexpected events or categories results shape: No 'events' or 'categories' key in EONET response",
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
-                    type="",
-                    events=[],
-                    features=[],
-                    categories=[],
-                ).model_dump()
+                raise EONETError("Unexpected events or categories results shape: No 'events' or 'categories' key in EONET response")
         elif endpoint == Endpoints.GEOJSON:
             feature_list = []
             if "features" in results:
@@ -160,17 +143,7 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     categories=[],
                 ).model_dump()
             else:
-                return GetEventsOutput(
-                    status=SearchStatus.ERROR,
-                    error_message="Unexpected geojson results shape: No 'features' key in EONET response",
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
-                    type="",
-                    events=[],
-                    features=[],
-                    categories=[],
-                ).model_dump()
+                raise EONETError("Unexpected geojson results shape: No 'features' key in EONET response")
         elif endpoint == Endpoints.LAYERS:
             found_layers = False
             if "categories" in results:
@@ -180,6 +153,7 @@ def _build_response(endpoint: str, results: dict) -> dict:
                         category_layer_list = []
                         category_layer_string = ""
                         if (type(category["layers"]) == list) and (len(category["layers"]) != 0):
+                            found_layers = True
                             for layer in category["layers"]:
                                 category_layer_list.append(
                                     LayerResult(
@@ -189,8 +163,12 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                         parameters=layer["parameters"] if "parameters" in layer else [],
                                     )
                                 )
-                        elif type(category["layers"]) == str:
+                        elif (type(category["layers"]) == str) and ((category["layers"] != "") or (category["layers"] != None)):
+                            found_layers = True
                             category_layer_string = category["layers"]
+                        else:
+                            if (type(category["layers"]) != str) or (type(category["layers"]) != list):
+                                raise EONETError("Unexpected layers results shape: Category's 'layers' key is not a string or list")
                         category_list.append(
                             CategoryResult(
                                 id=category["id"] if "id" in category else "",
@@ -199,7 +177,7 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                 description="",
                                 layers=category_layer_list if type(category["layers"]) == list else category_layer_string,
                             )
-                        )
+                        )        
                     else:
                         category_list.append(
                             CategoryResult(
@@ -210,9 +188,6 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                 layers=[],
                             )
                         )
-            for cat in category_list:
-                if (cat.layers != []) and (cat.layers != ""):
-                    found_layers = True
             return GetEventsOutput(
                 status=SearchStatus.SUCCESS if found_layers else SearchStatus.NO_RESULTS,
                 error_message=None,
@@ -225,18 +200,8 @@ def _build_response(endpoint: str, results: dict) -> dict:
                 categories=category_list if category_list != [] else [],
             ).model_dump()
         else:
-            return GetEventsOutput(
-                status=SearchStatus.ERROR,
-                error_message=f"Couldn't retrieve results. Endpoint does not exist: {get_request_url()}",
-                title=SearchStatus.ERROR,
-                description="",
-                link=f"{get_request_url()}",
-                type="",
-                events=[],
-                features=[],
-                categories=[],
-            ).model_dump()
-    except (ValueError, TypeError) as e:
+            raise EONETError(f"Couldn't retrieve results. Endpoint does not exist: {get_request_url()}")
+    except (ValueError, TypeError, EONETError) as e:
         logger.error("Results could not be saved: %s", e)
         raise ToolError(f"Attempted to store malformed results: {e}") from e
 
@@ -268,9 +233,9 @@ def get_events(
             params=params,
             category=category,
         )
-    except (ValueError, TypeError) as e:
+    except (ValidationError) as e:
         logger.warning("get_events input validation failed: %s", e)
-        raise ToolError(str(e)) from e
+        raise ToolError(f"Provided input is invalid: {str(e)}") from e
 
     endpoint = eonet_params.endpoint
     params = eonet_params.params
@@ -278,93 +243,18 @@ def get_events(
     if "limit" not in params:
         params["limit"] = DEFAULT_LIMIT
 
-    if not endpoint:
-        return GetEventsOutput(
-            status=SearchStatus.ERROR,
-            error_message="Endpoint cannot be empty.",
-            title=SearchStatus.ERROR,
-            description="",
-            link=f"{EONET_BASE_URL}/{endpoint}",
-            type="",
-            events=[],
-            features=[],
-            categories=[],
-        ).model_dump()
-
     try:
         if endpoint == Endpoints.EVENTS:
             results = events(params, False)
-            if len(results["events"]) == 0:
-                return GetEventsOutput(
-                    status=SearchStatus.NO_RESULTS,
-                    error_message=None,
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
-                    type="",
-                    events=results["events"],
-                    features=[],
-                    categories=[],
-                ).model_dump()
         elif endpoint == Endpoints.GEOJSON:
-            results = events(params, True) # geojson endpoint doesn't accept event IDs
-            if len(results["features"]) == 0:
-                return GetEventsOutput(
-                    status=SearchStatus.NO_RESULTS,
-                    error_message=None,
-                    title="",
-                    description="",
-                    link="",
-                    type=results["type"],
-                    events=[],
-                    features=results["features"],
-                    categories=[],
-                ).model_dump()
+            results = events(params, True)
         elif endpoint == Endpoints.CATEGORIES:
             results = categories(category, params)
-            if ("events" in results) and (len(results["events"]) == 0):
-                return GetEventsOutput(
-                    status=SearchStatus.NO_RESULTS,
-                    error_message=None,
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
-                    type="",
-                    events=results["events"],
-                    features=[],
-                    categories=[],
-                ).model_dump()
-        elif endpoint == Endpoints.LAYERS:
+            if ("categories" in results) and (len(results["categories"]) == 0):
+                raise EONETError("No category provided to categories endpoint, but 'categories' key was empty")
+        else:
             results = layers(category)
-            if len(results["categories"]) == 0:
-                return GetEventsOutput(
-                    status=SearchStatus.NO_RESULTS,
-                    error_message=None,
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
-                    type="",
-                    events=[],
-                    features=[],
-                    categories=results["categories"],
-                ).model_dump()
-        else:
-            return GetEventsOutput(
-                status=SearchStatus.ERROR,
-                error_message=f"The given endpoint does not exist: {get_request_url()}",
-                title=SearchStatus.ERROR,
-                description="",
-                link=f"{get_request_url()}",
-                type="",
-                events=[],
-                features=[],
-                categories=[],
-            ).model_dump()
-        response = _build_response(endpoint, results)
-        if response["status"] == SearchStatus.ERROR:
-            raise EONETError(response["error_message"])
-        else:
-            return response
+        return _build_response(endpoint, results)
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
-        raise ToolError(f"Failed to communicate with EONET API: {e}") from e
+        raise ToolError(f"Could not retrieve results from EONET: {e}") from e
