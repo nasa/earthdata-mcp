@@ -15,7 +15,7 @@ request_url = ""
 class EONETError(Exception):
     """Raised when an EONET API request fails."""
 
-def events(params: dict | None = None, event_id: str = "", is_geojson: bool = False) -> dict:
+def events(params: dict | None = None, is_geojson: bool = False) -> dict:
     """
     Search across all current NRT natural events.
 
@@ -35,12 +35,8 @@ def events(params: dict | None = None, event_id: str = "", is_geojson: bool = Fa
         requests.RequestException: If the EONET API events endpoint request fails.
     """
     global request_url
-    event_id_endpoint = ""
-    
-    if event_id != "":
-        event_id_endpoint = "/" + event_id
 
-    url = f"{EONET_BASE_URL}/events/geojson" if is_geojson else f"{EONET_BASE_URL}/events{event_id_endpoint}"
+    url = f"{EONET_BASE_URL}/events/geojson" if is_geojson else f"{EONET_BASE_URL}/events"
     request_url = url
 
     try:

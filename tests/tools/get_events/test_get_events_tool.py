@@ -81,7 +81,7 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -156,7 +156,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
 
     params = {"limit": "2"}
     
-    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -193,7 +193,7 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
 
     params = {"limit": "1"}
         
-    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -268,7 +268,7 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
     
     params = {"limit": "-1"}
             
-    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -323,7 +323,7 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -400,7 +400,7 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
 
     params = {"limit": "2"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -435,7 +435,7 @@ def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -512,7 +512,7 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
     
     params = {"limit": "-1"}
     
-    result = tool.get_events(endpoint="events/geojson", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events/geojson", params=params, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -587,7 +587,7 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
 
     params = {"category": "fakecategory"}
 
-    result = tool.get_events(endpoint="events", params=params, event_id="", category="")
+    result = tool.get_events(endpoint="events", params=params, category="")
 
     expected_params = {"category": "fakecategory", "limit": 5}
 
@@ -653,7 +653,7 @@ def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicM
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -746,7 +746,7 @@ def test_get_events_returns_multiple_events_from_category(mock_categories_endpoi
 
     params = {"limit": "2"}
 
-    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -783,7 +783,7 @@ def test_get_events_returns_no_events_from_category(mock_categories_endpoint: Ma
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -847,7 +847,7 @@ def test_get_events_returns_all_categories(mock_categories_endpoint: MagicMock) 
         }]
     }
     
-    result = tool.get_events(endpoint="categories", params={}, event_id="", category="")
+    result = tool.get_events(endpoint="categories", params={}, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -942,7 +942,7 @@ def test_get_events_returns_all_events_for_category_endpoint(mock_categories_end
         "categories": [],
     }
     
-    result = tool.get_events(endpoint="categories", params={}, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="categories", params={}, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1038,7 +1038,7 @@ def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock
 
     params = { "limit": "-1" }
 
-    result = tool.get_events(endpoint="categories", params=params, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1058,7 +1058,7 @@ def test_get_events_categories_returns_error_for_fake_category(mock_categories_e
     mock_categories_endpoint.side_effect=EONETError(f"Failed to fetch events for category 'fakecategory', or all categories, from EONET: {ANY}")
 
     with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="categories", params={}, event_id="", category="fakecategory")
+        results = tool.get_events(endpoint="categories", params={}, category="fakecategory")
         
     assert "Failed to fetch events for category 'fakecategory'" in str(e.value)
 
@@ -1115,7 +1115,7 @@ def test_get_events_returns_layer_from_category(mock_layers_endpoint: MagicMock)
         }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1202,7 +1202,7 @@ def test_get_events_returns_multiple_layers_from_category(mock_layers_endpoint: 
         }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1247,7 +1247,7 @@ def test_get_events_returns_no_layers_from_category(mock_layers_endpoint: MagicM
         }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, event_id="", category="categoryId")
+    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1333,7 +1333,7 @@ def test_get_events_returns_all_layers(mock_layers_endpoint: MagicMock) -> None:
         }]
     }
     
-    result = tool.get_events(endpoint="layers", params={}, event_id="", category="")
+    result = tool.get_events(endpoint="layers", params={}, category="")
 
     assert result["status"] == expected["status"]
     assert result["title"] == expected["title"]
@@ -1353,6 +1353,6 @@ def test_get_events_layers_returns_error_for_fake_category(mock_layers_endpoint:
     mock_layers_endpoint.side_effect=EONETError(f"Failed to fetch layers for category 'fakecategory' from EONET: {ANY}")
     
     with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="layers", params={}, event_id="", category="fakecategory")
+        results = tool.get_events(endpoint="layers", params={}, category="fakecategory")
     
     assert "Failed to fetch layers for category 'fakecategory'" in str(e.value)
