@@ -1,5 +1,6 @@
 """Tests for the KMS client utility."""
 
+import os
 from unittest.mock import Mock, patch
 
 import pytest
@@ -7,6 +8,8 @@ import requests
 
 from util.kms.client import search_kms_pattern
 
+CMR_URL = os.environ.get("CMR_URL", "https://cmr.earthdata.nasa.gov")
+KMS_BASE_URL = f"{CMR_URL}/kms"
 
 @pytest.fixture
 def mock_requests_get():
@@ -32,7 +35,7 @@ def test_search_kms_pattern_global(mock_requests_get):
 
     mock_requests_get.assert_called_once()
     args, kwargs = mock_requests_get.call_args
-    assert args[0] == "https://cmr.earthdata.nasa.gov/kms/concepts/pattern/TEST%20QUERY"
+    assert args[0] == f"{KMS_BASE_URL}/concepts/pattern/TEST%20QUERY"
     assert kwargs["params"]["format"] == "json"
     assert kwargs["timeout"] == 10
 
@@ -54,7 +57,7 @@ def test_search_kms_pattern_scheme(mock_requests_get):
     args, kwargs = mock_requests_get.call_args
     assert (
         args[0]
-        == "https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments/pattern/TEST"
+        == f"{KMS_BASE_URL}/concepts/concept_scheme/instruments/pattern/TEST"
     )
     assert kwargs["params"]["format"] == "json"
     assert kwargs["timeout"] == 10
