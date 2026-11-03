@@ -310,8 +310,8 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
     mock_events_endpoint.assert_called_once_with(params, False)
 
 
-def test_get_events_returns_error_for_malformed_category_layers(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error for a fake category (for category endpoint)."""
+def test_get_events_returns_error_for_malformed_event_category_layers(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error for malformed category layers from the event endpoint."""
     tool = _load_tool()
 
     mock_events_endpoint.return_value = {
@@ -595,6 +595,25 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
     assert result["features"] == expected["features"]
     assert result["categories"] == expected["categories"]
     mock_events_endpoint.assert_called_once_with(params, True)
+
+
+def test_get_events_returns_error_for_malformed_geojson(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error if GeoJSON results are malformed."""
+    tool = _load_tool()
+                
+    mock_events_endpoint.return_value = {
+        "type": "FeatureCollection",
+        "features": [{}],
+    }
+
+    mock_events_endpoint.side_effect=EONETError("Unexpected geojson results shape: Malformed GeoJSON")
+
+    params = {"limit": "1"}
+
+    with pytest.raises(ToolError) as e:
+        result = tool.get_events(endpoint="events/geojson", params=params, category="")
+
+    assert "Unexpected geojson results shape: Malformed GeoJSON" in str(e.value)
 
 
 def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: MagicMock) -> None:
@@ -1453,6 +1472,28 @@ def test_get_events_layers_returns_error_for_fake_category(mock_layers_endpoint:
     assert "Failed to fetch layers for category 'fakecategory'" in str(e.value)
 
 
+def test_get_events_returns_error_for_malformed_layers(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error for malformed layers."""
+    tool = _load_tool()
+
+    mock_layers_endpoint.return_value = {
+        "title": "EONET Web Service Layers",
+        "description": "List of web service layers in the EONET system",
+        "link": f"{EONET_BASE_URL}/layers",
+        "categories": [{
+            "layers": {}
+        }]
+    }
+
+    mock_layers_endpoint.side_effect= \
+        EONETError("Unexpected layers results shape: Category's 'layers' key is not a string or list")
+
+    with pytest.raises(ToolError) as e:
+        results = tool.get_events(endpoint="layers", params={}, category="")
+
+    assert "Unexpected layers results shape: Category's 'layers' key is not a string or list" in str(e.value)
+
+
 def test_get_events_returns_error_for_missing_event_categories_key(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an error if the /events endpoint contains events without a 'categories' key."""
     tool = _load_tool()
@@ -1542,12 +1583,6 @@ def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: Mag
             "link": f"{EONET_BASE_URL}/events",
             "events": [{
                 "id": "exampleEvent",
-                "title": "Event Title",
-                "link": f"{EONET_BASE_URL}/events/exampleEvent",
-                "closed": None,
-                "categories": [],
-                "sources": [],
-                "geometry": [],
             }],
         }
     
@@ -1560,7 +1595,7 @@ def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: Mag
         "type": "",
         "events": [{
             "id": "exampleEvent",
-            "title": "Event Title",
+            "title": "",
             "description": "",
             "link": f"{EONET_BASE_URL}/events/exampleEvent",
             "closed": None,
@@ -1585,8 +1620,62 @@ def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: Mag
     assert "description" in result["events"][0] and result["events"][0]["description"] == expected["events"][0]["description"]
 
 
-def test_get_events_sets_omitted_optional_layer_fields(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events will automatically fill in missing layer fields from EONET response."""
+def test_get_events_sets_omitted_optional_category_fields(mock_categories_endpoint: MagicMock) -> None:
+    """Test that get_events will automatically fill in missing category fields from EONET response."""
+    tool = _load_tool()
+
+    mock_categories_endpoint.return_value = {
+        "title": "EONET Events: Category",
+        "description": "Category description.",
+        "link": f"{EONET_BASE_URL}/categories/categoryId",
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{}],
+            "sources": [],
+            "geometry": [],
+        }],
+    }
+    
+    expected = {
+        "status": SearchStatus.SUCCESS,
+        "error_message": None,
+        "title": "EONET Events: Category",
+        "description": "Category description.",
+        "link": f"{EONET_BASE_URL}/categories/categoryId",
+        "type": "",
+        "events": [{
+            "id": "exampleEvent",
+            "title": "Event Title",
+            "description": "Event description",
+            "link": f"{EONET_BASE_URL}/events/exampleEvent",
+            "closed": None,
+            "categories": [{
+                "id": "",
+                "title": "",
+                "link": "",
+                "description": "",
+                "layers": None,
+            }],
+            "sources": [],
+            "geometry": [],
+        }],
+        "features": [],
+        "categories": [],
+    }
+
+    params = {"limit": "1"}
+    
+    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
+
+    assert result["events"]["categories"] == expected["events"]["categories"]
+
+
+def test_get_events_sets_omitted_optional_layers_fields(mock_layers_endpoint: MagicMock) -> None:
+    """Test that get_events will automatically fill in missing layers fields from EONET response."""
     tool = _load_tool()
 
     mock_layers_endpoint.return_value = {
@@ -1598,17 +1687,10 @@ def test_get_events_sets_omitted_optional_layer_fields(mock_layers_endpoint: Mag
             "title": "Category Title",
             "layers": [{
                 "name": "layerName",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "param1": "value1",
-                        "param2": "value2"
-                    }
-                ]
             }]
         }]
     }
-
+    
     expected = {
         "status": SearchStatus.SUCCESS,
         "error_message": None,
@@ -1626,18 +1708,12 @@ def test_get_events_sets_omitted_optional_layer_fields(mock_layers_endpoint: Mag
             "layers": [{
                 "name": "layerName",
                 "serviceUrl": "",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "param1": "value1",
-                        "param2": "value2"
-                    }
-                ]
+                "serviceTypeId": "",
+                "parameters": []
             }]
         }]
     }
     
     result = tool.get_events(endpoint="layers", params={}, category="categoryId")
 
-    assert "serviceUrl" in result["categories"][0]["layers"][0] and \
-        result["categories"][0]["layers"][0]["serviceUrl"] == expected["categories"][0]["layers"][0]["serviceUrl"]
+    assert result["categories"]["layers"] == expected["categories"]["layers"]

@@ -78,16 +78,16 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                         title=event_category["title"] if "title" in event_category else "",
                                         link=event_category["link"] if "link" in event_category else "",
                                         description=event_category["description"] if "description" in event_category else "",
-                                        layers=[],
+                                        layers=None,
                                     )
                                 )
                         event_list.append(
                             EventResult(
-                                id=event["id"] if "id" in event else "",
+                                id=event["id"],
                                 title=event["title"] if "title" in event else "",
                                 description=event["description"] if "description" in event else "",
                                 link=event["link"] if "link" in event else "",
-                                closed=event["closed"] if "closed" in event else "",
+                                closed=event["closed"] if "closed" in event else None,
                                 categories=event_category_list if event_category_list != [] else [],
                                 sources=event["sources"] if "sources" in event else [],
                                 geometry=event["geometry"] if "geometry" in event else [],
@@ -98,9 +98,9 @@ def _build_response(endpoint: str, results: dict) -> dict:
                 return GetEventsOutput(
                     status=SearchStatus.SUCCESS if event_list != [] else SearchStatus.NO_RESULTS,
                     error_message=None,
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
+                    title=results["title"] if "title" in results else "",
+                    description=results["description"] if "description" in results else "",
+                    link=results["link"] if "link" in results else "",
                     type="",
                     events=event_list if event_list != [] else [],
                     features=[],
@@ -110,9 +110,9 @@ def _build_response(endpoint: str, results: dict) -> dict:
                 return GetEventsOutput(
                     status=SearchStatus.SUCCESS,
                     error_message=None,
-                    title=results["title"],
-                    description=results["description"],
-                    link=results["link"],
+                    title=results["title"] if "title" in results else "",
+                    description=results["description"] if "description" in results else "",
+                    link=results["link"] if "link" in results else "",
                     type="",
                     events=[],
                     features=[],
@@ -124,13 +124,18 @@ def _build_response(endpoint: str, results: dict) -> dict:
             feature_list = []
             if "features" in results:
                 for feature in results["features"]:
-                    feature_list.append(
-                        GeoJSONResult(
-                            type=feature["type"] if "type" in feature else "",
-                            properties=feature["properties"] if "properties" in feature else {},
-                            geometry=feature["geometry"] if "geometry" in feature else {},
+                    try:
+                        feature_list.append(
+                            GeoJSONResult(
+                                type=feature["type"],
+                                properties=feature["properties"],
+                                geometry=feature["geometry"],
+                            )
                         )
-                    )
+                    except KeyError as e:
+                        raise EONETError(f"Unexpected geojson results shape: Malformed GeoJSON: {e}")
+                if "type" not in results:
+                    raise EONETError("Unexpected geojson results shape: No 'type' key in EONET response")
                 return GetEventsOutput(
                     status=SearchStatus.SUCCESS if feature_list != [] else SearchStatus.NO_RESULTS,
                     error_message=None,
@@ -152,23 +157,24 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     if "layers" in category:
                         category_layer_list = []
                         category_layer_string = ""
-                        if (type(category["layers"]) == list) and (len(category["layers"]) != 0):
-                            found_layers = True
-                            for layer in category["layers"]:
-                                category_layer_list.append(
-                                    LayerResult(
-                                        name=layer["name"] if "name" in layer else "",
-                                        serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
-                                        serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
-                                        parameters=layer["parameters"] if "parameters" in layer else [],
+                        if type(category["layers"]) == list:
+                            if len(category["layers"]) != 0:
+                                found_layers = True
+                                for layer in category["layers"]:
+                                    category_layer_list.append(
+                                        LayerResult(
+                                            name=layer["name"] if "name" in layer else "",
+                                            serviceUrl=layer["serviceUrl"] if "serviceUrl" in layer else "",
+                                            serviceTypeId=layer["serviceTypeId"] if "serviceTypeId" in layer else "",
+                                            parameters=layer["parameters"] if "parameters" in layer else [],
+                                        )
                                     )
-                                )
-                        elif (type(category["layers"]) == str) and ((category["layers"] != "") or (category["layers"] != None)):
-                            found_layers = True
-                            category_layer_string = category["layers"]
+                        elif type(category["layers"]) == str:
+                            if category["layers"] != "":
+                                found_layers = True
+                                category_layer_string = category["layers"]
                         else:
-                            if (type(category["layers"]) != str) or (type(category["layers"]) != list):
-                                raise EONETError("Unexpected layers results shape: Category's 'layers' key is not a string or list")
+                            raise EONETError("Unexpected layers results shape: Category's 'layers' key is not a string or list")
                         category_list.append(
                             CategoryResult(
                                 id=category["id"] if "id" in category else "",
@@ -185,15 +191,15 @@ def _build_response(endpoint: str, results: dict) -> dict:
                                 title=category["title"] if "title" in category else "",
                                 link="",
                                 description="",
-                                layers=[],
+                                layers=None,
                             )
                         )
             return GetEventsOutput(
                 status=SearchStatus.SUCCESS if found_layers else SearchStatus.NO_RESULTS,
                 error_message=None,
-                title=results["title"],
-                description=results["description"],
-                link=results["link"],
+                title=results["title"] if "title" in results else "",
+                description=results["description"] if "description" in results else "",
+                link=results["link"] if "link" in results else "",
                 type="",
                 events=[],
                 features=[],
