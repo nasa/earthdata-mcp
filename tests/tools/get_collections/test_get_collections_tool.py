@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from fastmcp.exceptions import ToolError
+from fastmcp.tools.base import ToolResult
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -643,3 +644,93 @@ def test_get_collections_safe_exception_surfacing(monkeypatch):
 
     assert "Fake secret" not in str(exc_info.value)
     assert "unexpected internal error" in str(exc_info.value).lower()
+
+
+# --- prefab map card ---
+
+
+_GIBS_TAG = "edsc.extra.serverless.gibs"
+
+
+def _make_gibs_collection_item(concept_id="C1-PROV"):
+    """Minimal UMM item for a collection that carries the GIBS tag."""
+    return {
+        "meta": {"concept-id": concept_id},
+        "umm": {
+            "ShortName": "MOD11A1",
+            "EntryTitle": "MODIS Surface Temperature",
+            "Abstract": "Daily land surface temperature.",
+        },
+    }
+
+
+def test_get_collections_returns_tool_result_when_gibs_tag_found(monkeypatch):
+    """When a result has a GIBS tag, the tool must return a ToolResult with a Prefab map card."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_gibs_collection_item("C1-PROV")],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+    monkeypatch.setattr(
+        tool,
+        "fetch_collection_tags",
+        lambda _cid: {_GIBS_TAG: {"data": []}},
+    )
+
+    result = tool.get_collections(keyword="temperature")
+
+    assert isinstance(result, ToolResult)
+    assert result.structured_content is not None
+
+
+def test_get_collections_returns_dict_when_no_gibs_tag(monkeypatch):
+    """When no result has a GIBS tag, the tool must return a plain response dict."""
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_gibs_collection_item("C2-PROV")],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+    monkeypatch.setattr(tool, "fetch_collection_tags", lambda _cid: {})
+
+    result = tool.get_collections(keyword="temperature")
+
+    assert isinstance(result, dict)
+    assert result["status"] == "success"
+
+
+def test_get_collections_prefab_title_uses_entry_title(monkeypatch):
+    """The Prefab map card title must be the collection's entry_title."""
+    import json
+
+    tool = _load_tool()
+    page = CMRSearchResponse(
+        items=[_make_gibs_collection_item("C3-PROV")],
+        total_hits=1,
+        took_ms=5,
+        search_after=None,
+        page_size=1,
+    )
+
+    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
+    monkeypatch.setattr(
+        tool,
+        "fetch_collection_tags",
+        lambda _cid: {_GIBS_TAG: {"data": []}},
+    )
+
+    result = tool.get_collections()
+
+    assert isinstance(result, ToolResult)
+    # The entry_title must appear in the plain-text content (JSON response body).
+    text_content = result.content[0].text
+    assert "MODIS Surface Temperature" in json.loads(text_content).get("collections", [{}])[0].get("entry_title", "")
