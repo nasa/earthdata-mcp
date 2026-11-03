@@ -18,6 +18,22 @@ DEFAULT_DATASET_NAME = "mcp-regression-golden-set"
 DEFAULT_DATASET_FILE = Path(__file__).with_name("mcp_regression_dataset.json")
 DEFAULT_EXPERIMENT_NAME = "MCP Pre-Deploy Core Regression Suite"
 
+# Evaluators that report observability signals rather than pass/fail gates.
+# Their scores should never cause the regression suite to fail.
+NON_GATING_EVALUATORS = frozenset(
+    {
+        # LLM-judge score, often wrong with AWS Nova, informational only
+        "deepeval_mcp_alignment",
+        # Call count for tool with most calls, not a pass/fail signal
+        "mcp_eval_tool_call_max_counts",
+    }
+)
+
+# Text formatting
+BOLD = "\033[1m"
+RED = "\033[31m"
+RESET = "\033[0m"
+
 
 def my_mcp_agent_task(*, item, **kwargs):
     """Run a Bedrock agentic loop against the MCP server; let the model choose tools."""
@@ -92,6 +108,33 @@ def publish_dataset(
     return dataset
 
 
+def _summarize_experiment(result: Any) -> tuple[bool, list[dict[str, Any]]]:
+    """Walk per-item evaluation scores and decide overall pass/fail.
+
+    Returns (all_passed, failures), where `failures` lists, per failing
+    item, which gating evaluators scored below 1.0 and what they returned.
+    """
+    failures: list[dict[str, Any]] = []
+
+    for item_result in result.item_results:
+        gating_evals = [
+            e for e in item_result.evaluations if e.name not in NON_GATING_EVALUATORS
+        ]
+        failed = [e for e in gating_evals if e.value < 1.0]
+
+        if failed:
+            failures.append(
+                {
+                    "item_id": item_result.item.id,
+                    "failed_evaluators": [
+                        {"name": e.name, "value": e.value, "comment": e.comment} for e in failed
+                    ],
+                }
+            )
+
+    return (len(failures) == 0, failures)
+
+
 def run_experiment(
     *,
     dataset_name: str = DEFAULT_DATASET_NAME,
@@ -110,8 +153,20 @@ def run_experiment(
         evaluators=ALL_EVALUATORS,
         max_concurrency=int(os.getenv("REGRESSION_MAX_CONCURRENCY", "3")),
     )
-    print(result.format(include_item_results=True))
-    return result
+    # Print all results
+    print(result.format(include_item_results=True).replace("\\n", "\n"))
+
+    # Print failed gating evaluators by dataset item
+    passed, failures = _summarize_experiment(result)
+    if failures:
+        print(f"\n{RED}{BOLD}‼️ Regression failures detected:{RESET}")
+        for failure in failures:
+            print(
+                f"  {BOLD}{failure['item_id']}{RESET}: "
+                f"{json.dumps(failure['failed_evaluators'], indent = 4)}"
+            )
+
+    return result, passed
 
 
 def main() -> int:
@@ -136,11 +191,13 @@ def main() -> int:
     if args.command in ("publish", "publish-and-run"):
         publish_dataset(dataset_name=args.dataset_name, dataset_file=args.dataset_file)
     if args.command in ("run", "publish-and-run"):
-        run_experiment(
+        _, passed = run_experiment(
             dataset_name=args.dataset_name,
             experiment_name=args.experiment_name,
             model_id=args.model_id,
         )
+        return 0 if passed else 1
+
     return 0
 
 
