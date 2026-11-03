@@ -46,7 +46,7 @@ class EventResult(BaseModel):
     )
     link: str | None = Field("", description="The API endpoint URL for the event")
     closed: str | None = Field(
-        "", description="Indicates if the event is closed, and if so, when it closed"
+        None, description="Indicates if the event is closed, and if so, when it closed"
     )
     categories: list[CategoryResult] | None = Field(
         [], description="The list of categories to which the event belongs"
