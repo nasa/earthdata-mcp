@@ -41,11 +41,7 @@ def my_mcp_agent_task(*, item, **kwargs):
     if item.metadata is None:
         item.metadata = {}
 
-    question = (
-        item.input.get("question", "")
-        if isinstance(item.input, dict)
-        else str(item.input)
-    )
+    question = item.input.get("question", "") if isinstance(item.input, dict) else str(item.input)
     url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:5001/mcp/v1")
     model_id = os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID)
 
@@ -67,9 +63,7 @@ def _load_dataset_definition(path: Path) -> dict[str, Any]:
         definition = json.load(dataset_file)
 
     if not isinstance(definition.get("items"), list) or not definition["items"]:
-        raise ValueError(
-            f"Dataset definition {path} must contain a non-empty 'items' list"
-        )
+        raise ValueError(f"Dataset definition {path} must contain a non-empty 'items' list")
     return definition
 
 
@@ -102,9 +96,7 @@ def publish_dataset(
         )
 
     langfuse.flush()
-    print(
-        f"Published {len(definition['items'])} items to Langfuse dataset '{dataset_name}'."
-    )
+    print(f"Published {len(definition['items'])} items to Langfuse dataset '{dataset_name}'.")
     return dataset
 
 
@@ -117,9 +109,7 @@ def _summarize_experiment(result: Any) -> tuple[bool, list[dict[str, Any]]]:
     failures: list[dict[str, Any]] = []
 
     for item_result in result.item_results:
-        gating_evals = [
-            e for e in item_result.evaluations if e.name not in NON_GATING_EVALUATORS
-        ]
+        gating_evals = [e for e in item_result.evaluations if e.name not in NON_GATING_EVALUATORS]
         failed = [e for e in gating_evals if e.value < 1.0]
 
         if failed:
@@ -170,9 +160,7 @@ def run_experiment(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Earthdata MCP Langfuse regression suite"
-    )
+    parser = argparse.ArgumentParser(description="Earthdata MCP Langfuse regression suite")
     parser.add_argument(
         "command",
         choices=("publish", "run", "publish-and-run"),
