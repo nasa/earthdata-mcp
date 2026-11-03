@@ -1,13 +1,15 @@
 """NASA KMS (Keyword Management System) API client."""
 
 import logging
+import os
 from urllib.parse import quote
 
 import requests
 
 logger = logging.getLogger(__name__)
 
-KMS_BASE_URL = "https://cmr.earthdata.nasa.gov/kms"
+CMR_URL = os.environ.get("CMR_URL", "https://cmr.earthdata.nasa.gov")
+KMS_BASE_URL = f"{CMR_URL}/kms"
 
 
 def search_kms_pattern(query: str, scheme: str | None = None) -> list[dict]:
