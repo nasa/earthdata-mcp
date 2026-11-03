@@ -74,7 +74,7 @@ def image_layer(
     }
 
 
-def wms_layer(
+def wms_layer(  # pylint: disable=too-many-arguments
     url: str,
     layer_name: str,
     *,
