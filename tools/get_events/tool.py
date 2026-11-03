@@ -11,13 +11,10 @@ from models.pagination import (
 )
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
+    CATEGORIES,
+    ENDPOINTS,
     GetEventsInput,
     GetEventsOutput,
-    EventResult,
-    GeoJSONResult,
-    CategoryResult,
-    LayerResult,
-    Endpoints,
 )
 from util.eonet.client import (
     EONETError,
@@ -216,28 +213,34 @@ def _build_response(endpoint: str, results: dict) -> dict:
 def get_events(
     endpoint: str,
     params: dict = {},
-    category: str = "",
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
     
-    This tool takes an EONET API endpoint name, list of parameters, and optional 
-    category ID, sending a request with this information to the given endpoint. 
-    It then returns the results of the API request.
+    This tool takes an EONET API endpoint name (events or events/geojson) and a list of parameters,
+    sending a request to the specified endpoint with the given parameters. It returns the results
+    formatted to contain the data itself and labels describing the data.
     """
     trace_update(
         tags=["eonet", "eventsapi"],
         metadata={
             "endpoint": endpoint,
-            "category": category,
             "params": params,
         },
     )
 
     try:
         eonet_params = GetEventsInput(
-            endpoint=endpoint,
-            params=params,
-            category=category,
+            source=params.get("source", ""),
+            category=params.get("category", None),
+            status=params.get("status", None),
+            limit=params.get("limit", 5),
+            days=params.get("days", None),
+            start=params.get("start", None),
+            end=params.get("end", None),
+            magID=params.get("magID", None),
+            magMin=params.get("magMin", None),
+            magMax=params.get("magMax", None),
+            bbox=params.get("bbox", [-180.0, -90.0, 180.0, 90.0]),
         )
     except (ValidationError) as e:
         logger.warning("get_events input validation failed: %s", e)
