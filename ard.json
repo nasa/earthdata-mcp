@@ -14,7 +14,7 @@
         "get_keywords",
         "get_citations"
       ],
-      "description": "An MCP server for discovering NASA Earth science data. Its tools search the Common Metadata Repository (CMR) for collections, granules, services, tools, variables, and citations, and NASA's Keyword Management System (KMS) for official GCMD vocabulary, so an agent can find a dataset, confirm data exists for a given time and place, and identify how to access it.",
+      "description": "An MCP server for discovering NASA Earth science data. Its tools search the Common Metadata Repository (CMR) for collections, granules, services, tools, variables, and citations, and NASA's Keyword Management System (KMS) for official GCMD vocabulary, so an agent can find a dataset, confirm data exists for a given time and place, and identify how to access it. It also supports the Earth Observatory Natural Event Tracker (EONET) API for injecting NRT natural events into LLM contexts.",
       "representativeQueries": [
         "find Landsat 8 surface reflectance collections",
         "give me information on current wildfires that follow my prediction model",
