@@ -119,8 +119,8 @@ class GetEventsInput(BaseModel):
 class GetEventsOutput(BaseToolOutput):
     """Output model for get_events."""
 
-    title: str = Field(..., description="The title of the response, if available")
-    description: str = Field(..., description="Information describing what was requested, if available")
-    link: str = Field(..., description="The API endpoint URL that was used to get the response")
-    data: dict = Field(..., description="Results from the EONET API call")
+    title: str = Field("", description="The title of the response, if available")
+    description: str = Field("", description="Information describing what was requested, if available")
+    link: str = Field("", description="The API endpoint URL that was used to get the response")
+    data: dict = Field({}, description="Results from the EONET API call")
 
