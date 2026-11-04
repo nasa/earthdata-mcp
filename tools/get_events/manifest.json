@@ -16,14 +16,14 @@
             "description": "Search for events across all categories",
             "params": {
                 "endpoint": "/events",
-                "event_params": {}
+                "params": {}
             }
         },
         "targeted_search": {
             "description": "Search for events within a specific category",
             "params": {
                 "endpoint": "/events",
-                "event_params": {
+                "params": {
                     "category": "wildfires",
                     "status": "open"
                 }

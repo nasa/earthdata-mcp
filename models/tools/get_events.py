@@ -36,9 +36,9 @@ class GetEventsInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     source: Annotated[
-        str,
+        str | None,
         Field(
-            "",
+            None,
             description="The source of the events data.",
         ),
     ]
@@ -108,9 +108,9 @@ class GetEventsInput(BaseModel):
         ),
     ]
     bbox: Annotated[
-        str,
+        str | None,
         Field(
-            "-180.0,-90.0,180.0,90.0",
+            None,
             description="The bounding box to filter events by, using the following syntax: minLong,maxLat,maxLong,minLat.",
         ),
     ]
@@ -122,5 +122,5 @@ class GetEventsOutput(BaseToolOutput):
     title: str = Field("", description="The title of the response, if available")
     description: str = Field("", description="Information describing what was requested, if available")
     link: str = Field("", description="The API endpoint URL that was used to get the response")
-    data: dict = Field({}, description="Results from the EONET API call")
-
+    type: str = Field("None", description="The type of the geojson response, if available")
+    data: list[dict] = Field([], description="Results from the EONET API call")

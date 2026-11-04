@@ -32,7 +32,8 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     title=results.get("title", "'get_events' Tool Results"),
                     description=results.get("description", "Results from '/events' EONET endpoint"),
                     link=results.get("link", f"{get_request_url()}"),
-                    data={},
+                    type="",
+                    data=[],
                 ).model_dump()
             elif ("events" in results) and (len(results["events"]) > 0):
                 return GetEventsOutput(
@@ -41,11 +42,12 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     title=results.get("title", "'get_events' Tool Results"),
                     description=results.get("description", "Results from '/events' EONET endpoint"),
                     link=results.get("link", f"{get_request_url()}"),
+                    type="",
                     data=results["events"],
                 ).model_dump()
             else:
                 raise EONETError("Unexpected response shape for events request. Response did not contain 'events' key.")
-        elif endpoint == ENDPOINTS.GEOJSON:
+        else:
             if (("features" in results) and ("type" in results)) and (len(results["features"]) == 0):
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
@@ -53,7 +55,8 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     title=results.get("title", "'get_events' Tool Results"),
                     description=results.get("description", "Results from '/events/geojson' EONET endpoint"),
                     link=results.get("link", f"{get_request_url()}"),
-                    data={},
+                    type=results.get("type", "None"),
+                    data=[],
                 ).model_dump()
             elif (("features" in results) and ("type" in results)) and (len(results["features"]) > 0):
                 return GetEventsOutput(
@@ -62,22 +65,13 @@ def _build_response(endpoint: str, results: dict) -> dict:
                     title=results.get("title", "'get_events' Tool Results"),
                     description=results.get("description", "Results from '/events/geojson' EONET endpoint"),
                     link=results.get("link", f"{get_request_url()}"),
-                    data=results,
+                    type=results.get("type", "None"),
+                    data=results["features"],
                 ).model_dump()
             else:
                 raise EONETError(
                     "Unexpected response shape for geojson request. Response did not contain 'features' and/or 'type' key."
                 )
-        else:
-            logger.error(f"Provided endpoint does not exist or is not supported: {endpoint}")
-            return GetEventsOutput(
-                status=SearchStatus.ERROR,
-                error_message=f"Provided endpoint does not exist or is not supported: {endpoint}",
-                title="'get_events' Tool Error",
-                description="Attempted to access invalid endpoint.",
-                link=f"{get_request_url()}",
-                data={},
-            ).model_dump()
     except (ValueError, TypeError, EONETError) as e:
         logger.error("Results could not be saved: %s", e)
         return GetEventsOutput(
@@ -86,7 +80,8 @@ def _build_response(endpoint: str, results: dict) -> dict:
             title="'get_events' Tool Error",
             description="Attempted to store malformed results.",
             link=f"{get_request_url()}",
-            data={},
+            type="",
+            data=[],
         ).model_dump()
 
 
@@ -101,6 +96,18 @@ def get_events(
     sending a request to the specified endpoint with the given parameters. It returns the results
     formatted to contain the data itself and labels describing the data.
     """
+    if (endpoint != ENDPOINTS.EVENTS) and (endpoint != ENDPOINTS.GEOJSON):
+        logger.error(f"Provided endpoint does not exist or is not supported: '{endpoint}'")
+        return GetEventsOutput(
+            status=SearchStatus.ERROR,
+            error_message=f"Provided endpoint does not exist or is not supported: '{endpoint}'",
+            title="'get_events' Tool Error",
+            description="Attempted to access invalid endpoint.",
+            link="",
+            type="",
+            data=[],
+        ).model_dump()
+    
     trace_update(
         tags=["eonet", "eventsapi"],
         metadata={
@@ -111,7 +118,7 @@ def get_events(
 
     try:
         eonet_params = GetEventsInput(
-            source=params.get("source", ""),
+            source=params.get("source", None),
             category=params.get("category", None),
             status=params.get("status", None),
             limit=params.get("limit", 5),
@@ -121,7 +128,7 @@ def get_events(
             magID=params.get("magID", None),
             magMin=params.get("magMin", None),
             magMax=params.get("magMax", None),
-            bbox=params.get("bbox", [-180.0, -90.0, 180.0, 90.0]),
+            bbox=params.get("bbox", None),
         )
     except (ValueError, TypeError) as e:
         logger.warning("get_events input validation failed: %s", e)
@@ -131,7 +138,8 @@ def get_events(
             title="'get_events' Tool Error",
             description="Input validation failed for get_events tool.",
             link="",
-            data={},
+            type="",
+            data=[],
         ).model_dump()
 
     endpoint = endpoint
@@ -162,7 +170,8 @@ def get_events(
             title="'get_events' Tool Error",
             description="Could not retrieve results from EONET.",
             link="",
-            data={},
+            type="",
+            data=[],
         ).model_dump()
 
     return _build_response(endpoint, results)

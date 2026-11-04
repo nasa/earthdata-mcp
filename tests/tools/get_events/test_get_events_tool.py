@@ -4,8 +4,7 @@ import importlib
 import types
 from fastmcp.exceptions import ToolError
 from collections.abc import Generator
-from pydantic import ValidationError
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -26,38 +25,6 @@ def mock_events_endpoint() -> Generator[MagicMock]:
     """Mock tools.get_events.tool.events."""
     with patch("tools.get_events.tool.events") as mock_events:
         yield mock_events
-
-@pytest.fixture
-def mock_categories_endpoint() -> Generator[MagicMock]:
-    """Mock tools.get_events.tool.categories."""
-    with patch("tools.get_events.tool.categories") as mock_categories:
-        yield mock_categories
-
-@pytest.fixture
-def mock_layers_endpoint() -> Generator[MagicMock]:
-    """Mock tools.get_events.tool.layers."""
-    with patch("tools.get_events.tool.layers") as mock_layers:
-        yield mock_layers
-
-
-def test_get_events_returns_error_for_invalid_input() -> None:
-    """Test that get_events returns an error for invalid input."""
-    tool = _load_tool()
-
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="invalid_endpoint", params={}, category="")
-
-    assert "Provided input is invalid" in str(e.value)
-
-
-def test_get_events_returns_error_for_invalid_input_types() -> None:
-    """Test that get_events returns an error for invalid input types."""
-    tool = _load_tool()
-
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="events", params=123, category="")
-
-    assert "Provided input is invalid" in str(e.value)
 
 
 def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
@@ -87,7 +54,7 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
         "description": "Natural event from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [{
+        "data": [{
             "id": "exampleEvent",
             "title": "Event Title",
             "description": "Event description",
@@ -97,13 +64,11 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
             "sources": [],
             "geometry": [],
         }],
-        "features": [],
-        "categories": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -111,9 +76,7 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, False)
 
 
@@ -154,7 +117,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [{
+        "data": [{
             "id": "exampleEvent",
             "title": "Event Title",
             "description": "Event description",
@@ -174,13 +137,11 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
             "sources": [],
             "geometry": [],
         }],
-        "features": [],
-        "categories": [],
     }
 
     params = {"limit": "2"}
     
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -188,9 +149,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, False)
 
 
@@ -212,14 +171,12 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [],
-        "features": [],
-        "categories": [],
+        "data": [],
     }
 
     params = {"limit": "1"}
         
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -227,13 +184,11 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, False)
 
 
-def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
+def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns all results if an invalid EONET request is made."""
     tool = _load_tool()
             
@@ -270,7 +225,7 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [{
+        "data": [{
             "id": "exampleEvent",
             "title": "Event Title",
             "description": "Event description",
@@ -290,13 +245,11 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
             "sources": [],
             "geometry": [],
         }],
-        "features": [],
-        "categories": [],
     }
     
     params = {"limit": "-1"}
             
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -304,45 +257,8 @@ def test_get_events_call_failed(mock_events_endpoint: MagicMock) -> None:
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, False)
-
-
-def test_get_events_returns_error_for_malformed_event_category_layers(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error for malformed category layers from the event endpoint."""
-    tool = _load_tool()
-
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural events from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": 123,
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    mock_events_endpoint.side_effect= \
-        EONETError("Unexpected layers results shape: Event category's 'layers' key is not a string or list")
-
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="events", params={}, category="")
-
-    assert "Unexpected layers results shape: Event category's 'layers' key is not a string or list" in str(e.value) 
 
 
 def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> None:
@@ -371,8 +287,7 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
         "description": "",
         "link": "",
         "type": "FeatureCollection",
-        "events": [],
-        "features": [{
+        "data": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
@@ -383,12 +298,11 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
               "location": "Anytown, USA"
             }
         }],
-        "categories": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -396,9 +310,7 @@ def test_get_events_returns_event_geojson(mock_events_endpoint: MagicMock) -> No
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, True)
 
 
@@ -439,8 +351,7 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
         "description": "",
         "link": "",
         "type": "FeatureCollection",
-        "events": [],
-        "features": [{
+        "data": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
@@ -462,12 +373,11 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
               "location": "Anothertown, USA"
             }
         }],
-        "categories": [],
     }
 
     params = {"limit": "2"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -475,9 +385,7 @@ def test_get_events_returns_multiple_events_geojson(mock_events_endpoint: MagicM
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, True)
 
 
@@ -497,14 +405,12 @@ def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -
         "description": "",
         "link": "",
         "type": "FeatureCollection",
-        "events": [],
-        "features": [],
-        "categories": [], 
+        "data": [],
     }
 
     params = {"limit": "1"}
 
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -512,13 +418,11 @@ def test_get_events_returns_no_events_geojson(mock_events_endpoint: MagicMock) -
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, True)
 
 
-def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> None:
+def test_get_events_returns_all_geojson_results_on_failed_api_call(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns all results if an invalid geojson request is made."""
     tool = _load_tool()
                             
@@ -555,8 +459,7 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
         "description": "",
         "link": "",
         "type": "FeatureCollection",
-        "events": [],
-        "features": [{
+        "data": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
@@ -578,12 +481,11 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
               "location": "Anothertown, USA"
             }
         }],
-        "categories": [],
     }
     
     params = {"limit": "-1"}
     
-    result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params)
 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
@@ -591,29 +493,70 @@ def test_get_events_geojson_return_failed(mock_events_endpoint: MagicMock) -> No
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(params, True)
+
+
+def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error if it can't reach the EONET API."""
+    tool = _load_tool()
+
+    mock_events_endpoint.side_effect=EONETError(f"Failed to fetch events from EONET: {ANY}")
+
+    params = {"limit": "1"}
+
+    results = tool.get_events(endpoint="events", params=params)
+
+    assert "Failed to fetch events from EONET" in results["error_message"]
+
+
+def test_get_events_returns_error_for_invalid_endpoint() -> None:
+    """Test that get_events returns an error if an invalid endpoint is given."""
+    tool = _load_tool()
+
+    results = tool.get_events(endpoint="invalid_endpoint", params={})
+
+    assert results["error_message"] == "Provided endpoint does not exist or is not supported: 'invalid_endpoint'"
+
+
+def test_get_events_returns_error_for_malformed_event_json(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns an error if event results are malformed."""
+    tool = _load_tool()
+                
+    mock_events_endpoint.return_value = {
+        "title": "EONET Events",
+        "description": "Natural events from EONET.",
+        "link": f"{EONET_BASE_URL}/events",
+    }
+
+    mock_events_endpoint.side_effect=EONETError(
+        "Unexpected response shape for events request. Response did not contain 'events' key."
+    )
+
+    params = {"limit": "1"}
+
+    result = tool.get_events(endpoint="events", params=params)
+
+    assert "Unexpected response shape for events request. Response did not contain 'events' key." \
+        in result["error_message"]
 
 
 def test_get_events_returns_error_for_malformed_geojson(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an error if GeoJSON results are malformed."""
     tool = _load_tool()
                 
-    mock_events_endpoint.return_value = {
-        "type": "FeatureCollection",
-        "features": [{}],
-    }
+    mock_events_endpoint.return_value = {}
 
-    mock_events_endpoint.side_effect=EONETError("Unexpected geojson results shape: Malformed GeoJSON")
+    mock_events_endpoint.side_effect=EONETError(
+        "Unexpected response shape for geojson request. Response did not contain 'features' and/or 'type' key."
+    )
 
     params = {"limit": "1"}
 
-    with pytest.raises(ToolError) as e:
-        result = tool.get_events(endpoint="events/geojson", params=params, category="")
+    result = tool.get_events(endpoint="events/geojson", params=params)
 
-    assert "Unexpected geojson results shape: Malformed GeoJSON" in str(e.value)
+    assert "Unexpected response shape for geojson request. Response did not contain 'features' and/or 'type' key." \
+        in result["error_message"]
 
 
 def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: MagicMock) -> None:
@@ -653,7 +596,7 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
         "description": "Natural events from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [{
+        "data": [{
             "id": "exampleEvent",
             "title": "Event Title",
             "description": "Event description",
@@ -673,13 +616,11 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
             "sources": [],
             "geometry": [],
         }],
-        "features": [],
-        "categories": [],
     }
 
     params = {"category": "fakecategory"}
 
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
 
     expected_params = {"category": "fakecategory", "limit": 5}
 
@@ -689,888 +630,8 @@ def test_get_events_returns_all_events_for_fake_category(mock_events_endpoint: M
     assert result["description"] == expected["description"]
     assert result["link"] == expected["link"]
     assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
+    assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(expected_params, False)
-
-
-def test_get_events_returns_event_from_category(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events returns events from the specified category."""
-    tool = _load_tool()
-                                    
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-        "features": [],
-        "categories": [],
-    }
-
-    params = {"limit": "1"}
-
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", params)
-
-
-def test_get_events_returns_multiple_events_from_category(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events returns multiple events from the specified category."""
-    tool = _load_tool()
-                                        
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-        "features": [],
-        "categories": [],
-    }
-
-    params = {"limit": "2"}
-
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", params)
-
-
-def test_get_events_returns_no_events_from_category(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events returns no events for a category without events."""
-    tool = _load_tool()
-                                            
-    mock_categories_endpoint.return_value = {
-        "title": "Category Title",
-        "description": "Category description",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [],
-    }
-
-    expected = {
-        "status": SearchStatus.NO_RESULTS,
-        "error_message": None,
-        "title": "Category Title",
-        "description": "Category description",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [],
-    }
-
-    params = {"limit": "1"}
-
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", params)
-
-
-def test_get_events_returns_all_categories(mock_categories_endpoint: MagicMock) -> None:
-    """
-    Test that get_events returns all categories if just the category 
-    endpoint itself is passed via the request.
-    """
-    tool = _load_tool()
-                                                
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Event Categories",
-        "description": "List of all the available event categories in the EONET system",
-        "link": f"{EONET_BASE_URL}/categories",
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": f"{EONET_BASE_URL}/categories/categoryId",
-            "description": "Category description.",
-            "layers": f"{EONET_BASE_URL}/layers/categoryId_layers"
-        },
-        {
-            "id": "categoryId2",
-            "title": "Category2 Title",
-            "link": f"{EONET_BASE_URL}/categories/categoryId2",
-            "description": "Category2 description.",
-            "layers": f"{EONET_BASE_URL}/layers/categoryId2_layers"
-        }]
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Event Categories",
-        "description": "List of all the available event categories in the EONET system",
-        "link": f"{EONET_BASE_URL}/categories",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": f"{EONET_BASE_URL}/categories/categoryId",
-            "description": "Category description.",
-            "layers": f"{EONET_BASE_URL}/layers/categoryId_layers"
-        },
-        {
-            "id": "categoryId2",
-            "title": "Category2 Title",
-            "link": f"{EONET_BASE_URL}/categories/categoryId2",
-            "description": "Category2 description.",
-            "layers": f"{EONET_BASE_URL}/layers/categoryId2_layers"
-        }]
-    }
-    
-    result = tool.get_events(endpoint="categories", params={}, category="")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("", {"limit": 5})
-
-
-def test_get_events_returns_all_events_for_category_endpoint(mock_categories_endpoint: MagicMock) -> None   :
-    """
-    Test that get_events returns all events for a given category if just the category's
-    endpoint is called without any parameters.
-    """
-    tool = _load_tool()
-                                                    
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Events: Category Title",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Events: Category Title",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        }
-        ],
-        "features": [],
-        "categories": [],
-    }
-    
-    result = tool.get_events(endpoint="categories", params={}, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", {"limit": 5})
-
-
-def test_get_events_returns_all_events_for_category_endpoint_invalid_params(mock_categories_endpoint: MagicMock) -> None   :
-    """
-    Test that get_events returns all events for a given category if just the category's
-    endpoint is called with an invalid parameter.
-    """
-    tool = _load_tool()
-                                                    
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Events: Category Title",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Events: Category Title",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        },
-        {
-            "id": "exampleEvent2",
-            "title": "Event2 Title",
-            "description": "Event2 description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent2",
-            "closed": None,
-            "categories": [{
-                "id": "categoryId",
-                "title": "Category Title",
-                "link": "",
-                "description": "",
-                "layers": [],
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-        "features": [],
-        "categories": [],
-    }
-
-    params = { "limit": "-1" }
-
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_categories_endpoint.assert_called_once_with("categoryId", params)
-
-
-def test_get_events_categories_returns_error_for_fake_category(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error for a fake category (for category endpoint)."""
-    tool = _load_tool()
-
-    mock_categories_endpoint.side_effect= \
-        EONETError(f"Failed to fetch events for category 'fakecategory', or all categories, from EONET: {ANY}")
-
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="categories", params={}, category="fakecategory")
-
-    assert "Failed to fetch events for category 'fakecategory'" in str(e.value)
-
-
-def test_get_events_returns_layer_from_category(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events can return a single layer from the specified category."""
-    tool = _load_tool()
-
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "layers": [{
-                "name": "layerName",
-                "serviceUrl": "https://www.layer-service.com",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "param1": "value1",
-                        "param2": "value2"
-                    }
-                ]
-            }]
-        }]
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": "",
-            "description": "",
-            "layers": [{
-                "name": "layerName",
-                "serviceUrl": "https://www.layer-service.com",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "param1": "value1",
-                        "param2": "value2"
-                    }
-                ]
-            }]
-        }]
-    }
-    
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_layers_endpoint.assert_called_once_with("categoryId")
-
-
-def test_get_events_returns_multiple_layers_from_category(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events returns multiple layers from the specified category."""
-    tool = _load_tool()
-    
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "layers": [{
-                "name": "layerName",
-                "serviceUrl": "https://www.layer-service.com",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "layer1param1": "layer1value1",
-                        "layer1param2": "layer1value2"
-                    }
-                ]
-            },
-            {
-                "name": "layer2Name",
-                "serviceUrl": "https://www.layer2-service.com",
-                "serviceTypeId": "typeId2",
-                "parameters": [
-                    {
-                        "layer2Param1": "layer2Value1",
-                        "layer2Param2": "layer2Value2"
-                    }
-                ]
-            }]
-        }]
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": "",
-            "description": "",
-            "layers": [{
-                "name": "layerName",
-                "serviceUrl": "https://www.layer-service.com",
-                "serviceTypeId": "typeId",
-                "parameters": [
-                    {
-                        "layer1param1": "layer1value1",
-                        "layer1param2": "layer1value2"
-                    }
-                ]
-            },
-            {
-                "name": "layer2Name",
-                "serviceUrl": "https://www.layer2-service.com",
-                "serviceTypeId": "typeId2",
-                "parameters": [
-                    {
-                        "layer2Param1": "layer2Value1",
-                        "layer2Param2": "layer2Value2"
-                    }
-                ]
-            }]
-        }]
-    }
-    
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_layers_endpoint.assert_called_once_with("categoryId")
-
-
-def test_get_events_returns_no_layers_from_category(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events returns no layers for a category without layers."""
-    tool = _load_tool()
-        
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "layers": []
-        }]
-    }
-
-    expected = {
-        "status": SearchStatus.NO_RESULTS,
-        "error_message": None,
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": "",
-            "description": "",
-            "layers": []
-        }]
-    }
-    
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    assert result["categories"][0]["layers"] == expected["categories"][0]["layers"]
-    mock_layers_endpoint.assert_called_once_with("categoryId")
-
-
-def test_get_events_returns_all_layers(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events returns all layers when no category is given."""
-    tool = _load_tool()
-            
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system",
-        "link": f"{EONET_BASE_URL}/layers",
-        "categories": [{
-            "layers": [{
-                "name": "Layer_01",
-                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_01",
-                "serviceTypeId": "Layer_01_ID",
-                "parameters": [
-                    {
-                        "TILEMATRIXSET": "2km",
-                        "FORMAT": "image/png"
-                    }
-                ]
-            },
-            {
-                "name": "Layer_02",
-                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_02",
-                "serviceTypeId": "Layer_02_ID",
-                "parameters": [
-                    {
-                        "TILEMATRIXSET": "2km",
-                        "FORMAT": "image/png"
-                    }
-                ]
-            }]
-        }]
-    }
-
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system",
-        "link": f"{EONET_BASE_URL}/layers",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "",
-            "title": "",
-            "link": "",
-            "description": "",
-            "layers": [{
-                "name": "Layer_01",
-                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_01",
-                "serviceTypeId": "Layer_01_ID",
-                "parameters": [
-                    {
-                        "TILEMATRIXSET": "2km",
-                        "FORMAT": "image/png"
-                    }
-                ]
-            },
-            {
-                "name": "Layer_02",
-                "serviceUrl": "https://gibs.earthdata.nasa.gov/link/to/Layer_02",
-                "serviceTypeId": "Layer_02_ID",
-                "parameters": [
-                    {
-                        "TILEMATRIXSET": "2km",
-                        "FORMAT": "image/png"
-                    }
-                ]
-            }]
-        }]
-    }
-    
-    result = tool.get_events(endpoint="layers", params={}, category="")
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["title"] == expected["title"]
-    assert result["description"] == expected["description"]
-    assert result["link"] == expected["link"]
-    assert result["type"] == expected["type"]
-    assert result["events"] == expected["events"]
-    assert result["features"] == expected["features"]
-    assert result["categories"] == expected["categories"]
-    mock_layers_endpoint.assert_called_once_with("")
-    
-
-def test_get_events_layers_returns_error_for_fake_category(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error if a fake category is given (for layers endpoint)."""
-    tool = _load_tool()
-
-    mock_layers_endpoint.side_effect=EONETError(f"Failed to fetch layers for category 'fakecategory' from EONET: {ANY}")
-    
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="layers", params={}, category="fakecategory")
-    
-    assert "Failed to fetch layers for category 'fakecategory'" in str(e.value)
-
-
-def test_get_events_returns_error_for_malformed_layers(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error for malformed layers."""
-    tool = _load_tool()
-
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system",
-        "link": f"{EONET_BASE_URL}/layers",
-        "categories": [{
-            "layers": {}
-        }]
-    }
-
-    mock_layers_endpoint.side_effect= \
-        EONETError("Unexpected layers results shape: Category's 'layers' key is not a string or list")
-
-    with pytest.raises(ToolError) as e:
-        results = tool.get_events(endpoint="layers", params={}, category="")
-
-    assert "Unexpected layers results shape: Category's 'layers' key is not a string or list" in str(e.value)
-
-
-def test_get_events_returns_error_for_missing_event_categories_key(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error if the /events endpoint contains events without a 'categories' key."""
-    tool = _load_tool()
-
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural event from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-
-    params = {"limit": "1"}
-
-    with pytest.raises(ToolError) as e:
-        result = tool.get_events(endpoint="events", params=params, category="categoryId")
-
-    assert "Unexpected events results shape: No 'categories' key in event item" in str(e.value)
-
-
-def test_get_events_returns_error_for_missing_events_key(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error if the /events endpoint contains no 'events' key."""
-    tool = _load_tool()
-
-    mock_events_endpoint.return_value = {
-        "title": "EONET Event",
-        "description": "Natural event from EONET.",
-        "link": f"{EONET_BASE_URL}/events",
-    }
-
-    params = {"limit": "1"}
-
-    with pytest.raises(ToolError) as e:
-        result = tool.get_events(endpoint="events", params=params, category="categoryId")
-
-    assert "Unexpected events or categories results shape: No 'events' or 'categories' key in EONET response" in str(e.value)
-
-
-def test_get_events_returns_error_for_missing_categories_key(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error if the top-level /categories endpoint contains no 'categories' key."""
-    tool = _load_tool()
-
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Event Categories",
-        "description": "List of all the available event categories in the EONET system",
-        "link": f"{EONET_BASE_URL}/categories",
-    }
-
-    params = {"limit": "1"}
-
-    with pytest.raises(ToolError) as e:
-        result = tool.get_events(endpoint="categories", params=params, category="")
-
-    assert "Unexpected events or categories results shape: No 'events' or 'categories' key in EONET response" in str(e.value)
-
-
-def test_get_events_returns_error_for_missing_features_key(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns an error if the /events/geojson endpoint contains no 'features' key."""
-    tool = _load_tool()
-
-    mock_events_endpoint.return_value = {
-        "type": "FeatureCollection",
-    }
-
-    params = {"limit": "1"}
-
-    with pytest.raises(ToolError) as e:
-        result = tool.get_events(endpoint="events/geojson", params=params, category="")
-
-    assert "Unexpected geojson results shape: No 'features' key in EONET response" in str(e.value)
 
 
 def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: MagicMock) -> None:
@@ -1593,7 +654,7 @@ def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: Mag
         "description": "Natural event from EONET.",
         "link": f"{EONET_BASE_URL}/events",
         "type": "",
-        "events": [{
+        "data": [{
             "id": "exampleEvent",
             "title": "",
             "description": "",
@@ -1603,117 +664,10 @@ def test_get_events_sets_omitted_optional_event_fields(mock_events_endpoint: Mag
             "sources": [],
             "geometry": [],
         }],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": "",
-            "description": "",
-            "layers": [],
-        }],
     }
     
     params = {"limit": "1"}
     
-    result = tool.get_events(endpoint="events", params=params, category="")
+    result = tool.get_events(endpoint="events", params=params)
     
-    assert "description" in result["events"][0] and result["events"][0]["description"] == expected["events"][0]["description"]
-
-
-def test_get_events_sets_omitted_optional_category_fields(mock_categories_endpoint: MagicMock) -> None:
-    """Test that get_events will automatically fill in missing category fields from EONET response."""
-    tool = _load_tool()
-
-    mock_categories_endpoint.return_value = {
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{}],
-            "sources": [],
-            "geometry": [],
-        }],
-    }
-    
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Events: Category",
-        "description": "Category description.",
-        "link": f"{EONET_BASE_URL}/categories/categoryId",
-        "type": "",
-        "events": [{
-            "id": "exampleEvent",
-            "title": "Event Title",
-            "description": "Event description",
-            "link": f"{EONET_BASE_URL}/events/exampleEvent",
-            "closed": None,
-            "categories": [{
-                "id": "",
-                "title": "",
-                "link": "",
-                "description": "",
-                "layers": None,
-            }],
-            "sources": [],
-            "geometry": [],
-        }],
-        "features": [],
-        "categories": [],
-    }
-
-    params = {"limit": "1"}
-    
-    result = tool.get_events(endpoint="categories", params=params, category="categoryId")
-
-    assert result["events"]["categories"] == expected["events"]["categories"]
-
-
-def test_get_events_sets_omitted_optional_layers_fields(mock_layers_endpoint: MagicMock) -> None:
-    """Test that get_events will automatically fill in missing layers fields from EONET response."""
-    tool = _load_tool()
-
-    mock_layers_endpoint.return_value = {
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "layers": [{
-                "name": "layerName",
-            }]
-        }]
-    }
-    
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "title": "EONET Web Service Layers",
-        "description": "List of web service layers in the EONET system.",
-        "link": f"{EONET_BASE_URL}/layers/categoryId",
-        "type": "",
-        "events": [],
-        "features": [],
-        "categories": [{
-            "id": "categoryId",
-            "title": "Category Title",
-            "link": "",
-            "description": "",
-            "layers": [{
-                "name": "layerName",
-                "serviceUrl": "",
-                "serviceTypeId": "",
-                "parameters": []
-            }]
-        }]
-    }
-    
-    result = tool.get_events(endpoint="layers", params={}, category="categoryId")
-
-    assert result["categories"]["layers"] == expected["categories"]["layers"]
+    assert "description" in result["data"][0] and result["data"][0]["description"] == expected["data"][0]["description"]
