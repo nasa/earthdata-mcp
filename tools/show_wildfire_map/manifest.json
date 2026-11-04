@@ -1,0 +1,13 @@
+{
+  "name": "show_wildfire_map",
+  "description": "Show a terra-map with active wildfire detections from NASA EONET overlaid as a WMS layer. Fetches the fire layer configuration from the EONET layers API and renders it on top of MODIS Terra satellite imagery.",
+  "version": "1.0.0",
+  "entry_function": "show_wildfire_map",
+  "app": {
+    "csp_profile": "map",
+    "csp": {
+      "connect_domains": ["https://map2.vis.earthdata.nasa.gov", "https://eonet.gsfc.nasa.gov"],
+      "resource_domains": ["https://map2.vis.earthdata.nasa.gov"]
+    }
+  }
+}

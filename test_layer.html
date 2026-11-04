@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.205/cdn/themes/horizon.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.205/cdn/terra-ui-components-autoloader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ol@10/dist/ol.js"></script>
+  <style>
+    html, body { margin: 0; background: #1c1f26; font: 12px monospace; color: #cdd; }
+    #status { padding: 6px 10px; background: rgba(0,0,0,0.7); color: #aef; }
+    #status.error { color: #f88; }
+    terra-map { display: block; width: 100%; height: 460px; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading...</div>
+  <terra-map id="map" collection-id="C1374742240-LAADS" show-layer-picker show-mouse-coordinates></terra-map>
+
+  <script type="module">
+  (async () => {
+    const st = document.getElementById('status');
+    const ok  = msg => { st.textContent = 'OK — ' + msg; st.className = ''; };
+    const err = msg => { st.textContent = 'ERR — ' + msg; st.className = 'error'; };
+
+    window.addEventListener('error', e => err('JS: ' + e.message));
+    window.addEventListener('unhandledrejection', e => err('Promise: ' + e.reason));
+
+    if (!window.ol) { err('OL not loaded'); return; }
+
+    await customElements.whenDefined('terra-map');
+    const el = document.getElementById('map');
+    await el.updateComplete;
+
+    if (typeof el.addLayer !== 'function') { err('terra-map has no addLayer'); return; }
+
+    // Black semi-transparent box over Europe [W, S, E, N] in EPSG:4326
+    const extent = ol.proj.transformExtent([-10, 35, 40, 70], 'EPSG:4326', 'EPSG:3857');
+    const olLayer = new ol.layer.Image({
+      extent,
+      opacity: 0.6,
+      source: new ol.source.ImageCanvas({
+        projection: 'EPSG:3857',
+        ratio: 1,
+        canvasFunction: (_extent, _res, pixelRatio, size) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(size[0] * pixelRatio);
+          canvas.height = Math.round(size[1] * pixelRatio);
+          canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+          return canvas;
+        },
+      }),
+    });
+
+    el.addLayer(olLayer, { name: 'black-square' });
+    ok('layer added — black square over Europe');
+  })();
+  </script>
+</body>
+</html>

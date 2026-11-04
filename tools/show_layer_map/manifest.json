@@ -1,0 +1,7 @@
+{
+  "name": "show_layer_map",
+  "description": "Show a terra-map with a custom georeferenced image layer overlaid on top of GIBS satellite imagery. Demonstrates the image-layer pipeline: a PNG with known geographic bounds is composited onto the map as if it were processed scientific output (e.g. from a GeoTIFF).",
+  "version": "1.0.0",
+  "entry_function": "show_layer_map",
+  "app": { "csp_profile": "map" }
+}

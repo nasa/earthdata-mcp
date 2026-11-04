@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.205/cdn/themes/horizon.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@nasa-terra/components@0.0.205/cdn/terra-ui-components-autoloader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ol@10/dist/ol.js"></script>
+  <style>
+    html, body { margin: 0; background: #1c1f26; font: 12px monospace; color: #cdd; }
+    #status { padding: 6px 10px; background: rgba(0,0,0,0.7); color: #aef; }
+    #status.error { color: #f88; }
+    terra-map { display: block; width: 100%; height: 460px; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading…</div>
+  <terra-map id="map" collection-id="C1374742240-LAADS" show-layer-picker show-mouse-coordinates></terra-map>
+
+  <script type="module">
+  // mirrors vector_layer(coords, color="rgba(255,80,0,0.85)", name="sample-points")
+  (async () => {
+    const st = document.getElementById('status');
+    const ok  = msg => { st.textContent = 'OK — ' + msg; st.className = ''; };
+    const err = msg => { st.textContent = 'ERR — ' + msg; st.className = 'error'; };
+    window.addEventListener('error', e => err('JS: ' + e.message));
+    window.addEventListener('unhandledrejection', e => err('Promise: ' + e.reason));
+
+    if (!window.ol) { err('OL not loaded'); return; }
+    await customElements.whenDefined('terra-map');
+    const el = document.getElementById('map');
+    await el.updateComplete;
+    if (typeof el.addLayer !== 'function') { err('terra-map has no addLayer'); return; }
+
+    // hardcoded [lon, lat] sample points across the globe
+    const coords = [
+      [-119.5,  37.8],  // California
+      [ -87.6,  41.8],  // Chicago
+      [  -0.1,  51.5],  // London
+      [  13.4,  52.5],  // Berlin
+      [ 139.7,  35.7],  // Tokyo
+      [ -43.2, -22.9],  // Rio de Janeiro
+      [  18.4, -33.9],  // Cape Town
+    ];
+
+    el.addLayer(
+      new ol.layer.Vector({
+        source: new ol.source.Vector({
+          features: coords.map(c => new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.fromLonLat(c)),
+          })),
+        }),
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 6,
+            fill: new ol.style.Fill({ color: 'rgba(255,80,0,0.85)' }),
+            stroke: new ol.style.Stroke({ color: '#fff', width: 1.5 }),
+          }),
+        }),
+      }),
+      { name: 'sample-points' }
+    );
+    ok(`vector_layer — ${coords.length} points across the globe`);
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "show_vector_map",
+  "description": "Show a terra-map with hardcoded vector point locations to demonstrate the vector_layer pipeline. Orange circles rendered via ol.layer.Vector on top of MODIS Terra GIBS imagery.",
+  "version": "1.0.0",
+  "entry_function": "show_vector_map",
+  "app": { "csp_profile": "map" }
+}
