@@ -4,6 +4,10 @@ Each function returns a dict with ``"name"`` and ``"js"`` keys ready to
 append to ``MapSpec.layers``.  The ``"js"`` value is a raw OL layer
 constructor expression inserted directly into the map template.
 
+The JavaScript logic lives in ``util/visualization/js/``.  Python's only
+job is to serialize parameters as a ``const _P = {...};`` line prepended to
+the template file — no string interpolation of JS internals.
+
 Example — combining layer types::
 
     from util.visualization import MapSpec, map_card
@@ -25,6 +29,15 @@ Example — combining layer types::
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+_JS_DIR = Path(__file__).parent / "js"
+
+
+def _js(filename: str, params: dict) -> str:
+    """Inject a _P params object inside the JS template at the // @PARAMS@ marker."""
+    template = (_JS_DIR / filename).read_text(encoding="utf-8")
+    return template.replace("// @PARAMS@\n", f"const _P={json.dumps(params)};\n", 1)
 
 
 def image_layer(
@@ -42,35 +55,9 @@ def image_layer(
         opacity: 0–1.
         name:    Layer name passed to ``addLayer``.
     """
-    ext = json.dumps(extent)
-    url_js = json.dumps(url)
-    # Uses ImageCanvas (not ImageStatic) so the already-loaded <img> is drawn
-    # directly to a canvas element — avoids the cross-origin canvas-taint issue
-    # that silently blocks ImageStatic/ImageWMS from rendering inside terra-map.
     return {
         "name": name,
-        "js": (
-            f"(async()=>{{"
-            f"const _src={url_js};"
-            f"const _img=new Image();"
-            # data: URIs are same-origin — load directly, no fetch needed (fetch('data:...')
-            # is blocked in sandboxed iframes such as those used by MCP Jam).
-            # External URLs use fetch()→blob to avoid cross-origin canvas taint.
-            f"if(_src.startsWith('data:')){{await new Promise((r,x)=>{{_img.onload=r;_img.onerror=x;_img.src=_src;}});}}"
-            f"else{{const _blob=await fetch(_src).then(r=>r.blob());const _burl=URL.createObjectURL(_blob);await new Promise((r,x)=>{{_img.onload=r;_img.onerror=x;_img.src=_burl;}});}}"
-            f"const _ext=ol.proj.transformExtent({ext},'EPSG:4326','EPSG:3857');"
-            f"return new ol.layer.Image({{"
-            f"extent:_ext,opacity:{opacity},"
-            f"source:new ol.source.ImageCanvas({{"
-            f"canvasFunction:(_e,_r,pr,sz)=>{{"
-            f"const c=document.createElement('canvas');"
-            f"c.width=Math.round(sz[0]*pr);c.height=Math.round(sz[1]*pr);"
-            f"c.getContext('2d').drawImage(_img,0,0,c.width,c.height);"
-            f"return c;}},"
-            f"projection:'EPSG:3857'"
-            f"}})}})"
-            f"}})()"
-        ),
+        "js": _js("image_layer.js", {"url": url, "extent": extent, "opacity": opacity}),
     }
 
 
@@ -114,32 +101,15 @@ def wms_layer(  # pylint: disable=too-many-arguments
     params: dict = {"LAYERS": layer_name, "FORMAT": fmt, "TRANSPARENT": "TRUE"}
     if extra_params:
         params.update(extra_params)
-    url_js = json.dumps(url)
-    params_js = json.dumps(params)
-    ext_js = json.dumps(bbox)
     return {
         "name": name,
-        "js": (
-            f"(async()=>{{"
-            f"const _ext4326={ext_js};"
-            f"const _ext=ol.proj.transformExtent(_ext4326,'EPSG:4326','EPSG:3857');"
-            f"const _p=new URLSearchParams({{SERVICE:'WMS',VERSION:'1.3.0',"
-            f"REQUEST:'GetMap',CRS:'EPSG:3857',BBOX:_ext.join(','),"
-            f"WIDTH:{img_size},HEIGHT:{img_size},...{params_js}}});"
-            # fetch() → blob URL avoids canvas-taint and img.crossOrigin CORS failures.
-            f"const _blob=await fetch({url_js}+'?'+_p.toString()).then(r=>r.blob());"
-            f"const _burl=URL.createObjectURL(_blob);"
-            f"const _img=new Image();"
-            f"await new Promise((r,x)=>{{_img.onload=r;_img.onerror=x;_img.src=_burl;}});"
-            f"return new ol.layer.Image({{extent:_ext,opacity:{opacity},"
-            f"source:new ol.source.ImageCanvas({{"
-            f"canvasFunction:(_e,_r,pr,sz)=>{{"
-            f"const c=document.createElement('canvas');"
-            f"c.width=Math.round(sz[0]*pr);c.height=Math.round(sz[1]*pr);"
-            f"c.getContext('2d').drawImage(_img,0,0,c.width,c.height);return c;}},"
-            f"projection:'EPSG:3857'}})}});"
-            f"}})()"
-        ),
+        "js": _js("wms_layer.js", {
+            "url": url,
+            "bbox": bbox,
+            "img_size": img_size,
+            "opacity": opacity,
+            "params": params,
+        }),
     }
 
 
@@ -164,14 +134,11 @@ def vector_layer(
     """
     return {
         "name": name,
-        "js": (
-            f"new ol.layer.Vector({{"
-            f"source:new ol.source.Vector({{features:"
-            f"{json.dumps(coords)}"
-            f".map(c=>new ol.Feature({{geometry:new ol.geom.Point(ol.proj.fromLonLat(c))}}))}}),"
-            f"style:new ol.style.Style({{image:new ol.style.Circle({{radius:{radius},"
-            f"fill:new ol.style.Fill({{color:{json.dumps(color)}}}),"
-            f"stroke:new ol.style.Stroke({{color:{json.dumps(stroke_color)},width:{stroke_width}}})"
-            f"}})}})}})"
-        ),
+        "js": _js("vector_layer.js", {
+            "coords": coords,
+            "color": color,
+            "stroke_color": stroke_color,
+            "radius": radius,
+            "stroke_width": stroke_width,
+        }),
     }

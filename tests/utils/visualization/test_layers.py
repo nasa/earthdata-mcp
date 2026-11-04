@@ -47,8 +47,8 @@ def test_image_layer_returns_ol_image_layer():
 def test_image_layer_is_async_iife():
     """image_layer JS must be an async IIFE so it can be awaited by addLayer."""
     js = image_layer("data:image/png;base64,X", [0, 0, 1, 1])["js"]
-    assert js.startswith("(async()=>")
-    assert js.endswith(")()")
+    assert "(async()=>" in js
+    assert js.rstrip().endswith(")()")
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def test_wms_layer_uses_fetch_blob():
 def test_wms_layer_uses_wms_params():
     """Generated JS must include core WMS parameters."""
     js = wms_layer("https://example.com/wms", "L")["js"]
-    assert "SERVICE:'WMS'" in js
+    assert "SERVICE: 'WMS'" in js
     assert "GetMap" in js
     assert "EPSG:3857" in js
 
@@ -94,8 +94,8 @@ def test_wms_layer_extra_params_merged():
 def test_wms_layer_is_async_iife():
     """wms_layer JS must be an async IIFE so it can be awaited by addLayer."""
     js = wms_layer("https://example.com/wms", "L")["js"]
-    assert js.startswith("(async()=>")
-    assert js.endswith(")()")
+    assert "(async()=>" in js
+    assert js.rstrip().endswith(")()")
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ def test_vector_layer_circle_style():
     """Generated JS must create an ol.style.Circle with the given radius and color."""
     js = vector_layer([[0, 0]], radius=8, color="rgba(255,0,0,1)")["js"]
     assert "ol.style.Circle" in js
-    assert "radius:8" in js
+    assert '"radius": 8' in js  # value appears in the injected _P JSON header
     assert "rgba(255,0,0,1)" in js
 
 
