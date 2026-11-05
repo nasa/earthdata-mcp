@@ -1,7 +1,7 @@
 {
     "name": "get_events",
     "version": "1.0.0",
-    "description": "Retrieve events from GSFC'S EONET natural event tracker. Use this to query live natural events and inject them into user chats.",
+    "description": "Retrieve events from GSFC'S EONET natural event tracker. Use this to query live natural events and inject them into user chats. Available event categories are: 'drought', 'dustHaze', 'earthquakes', 'floods', 'landslides', 'manmade', 'seaLakeIce', 'severeStorms', 'snow', 'tempExtremes', 'volcanoes', 'waterColor', and 'wildfires'.",
     "entry_function": "get_events",
     "module": "tool",
     "tags": [

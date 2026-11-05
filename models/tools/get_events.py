@@ -1,33 +1,27 @@
 """Input and output models for the get_events MCP tool."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from models.tools.cmr_search import BaseToolOutput
 
 
-class CATEGORIES:
-    """Available EONET API categories."""
-    DROUGHT = "drought"
-    DUST_HAZE = "dustHaze"
-    EARTHQUAKES = "earthquakes"
-    FLOODS = "floods"
-    LANDSLIDES = "landslides"
-    MANMADE = "manmade"
-    SEA_LAKE_ICE = "seaLakeIce"
-    SEVERE_STORMS = "severeStorms"
-    SNOW = "snow"
-    TEMPERATURE_EXTREMES = "tempExtremes"
-    VOLCANOES = "volcanoes"
-    WATER_COLOR = "waterColor"
-    WILDFIRES = "wildfires"
-
-
-class ENDPOINTS:
-    """Available EONET API endpoints."""
-    EVENTS = "events"
-    GEOJSON = "events/geojson"
+CATEGORIES_TYPE = Literal[
+    "drought",
+    "dustHaze",
+    "earthquakes",
+    "floods",
+    "landslides",
+    "manmade",
+    "seaLakeIce",
+    "severeStorms",
+    "snow",
+    "tempExtremes",
+    "volcanoes",
+    "waterColor",
+    "wildfires",
+]
 
 
 class GetEventsInput(BaseModel):
@@ -43,7 +37,7 @@ class GetEventsInput(BaseModel):
         ),
     ]
     category: Annotated[
-        CATEGORIES | None,
+        CATEGORIES_TYPE | None,
         Field(
             None,
             description="The category to filter events by.",
@@ -113,14 +107,11 @@ class GetEventsInput(BaseModel):
             None,
             description="The bounding box to filter events by, using the following syntax: minLong,maxLat,maxLong,minLat.",
         ),
-    ]
+    ]   
 
 
 class GetEventsOutput(BaseToolOutput):
     """Output model for get_events."""
 
-    title: str = Field("", description="The title of the response, if available")
-    description: str = Field("", description="Information describing what was requested, if available")
-    link: str = Field("", description="The API endpoint URL that was used to get the response")
-    type: str = Field("None", description="The type of the geojson response, if available")
-    data: list[dict] = Field([], description="Results from the EONET API call")
+    data: dict = Field({}, description="Results from the '/events' endpoint")
+    data_geojson: dict = Field({}, description="Results from the '/events/geojson' endpoint")
