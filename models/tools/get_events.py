@@ -113,5 +113,4 @@ class GetEventsInput(BaseModel):
 class GetEventsOutput(BaseToolOutput):
     """Output model for get_events."""
 
-    data: dict = Field({}, description="Results from the '/events' endpoint")
-    data_geojson: dict = Field({}, description="Results from the '/events/geojson' endpoint")
+    data: dict = Field({}, description="GeoJSON results from EONET")

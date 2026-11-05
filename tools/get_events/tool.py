@@ -7,7 +7,7 @@ from langfuse import observe
 
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
-    CATEGORIES,
+    CATEGORIES_TYPE,
     GetEventsInput,
     GetEventsOutput,
 )
@@ -21,26 +21,24 @@ from util.langfuse import trace_update
 logger = logging.getLogger(__name__)
 
 
-def _build_response(results: dict, results_geojson: dict) -> dict:
-    """Consolidates results from '/events' and '/events/geojson' endpoints and returns a single response."""
+def _build_response(results: dict) -> dict:
+    """Builds the tool response using the fetched EONET data."""
     try:
-        if ("events" in results) and (("features" in results_geojson) and ("type" in results_geojson)):
-            if (len(results["events"]) == 0) and (len(results_geojson["features"]) == 0):
+        if ("features" in results) and ("type" in results):
+            if len(results["features"]) == 0:
                 return GetEventsOutput(
                     status=SearchStatus.NO_RESULTS,
                     error_message=None,
                     data={},
-                    data_geojson={},
                 ).model_dump()
             else:
                 return GetEventsOutput(
                     status=SearchStatus.SUCCESS,
                     error_message=None,
                     data=results,
-                    data_geojson=results_geojson,
                 ).model_dump()
         else:
-            raise EONETError("Unexpected response shape: 'events' key or 'features'/'type' keys missing.")
+            raise EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
     except (ValueError, TypeError, EONETError) as e:
         logger.error("Results could not be saved: %s", e)
         raise ToolError(f"Attempting to save malformed results: {str(e)}") from e
@@ -49,7 +47,7 @@ def _build_response(results: dict, results_geojson: dict) -> dict:
 @observe(name="get_events")
 def get_events(
     source: str | None = None,
-    category: CATEGORIES | None = None,
+    category: CATEGORIES_TYPE | None = None,
     status: str | None = None,
     limit: int = 5,
     days: int | None = None,
@@ -102,10 +100,9 @@ def get_events(
         raise ToolError(f"get_events {type(e).__name__}: {str(e)}") from e
 
     try:
-            results = events(params.model_dump(), False)
-            results_geojson = events(params.model_dump(), True)
+        results = events(params.model_dump(), True) # Automatically use GeoJSON endpoint (normal events endpoint still available)
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
         raise ToolError(f"Could not retrieve results from EONET: {str(e)}") from e
 
-    return _build_response(results, results_geojson)
+    return _build_response(results)
