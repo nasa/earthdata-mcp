@@ -1,0 +1,51 @@
+{
+    "type": "FeatureCollection",
+    "features": [{
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [0.0, 0.0] 
+        },
+        "properties": {
+          "name": "A Cool Place",
+          "location": "Anytown, USA",
+          "categories": [
+		    {
+		    	"id": "wildfires",
+		    	"title": "Wildfires"
+		    }]
+        }
+    },
+    {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [1.0, 1.0] 
+        },
+        "properties": {
+          "name": "Another Cool Place",
+          "location": "Anothertown, USA",
+          "categories": [
+		    {
+		    	"id": "wildfires",
+		    	"title": "Wildfires"
+		    }]
+        }
+    },
+    {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [1.0, 1.0] 
+        },
+        "properties": {
+          "name": "Another Cool Place",
+          "location": "Anothertown, USA",
+          "categories": [
+		    {
+		    	"id": "severeStorms",
+		    	"title": "Severe Storms"
+		    }]
+        }
+    }]
+}

@@ -84,6 +84,7 @@ The Earthdata MCP Server configures the following tools to search across the CMR
 
 *   **`get_keywords`**: Discovers official Earthdata scientific vocabulary terms (from NASA KMS) to translate colloquial user inputs (e.g. "rain") into precise search labels (e.g. "PRECIPITATION AMOUNT").
 *   **`get_collections`**: Searches for datasets (collections) using scientific keywords, instruments, platforms, or spatial/temporal constraints.
+*   **`get_events`**: Finds GeoJSON data on NRT natural events using the EONET (Earth Observatory Natural Event Tracker) API. 
 *   **`get_granules`**: Searches for specific data files (granules) within a collection. Used to verify actual data availability for a given time and location.
 *   **`get_services`**: Discovers data access endpoints (OPeNDAP, Harmony) and visualization layers (WMS/WMTS) associated with a collection.
 *   **`get_tools`**: Finds web portals (e.g., Giovanni, Worldview) and downloadable software (e.g., Panoply) associated with a collection, returning URLs and deep-linking templates.

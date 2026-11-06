@@ -1,0 +1,33 @@
+{
+    "name": "get_events",
+    "version": "1.0.0",
+    "description": "Retrieve events from GSFC'S EONET natural event tracker. Use this to query live natural events and inject them into user chats. Available event categories are: 'drought', 'dustHaze', 'earthquakes', 'floods', 'landslides', 'manmade', 'seaLakeIce', 'severeStorms', 'snow', 'tempExtremes', 'volcanoes', 'waterColor', and 'wildfires'.",
+    "entry_function": "get_events",
+    "module": "tool",
+    "tags": [
+        "nasa",
+        "earthdata",
+        "eonet",
+        "events",
+        "search"
+    ],
+    "examples": {
+        "global_search": {
+            "description": "Search for events across all categories",
+            "params": {
+                "endpoint": "/events",
+                "params": {}
+            }
+        },
+        "targeted_search": {
+            "description": "Search for events within a specific category",
+            "params": {
+                "endpoint": "/events",
+                "params": {
+                    "category": "wildfires",
+                    "status": "open"
+                }
+            }
+        }
+    }
+}
