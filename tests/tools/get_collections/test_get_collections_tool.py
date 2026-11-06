@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 from fastmcp.exceptions import ToolError
-from fastmcp.tools.base import ToolResult
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
@@ -17,7 +16,9 @@ def _load_tool():
 def test_get_collections_allows_unfiltered_search(monkeypatch):
     """The tool should allow empty search criteria for broad exploration."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
 
     captured = {}
 
@@ -36,7 +37,9 @@ def test_get_collections_allows_unfiltered_search(monkeypatch):
 def test_get_collections_allows_temporal_only_search(monkeypatch):
     """Temporal-only searches should pass validation and run against CMR."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=6, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=6, search_after=None, page_size=0
+    )
 
     captured = {}
 
@@ -51,14 +54,19 @@ def test_get_collections_allows_temporal_only_search(monkeypatch):
         temporal_end_date="2024-01-31T23:59:59Z",
     )
 
-    assert captured["search_params"]["temporal"] == "2024-01-01T00:00:00Z,2024-01-31T23:59:59Z"
+    assert (
+        captured["search_params"]["temporal"]
+        == "2024-01-01T00:00:00Z,2024-01-31T23:59:59Z"
+    )
     assert output["status"] == "no_results"
 
 
 def test_get_collections_allows_spatial_only_search(monkeypatch):
     """Spatial-only searches should pass validation and run against CMR."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=6, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=6, search_after=None, page_size=0
+    )
 
     captured = {}
 
@@ -136,7 +144,10 @@ def test_get_collections_returns_normalized_results(monkeypatch):
         output["collections"][0]["entry_title"]
         == "MODIS/Terra Land Surface Temperature Daily L3 Global 1km"
     )
-    assert output["collections"][0]["abstract"] == "Daily land surface temperature product."
+    assert (
+        output["collections"][0]["abstract"]
+        == "Daily land surface temperature product."
+    )
     assert output["collections"][0]["platforms"] == ["Terra"]
     assert output["collections"][0]["instruments"] == ["MODIS"]
 
@@ -144,7 +155,9 @@ def test_get_collections_returns_normalized_results(monkeypatch):
 def test_get_collections_uses_post_for_spatial_search(monkeypatch):
     """Spatial collection searches should switch to POST with a shapefile payload."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=8, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=8, search_after=None, page_size=0
+    )
 
     captured = {}
 
@@ -164,7 +177,9 @@ def test_get_collections_uses_post_for_spatial_search(monkeypatch):
 def test_get_collections_includes_optional_filter_params(monkeypatch):
     """Optional concept_id, short_name, and provider should map into CMR params."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=8, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=8, search_after=None, page_size=0
+    )
 
     captured = {}
 
@@ -230,9 +245,10 @@ def test_get_collections_returns_error_on_unexpected_failure(monkeypatch):
     with pytest.raises(ToolError) as exc_info:
         tool.get_collections(keyword="modis")
 
-    assert "an unexpected internal error occurred during collection search" in str(
-        exc_info.value
-    ).lower()
+    assert (
+        "an unexpected internal error occurred during collection search"
+        in str(exc_info.value).lower()
+    )
 
 
 def test_get_collections_returns_error_on_invalid_spatial_wkt():
@@ -248,7 +264,9 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
 def test_get_collections_calls_trace_update(monkeypatch):
     """Tool should emit Langfuse trace updates using the shared helper."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
 
     def fake_search_cmr(**_kwargs):
         yield page
@@ -318,7 +336,9 @@ def test_get_collections_cursor_passes_search_after(monkeypatch):
     from util.pagination import encode_cursor
 
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -336,7 +356,9 @@ def test_get_collections_cursor_passes_search_after(monkeypatch):
 def test_get_collections_passes_limit_as_page_size(monkeypatch):
     """The limit param must be forwarded to CMR as page_size."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -353,7 +375,9 @@ def test_get_collections_passes_limit_as_page_size(monkeypatch):
 def test_get_collections_returns_error_on_invalid_cursor(monkeypatch):
     """An invalid cursor string must raise a clean ToolError, not an unhandled exception."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     with pytest.raises(ToolError) as exc_info:
@@ -367,7 +391,9 @@ def test_get_collections_returns_error_on_cross_backend_cursor(monkeypatch):
     from util.pagination import encode_cursor
 
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     kms_cursor = encode_cursor("kms", 20)
@@ -427,7 +453,9 @@ def test_get_collections_fields_empty_returns_all_fields(monkeypatch):
 def test_get_collections_platform_param(monkeypatch):
     """platform param must map to platform[] in CMR search_params."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -444,7 +472,9 @@ def test_get_collections_platform_param(monkeypatch):
 def test_get_collections_instrument_param(monkeypatch):
     """instrument param must map to instrument[] in CMR search_params."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -461,7 +491,9 @@ def test_get_collections_instrument_param(monkeypatch):
 def test_get_collections_processing_level_id_param(monkeypatch):
     """processing_level_id param must map to processing_level_id[] in CMR search_params."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -478,7 +510,9 @@ def test_get_collections_processing_level_id_param(monkeypatch):
 def test_get_collections_has_granules_param(monkeypatch):
     """has_granules=True must appear in CMR search_params."""
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     captured = {}
 
     def fake_search_cmr(**kwargs):
@@ -526,7 +560,9 @@ def _make_rich_collection_item():
             },
             "DataCenters": [{"Roles": ["ARCHIVER"], "ShortName": "PODAAC"}],
             "ArchiveAndDistributionInformation": {
-                "FileDistributionInformation": [{"Format": "NetCDF-4", "Media": ["Online"]}]
+                "FileDistributionInformation": [
+                    {"Format": "NetCDF-4", "Media": ["Online"]}
+                ]
             },
         },
     }
@@ -565,7 +601,9 @@ def test_get_collections_old_format_cursor_returns_error(monkeypatch):
     from util.pagination import encode_cursor
 
     tool = _load_tool()
-    page = CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)
+    page = CMRSearchResponse(
+        items=[], total_hits=0, took_ms=5, search_after=None, page_size=0
+    )
     monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
 
     old_cursor = encode_cursor("cmr", "some-legacy-token")
@@ -581,7 +619,9 @@ def test_get_collections_cursor_override():
     from tools.get_collections.tool import get_collections
     from util.pagination import encode_cursor
 
-    cursor = encode_cursor("cmr", {"token": "tok-abc", "params": {"keyword": "original"}})
+    cursor = encode_cursor(
+        "cmr", {"token": "tok-abc", "params": {"keyword": "original"}}
+    )
 
     with pytest.raises(ToolError) as exc_info:
         get_collections(keyword="changed", cursor=cursor)
@@ -627,7 +667,9 @@ def test_get_collections_safe_exception_surfacing(monkeypatch):
     def fake_search_value_error(*args, **kwargs):
         raise ValueError("Safe validation error")
 
-    monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_value_error)
+    monkeypatch.setattr(
+        "tools.get_collections.tool.search_cmr", fake_search_value_error
+    )
 
     with pytest.raises(ToolError) as exc_info:
         get_collections(keyword="modis")
@@ -637,100 +679,12 @@ def test_get_collections_safe_exception_surfacing(monkeypatch):
     def fake_search_generic_error(*args, **kwargs):
         raise Exception("Fake secret")
 
-    monkeypatch.setattr("tools.get_collections.tool.search_cmr", fake_search_generic_error)
+    monkeypatch.setattr(
+        "tools.get_collections.tool.search_cmr", fake_search_generic_error
+    )
 
     with pytest.raises(ToolError) as exc_info:
         get_collections(keyword="modis")
 
     assert "Fake secret" not in str(exc_info.value)
     assert "unexpected internal error" in str(exc_info.value).lower()
-
-
-# --- prefab map card ---
-
-
-_GIBS_TAG = "edsc.extra.serverless.gibs"
-
-
-def _make_gibs_collection_item(concept_id="C1-PROV"):
-    """Minimal UMM item for a collection that carries the GIBS tag."""
-    return {
-        "meta": {"concept-id": concept_id},
-        "umm": {
-            "ShortName": "MOD11A1",
-            "EntryTitle": "MODIS Surface Temperature",
-            "Abstract": "Daily land surface temperature.",
-        },
-    }
-
-
-def test_get_collections_returns_tool_result_when_gibs_tag_found(monkeypatch):
-    """When a result has a GIBS tag, the tool must return a ToolResult with a Prefab map card."""
-    tool = _load_tool()
-    page = CMRSearchResponse(
-        items=[_make_gibs_collection_item("C1-PROV")],
-        total_hits=1,
-        took_ms=5,
-        search_after=None,
-        page_size=1,
-    )
-
-    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
-    monkeypatch.setattr(
-        tool,
-        "fetch_collection_tags",
-        lambda _cid: {_GIBS_TAG: {"data": []}},
-    )
-
-    result = tool.get_collections(keyword="temperature")
-
-    assert isinstance(result, ToolResult)
-    assert result.structured_content is not None
-
-
-def test_get_collections_returns_dict_when_no_gibs_tag(monkeypatch):
-    """When no result has a GIBS tag, the tool must return a plain response dict."""
-    tool = _load_tool()
-    page = CMRSearchResponse(
-        items=[_make_gibs_collection_item("C2-PROV")],
-        total_hits=1,
-        took_ms=5,
-        search_after=None,
-        page_size=1,
-    )
-
-    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
-    monkeypatch.setattr(tool, "fetch_collection_tags", lambda _cid: {})
-
-    result = tool.get_collections(keyword="temperature")
-
-    assert isinstance(result, dict)
-    assert result["status"] == "success"
-
-
-def test_get_collections_prefab_title_uses_entry_title(monkeypatch):
-    """The Prefab map card title must be the collection's entry_title."""
-    import json
-
-    tool = _load_tool()
-    page = CMRSearchResponse(
-        items=[_make_gibs_collection_item("C3-PROV")],
-        total_hits=1,
-        took_ms=5,
-        search_after=None,
-        page_size=1,
-    )
-
-    monkeypatch.setattr(tool, "search_cmr", lambda **_: iter([page]))
-    monkeypatch.setattr(
-        tool,
-        "fetch_collection_tags",
-        lambda _cid: {_GIBS_TAG: {"data": []}},
-    )
-
-    result = tool.get_collections()
-
-    assert isinstance(result, ToolResult)
-    # The entry_title must appear in the plain-text content (JSON response body).
-    text_content = result.content[0].text
-    assert "MODIS Surface Temperature" in json.loads(text_content).get("collections", [{}])[0].get("entry_title", "")

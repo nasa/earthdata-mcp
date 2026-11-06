@@ -23,31 +23,16 @@ from models.tools.get_collections import (
     TemporalEndDateParam,
     TemporalStartDateParam,
 )
-from util.cmr.client import CMRError, fetch_collection_tags, search_cmr
+from util.cmr.client import CMRError, search_cmr
 from util.cmr.search_tools import (
     build_spatial_files,
     format_temporal_range,
     normalize_collection_item,
 )
 from util.langfuse import trace_update
-from util.mcp_apps import build_map_result
 from util.pagination import apply_field_filter, encode_cursor, resolve_cursor
 
 logger = logging.getLogger(__name__)
-
-_GIBS_TAG = "edsc.extra.serverless.gibs"
-
-
-def _first_with_gibs(collections: list[dict]) -> dict | None:
-    """Return the first collection that has a GIBS layer tag, or None."""
-    for col in collections:
-        concept_id = col.get("concept_id")
-        if not concept_id:
-            continue
-        tags = fetch_collection_tags(concept_id)
-        if tags.get(_GIBS_TAG):
-            return col
-    return None
 
 
 @observe(name="get_collections")
@@ -239,20 +224,11 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
         collections=collections,
         total_hits=page.total_hits,
         next_cursor=next_cursor,
-    ).model_dump(mode="json")
+    ).model_dump()
 
     if params.fields:
         apply_field_filter(
             response_dict["collections"], params.fields, MANDATORY_FIELDS_COLLECTIONS
         )
-
-    if collections:
-        map_col = _first_with_gibs(collections)
-        if map_col:
-            return build_map_result(
-                response_dict,
-                collection_id=map_col.get("concept_id"),
-                title=(map_col.get("entry_title") or keyword or "Collections")[:200],
-            )
 
     return response_dict
