@@ -42,7 +42,7 @@ def _build_response(results: dict) -> dict:
 
 
 @observe(name="get_events")
-def get_events(
+def get_events( # pylint: disable=too-many-arguments
     source: str | None = None,
     category: CATEGORIES_TYPE | None = None,
     status: str | None = None,
