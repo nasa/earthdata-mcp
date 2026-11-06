@@ -71,7 +71,6 @@ def map_html(spec: MapSpec) -> str:
     values = {
         "TERRA_CSS": config.TERRA_CSS,
         "TERRA_AUTOLOADER": config.TERRA_AUTOLOADER,
-        "HEIGHT": str(int(spec.height)),
         "COLLECTION_ATTR": collection_attr,
         "COORDS_ATTR": coords_attr,
         "LAYERS_JS": _layers_js(spec.layers),
@@ -89,11 +88,14 @@ def map_card(spec: MapSpec, extra_notes: list[str] | None = None) -> Card:
     if spec.subtitle:
         header.append(CardDescription(spec.subtitle))
 
-    content: list = [
-        Embed(html=map_html(spec), width="100%", height=f"{spec.height}px")
-    ]
+    content: list = [Embed(html=map_html(spec), width="100%", height="100%")]
     if notes:
         footer = "\n".join(f"> {n}" for n in notes)
         content.append(Markdown(content=footer))
 
-    return Card(children=[CardHeader(children=header), CardContent(children=content)])
+    return Card(
+        children=[
+            CardHeader(children=header),
+            CardContent(children=content, css_class="h-[600px] flex flex-col"),
+        ]
+    )

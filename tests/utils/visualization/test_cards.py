@@ -29,9 +29,11 @@ def test_map_html_no_collection_omits_attribute():
     assert "terra-map" in html
 
 
-def test_map_html_injects_height():
-    """Height value must be present in the generated HTML."""
-    assert "600px" in map_html(_spec(height=600))
+def test_map_card_embed_height():
+    """Height from MapSpec must appear on the Embed in the rendered card HTML."""
+    from prefab_ui import PrefabApp
+    html = PrefabApp(title="t", view=map_card(_spec(height=600))).html()
+    assert "600px" in html
 
 
 def test_map_card_renders_to_prefab():
