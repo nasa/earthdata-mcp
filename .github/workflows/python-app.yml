@@ -18,10 +18,10 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v7
 
-    - name: Set up Python 3.13
+    - name: Set up Python 3.14
       uses: actions/setup-python@v7
       with:
-        python-version: "3.13"
+        python-version: "3.14"
 
     - name: Install uv
       run: |
@@ -46,10 +46,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Install uv
         run: |

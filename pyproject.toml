@@ -5,7 +5,7 @@ description = "Basic FastMCP implementation for the Common Metadata Repository u
 
 readme = "README.md"
 
-requires-python = "==3.13.0"
+requires-python = ">=3.14, <3.15"
 dependencies = [
     "fastmcp>=4",
     "earthaccess==0.14.0",
