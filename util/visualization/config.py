@@ -11,6 +11,7 @@ TERRA_AUTOLOADER = (
 
 OL_JS = "https://cdn.jsdelivr.net/npm/ol@10/dist/ol.js"
 
+# Currently gibs layer integration is only used against production layers
 GIBS_ORIGIN = "https://gibs.earthdata.nasa.gov"
 GITC_ORIGIN = "https://gitc.earthdata.nasa.gov"   # actual WMTS tile server terra-map uses
 CMR_ORIGIN = "https://cmr.earthdata.nasa.gov"
