@@ -30,14 +30,12 @@ def _build_response(results: dict) -> dict:
                     error_message=None,
                     data={},
                 ).model_dump()
-            else:
-                return GetEventsOutput(
-                    status=SearchStatus.SUCCESS,
-                    error_message=None,
-                    data=results,
-                ).model_dump()
-        else:
-            raise EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
+            return GetEventsOutput(
+                status=SearchStatus.SUCCESS,
+                error_message=None,
+                data=results,
+            ).model_dump()
+        raise EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
     except (ValueError, TypeError, EONETError) as e:
         logger.error("Results could not be saved: %s", e)
         raise ToolError(f"Attempting to save malformed results: {str(e)}") from e
