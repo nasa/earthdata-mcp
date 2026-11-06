@@ -1,10 +1,7 @@
 """Map cards for MCP Apps hosts.
 
-"""Map cards for MCP Apps hosts.
-
 Build a renderer-neutral MapSpec, then turn it into a Prefab Card
 (map_card) or raw HTML (map_html) embedding a <terra-map>.
-"""
     specs.py     Renderer-neutral contract (MapSpec)
     config.py    Pinned CDN assets
     map_card.py  MapSpec -> Prefab Card with an embedded <terra-map>

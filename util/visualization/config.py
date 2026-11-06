@@ -13,7 +13,9 @@ OL_JS = "https://cdn.jsdelivr.net/npm/ol@10/dist/ol.js"
 
 # Currently gibs layer integration is only used against production layers
 GIBS_ORIGIN = "https://gibs.earthdata.nasa.gov"
-GITC_ORIGIN = "https://gitc.earthdata.nasa.gov"   # actual WMTS tile server terra-map uses
+GITC_ORIGIN = (
+    "https://gitc.earthdata.nasa.gov"  # actual WMTS tile server terra-map uses
+)
 CMR_ORIGIN = "https://cmr.earthdata.nasa.gov"
 
 _TERRA_RUNTIME_ORIGINS = [
@@ -28,7 +30,7 @@ _TERRA_RUNTIME_ORIGINS = [
 
 def map_csp_domains() -> dict[str, list[str]]:
     """connect/resource domains the map card needs."""
-origins = [*_TERRA_RUNTIME_ORIGINS, GIBS_ORIGIN, GITC_ORIGIN, CMR_ORIGIN]
+    origins = [*_TERRA_RUNTIME_ORIGINS, GIBS_ORIGIN, GITC_ORIGIN, CMR_ORIGIN]
     return {"connect_domains": origins, "resource_domains": origins}
 
 
