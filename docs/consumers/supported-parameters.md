@@ -78,6 +78,33 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 
 ---
 
+## `get_events`
+Searches for NRT natural events using the EONET (Earth Observatory Natural Event Tracker) API.
+- **EONET Homepage:** [EONET Homepage](https://eonet.gsfc.nasa.gov/)
+- **EONET Documentation:** [EONET API (v3)](https://eonet.gsfc.nasa.gov/docs/v3)
+
+### Input Parameters
+| Status | MCP Argument | EONET API Parameter | Description |
+|---|---|---|---|
+| ✅ | `source` | `source` | The provider of an event's data. |
+| ✅ | `category` | `category` | How an event is classified, for example: `wildfires`. |
+| ✅ | `status` | `status` | Whether an event is still active (`open`) or is now inactive (`closed`). |
+| ✅ | `limit` | `limit` | How many results to return (tool default is 5). |
+| ✅ | `days` | `days` | How far into the past to search for events (measured in days and includes the current day). |
+| ✅ | `start` | `start` | Start date in which to look for events (inclusive). |
+| ✅ | `end` | `end` | End date in which to look for events (inclusive). |
+| ✅ | `magID` | `magID` | Code that indicates the relative unit of strength that will be used to measure the magnitude of an event. |
+| ✅ | `magMin` | `magMin` | The minimum magnitude value (inclusive). |
+| ✅ | `magMax` | `magMax` | The maximum magnitude value (inclsuive). |
+| ✅ | `bbox` | `bbox` | The bounding box to which to restrict event results. |
+
+### Output Fields
+| Status | MCP Response Field | Description |
+|---|---|---|
+| ✅ | `data` | The raw JSON output sent directly by the EONET API. **Note: Only the `events/geojson` endpoint is supported, so results will contain GeoJSON-formatted event data** |
+
+---
+
 ## `get_granules`
 Searches for specific data files (granules) within a collection to verify actual data availability for a given time and location.
 - **CMR Endpoint:** [`/search/granules`](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html#granule-search)
