@@ -28,7 +28,7 @@ _TERRA_RUNTIME_ORIGINS = [
 
 def map_csp_domains() -> dict[str, list[str]]:
     """connect/resource domains the map card needs."""
-    origins = _TERRA_RUNTIME_ORIGINS + [GIBS_ORIGIN, GITC_ORIGIN, CMR_ORIGIN]
+origins = [*_TERRA_RUNTIME_ORIGINS, GIBS_ORIGIN, GITC_ORIGIN, CMR_ORIGIN]
     return {"connect_domains": origins, "resource_domains": origins}
 
 
