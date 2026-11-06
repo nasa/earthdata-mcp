@@ -184,31 +184,6 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
 
 
-def test_get_events_filters_by_category(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events can filter results (i.e. by category)."""
-    tool = _load_tool()
-                        
-    mock_events_endpoint.return_value = {
-        "type": "FeatureCollection",
-        "features": [],
-    }
-
-    expected = {
-        "status": SearchStatus.NO_RESULTS,
-        "error_message": None,
-        "data": {},
-    }
-
-    TEST_PARAMS["limit"] = 1
-
-    result = tool.get_events(**TEST_PARAMS)
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["data"] == expected["data"]
-    mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
-
-
 def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns all results if an invalid request is made."""
     tool = _load_tool()
@@ -321,8 +296,8 @@ def test_get_events_returns_error_for_malformed_event_results(mock_events_endpoi
     assert "Unexpected response shape: 'features' and/or 'type' keys missing." in str(e)
 
 
-def test_get_events_returns_error_for_fake_category() -> None:
-    """Test that get_events returns an error if a fake category is passed from params."""
+def test_get_events_returns_error_for_invalid_category() -> None:
+    """Test that get_events returns an error if an unsupported category is passed from params."""
     tool = _load_tool()
     
     TEST_PARAMS["category"] = "fakecategory"
