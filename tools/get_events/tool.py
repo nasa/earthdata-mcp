@@ -17,7 +17,6 @@ from util.eonet.client import (
 )
 from util.langfuse import trace_update
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +58,7 @@ def get_events(
     bbox: str | None = None,
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
-    
+
     This tool takes an EONET API endpoint name (events or events/geojson) and a list of parameters,
     sending a request to the specified endpoint with the given parameters. It returns the results
     formatted to contain the data itself and labels describing the data.

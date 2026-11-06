@@ -2,11 +2,11 @@
 
 import importlib
 import types
-from fastmcp.exceptions import ToolError
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from models.tools.cmr_search import SearchStatus
 from util.eonet.client import (
@@ -41,17 +41,34 @@ TEST_PARAMS = {
 }
 
 
+def _reset_test_params():
+    global TEST_PARAMS
+    TEST_PARAMS = {
+        "source": None,
+        "category": None,
+        "status": None,
+        "limit": 5,
+        "days": None,
+        "start": None,
+        "end": None,
+        "magID": None,
+        "magMin": None,
+        "magMax": None,
+        "bbox": None,
+    }
+
+
 def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return 1 result successfully."""
     tool = _load_tool()
-                
+
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
         "features": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [0.0, 0.0] 
+              "coordinates": [0.0, 0.0]
             },
             "properties": {
               "name": "A Cool Place",
@@ -69,7 +86,7 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
                 "type": "Feature",
                 "geometry": {
                   "type": "Point",
-                  "coordinates": [0.0, 0.0] 
+                  "coordinates": [0.0, 0.0]
                 },
                 "properties": {
                   "name": "A Cool Place",
@@ -88,18 +105,20 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return multiple results successfully."""
     tool = _load_tool()
-                    
+
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
         "features": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [0.0, 0.0] 
+              "coordinates": [0.0, 0.0]
             },
             "properties": {
               "name": "A Cool Place",
@@ -110,7 +129,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [1.0, 1.0] 
+              "coordinates": [1.0, 1.0]
             },
             "properties": {
               "name": "Another Cool Place",
@@ -128,7 +147,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
                 "type": "Feature",
                 "geometry": {
                   "type": "Point",
-                  "coordinates": [0.0, 0.0] 
+                  "coordinates": [0.0, 0.0]
                 },
                 "properties": {
                   "name": "A Cool Place",
@@ -139,7 +158,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
                 "type": "Feature",
                 "geometry": {
                   "type": "Point",
-                  "coordinates": [1.0, 1.0] 
+                  "coordinates": [1.0, 1.0]
                 },
                 "properties": {
                   "name": "Another Cool Place",
@@ -158,11 +177,13 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
     assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can return no results successfully."""
     tool = _load_tool()
-                        
+
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
         "features": [],
@@ -183,18 +204,20 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns all results if an invalid request is made."""
     tool = _load_tool()
-                            
+
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
         "features": [{
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [0.0, 0.0] 
+              "coordinates": [0.0, 0.0]
             },
             "properties": {
               "name": "A Cool Place",
@@ -205,7 +228,7 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [1.0, 1.0] 
+              "coordinates": [1.0, 1.0]
             },
             "properties": {
               "name": "Another Cool Place",
@@ -223,7 +246,7 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
                 "type": "Feature",
                 "geometry": {
                   "type": "Point",
-                  "coordinates": [0.0, 0.0] 
+                  "coordinates": [0.0, 0.0]
                 },
                 "properties": {
                   "name": "A Cool Place",
@@ -234,7 +257,7 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
                 "type": "Feature",
                 "geometry": {
                   "type": "Point",
-                  "coordinates": [1.0, 1.0] 
+                  "coordinates": [1.0, 1.0]
                 },
                 "properties": {
                   "name": "Another Cool Place",
@@ -243,9 +266,9 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
             }],
         },
     }
-    
+
     TEST_PARAMS["limit"] = -1
-    
+
     result = tool.get_events(**TEST_PARAMS)
 
     assert result["status"] == expected["status"]
@@ -253,24 +276,28 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
     assert result["data"] == expected["data"]
     mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_error_for_invalid_input() -> None:
     """Test that get_events returns an error if invalid input is passed to params."""
     tool = _load_tool()
-    
+
     TEST_PARAMS["source"] = 123
-    
+
     with pytest.raises(ToolError) as e:
         tool.get_events(**TEST_PARAMS)
-    
-    assert f"get_events ValidationError" in str(e)
+
+    assert "get_events ValidationError" in str(e)
+
+    _reset_test_params()
 
 
 def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an error if it can't reach the EONET API."""
     tool = _load_tool()
 
-    mock_events_endpoint.side_effect=EONETError(f"Failed to fetch events from EONET")
+    mock_events_endpoint.side_effect=EONETError("Failed to fetch events from EONET")
 
     TEST_PARAMS["limit"] = 1
 
@@ -279,11 +306,13 @@ def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint:
 
     assert "Failed to fetch events from EONET" in str(e)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_error_for_malformed_event_results(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an error if results are malformed."""
     tool = _load_tool()
-                
+
     mock_events_endpoint.return_value = {}
 
     mock_events_endpoint.side_effect=EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
@@ -295,17 +324,21 @@ def test_get_events_returns_error_for_malformed_event_results(mock_events_endpoi
 
     assert "Unexpected response shape: 'features' and/or 'type' keys missing." in str(e)
 
+    _reset_test_params()
+
 
 def test_get_events_returns_error_for_invalid_category() -> None:
     """Test that get_events returns an error if an unsupported category is passed from params."""
     tool = _load_tool()
-    
+
     TEST_PARAMS["category"] = "fakecategory"
-    
+
     with pytest.raises(ToolError) as e:
         tool.get_events(**TEST_PARAMS)
-    
-    assert f"get_events ValidationError" in str(e)
+
+    assert "get_events ValidationError" in str(e)
+
+    _reset_test_params()
 
 
 def test_get_events_generic_error_handling(mock_events_endpoint: MagicMock) -> None:
@@ -314,11 +347,15 @@ def test_get_events_generic_error_handling(mock_events_endpoint: MagicMock) -> N
 
     mock_events_endpoint.return_value = []
 
-    mock_events_endpoint.side_effect=EONETError("Non-JSON response for event request")
-    
     TEST_PARAMS["limit"] = 1
-    
+
+    mock_events_endpoint.side_effect=EONETError(
+        f"Non-JSON response for event request with params '{list(TEST_PARAMS)}'"
+    )
+
     with pytest.raises(ToolError) as e:
         tool.get_events(**TEST_PARAMS)
-    
+
     assert f"Non-JSON response for event request with params '{list(TEST_PARAMS)}'" in str(e)
+
+    _reset_test_params()

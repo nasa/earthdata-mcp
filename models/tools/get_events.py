@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from models.tools.cmr_search import BaseToolOutput
 
-
 CATEGORIES_TYPE = Literal[
     "drought",
     "dustHaze",
@@ -107,7 +106,7 @@ class GetEventsInput(BaseModel):
             None,
             description="The bounding box to filter events by, using the following syntax: minLong,maxLat,maxLong,minLat.",
         ),
-    ]   
+    ]
 
 
 class GetEventsOutput(BaseToolOutput):
