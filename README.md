@@ -64,7 +64,7 @@ If you want to contribute to the server or run it locally, follow these steps.
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.14+
 - [uv](https://docs.astral.sh/uv/) package manager
 
 ### Installation
