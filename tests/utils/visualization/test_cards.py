@@ -31,7 +31,6 @@ def test_map_html_no_collection_omits_attribute():
 
 def test_map_card_embed_height():
     """Height from MapSpec must appear on the Embed in the rendered card HTML."""
-    from prefab_ui import PrefabApp
     html = PrefabApp(title="t", view=map_card(_spec(height=600))).html()
     assert "600px" in html
 
