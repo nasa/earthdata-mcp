@@ -5,15 +5,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any
-
 from deepeval.metrics import MCPUseMetric
 from deepeval.models import AmazonBedrockModel
 from deepeval.test_case import LLMTestCase, MCPServer, MCPToolCall
 from langfuse import Evaluation, observe
-from pydantic import BaseModel, Field
 from pydantic import BaseModel, Field
 
 from evals.sandbox_agent import _AgentResult, _bedrock_agent_task
@@ -82,9 +77,7 @@ class ToolCalledWith(ToolWasCalled):
     def evaluate_sync(self, ctx: EvaluatorContext) -> EvaluatorResult:
         calls = [c for c in ctx.tool_calls if c.name == self.tool_name]
         matching = [
-            c
-            for c in calls
-            if all(c.arguments.get(k) == v for k, v in self.expected_args.items())
+            c for c in calls if all(c.arguments.get(k) == v for k, v in self.expected_args.items())
         ]
         actual = (
             ", ".join(f"{self.tool_name}({c.arguments})" for c in calls)
@@ -110,9 +103,7 @@ class ToolSequence(_SyncEvaluator):
             passed = all(item in it for item in self.expected_sequence)
         else:
             passed = actual == self.expected_sequence
-        return EvaluatorResult(
-            passed=passed, expected=self.expected_sequence, actual=actual
-        )
+        return EvaluatorResult(passed=passed, expected=self.expected_sequence, actual=actual)
 
 
 DEFAULT_MODEL_ID = "amazon.nova-pro-v1:0"
@@ -121,9 +112,7 @@ DEFAULT_MODEL_ID = "amazon.nova-pro-v1:0"
 def _get_agent_result(**kwargs) -> _AgentResult:
     """Return the cache-backed _AgentResult for this item's question."""
     input_val = kwargs.get("input", {})
-    question = (
-        input_val.get("question", "") if isinstance(input_val, dict) else str(input_val)
-    )
+    question = input_val.get("question", "") if isinstance(input_val, dict) else str(input_val)
     url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:5001/mcp/v1")
     model_id = os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID)
     return _bedrock_agent_task(question, url, model_id)
@@ -195,9 +184,7 @@ def deepeval_mcp_use_judge(**kwargs):
     )
     metric.measure(convo_test_case)
 
-    return Evaluation(
-        name="deepeval_mcp_alignment", value=metric.score, comment=metric.reason
-    )
+    return Evaluation(name="deepeval_mcp_alignment", value=metric.score, comment=metric.reason)
 
 
 # --- EVALUATOR 2: Tool Was Called ---
@@ -227,9 +214,7 @@ def mcp_eval_argument_assertion(**kwargs):
     ctx, _ = _make_eval_context(**kwargs)
     target_tool = metadata.get("expected_tool_call", "unknown_tool")
 
-    result = ToolCalledWith(
-        tool_name=target_tool, expected_args=expected_args
-    ).evaluate_sync(ctx)
+    result = ToolCalledWith(tool_name=target_tool, expected_args=expected_args).evaluate_sync(ctx)
 
     return Evaluation(
         name="mcp_eval_argument_quality",
@@ -290,9 +275,7 @@ def mcp_eval_abstention(**kwargs):
         name="mcp_eval_abstention",
         value=1.0 if passed else 0.0,
         comment=(
-            "Correctly abstained from tool use."
-            if passed
-            else f"Unexpectedly called: {tools_used}"
+            "Correctly abstained from tool use." if passed else f"Unexpectedly called: {tools_used}"
         ),
     )
 
@@ -327,11 +310,7 @@ def mcp_eval_no_hallucinated_args(**kwargs):
     return Evaluation(
         name="mcp_eval_no_hallucinated_args",
         value=1.0 if passed else 0.0,
-        comment=(
-            "No hallucinated arguments."
-            if passed
-            else f"Hallucinated args: {hallucinated}"
-        ),
+        comment=("No hallucinated arguments." if passed else f"Hallucinated args: {hallucinated}"),
     )
 
 
