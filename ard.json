@@ -2,7 +2,7 @@
   "entries": [
     {
       "identifier": "urn:mcp:earthdata:server:cmr-search",
-      "displayName": "NASA Earthdata Search and Discovery",
+      "displayName": "NASA Earthdata Search, Discovery, and Transformation",
       "type": "application/mcp-server+json",
       "capabilities": [
         "get_collections",
@@ -12,18 +12,24 @@
         "get_tools",
         "get_variables",
         "get_keywords",
-        "get_citations"
+        "get_citations",
+        "get_transformation_options",
+        "submit_transformation_job",
+        "get_transformation_job_status",
+        "control_transformation_job"
       ],
-      "description": "An MCP server for discovering NASA Earth science data. Its tools search the Common Metadata Repository (CMR) for collections, granules, services, tools, variables, and citations, and NASA's Keyword Management System (KMS) for official GCMD vocabulary, so an agent can find a dataset, confirm data exists for a given time and place, and identify how to access it. It also supports the Earth Observatory Natural Event Tracker (EONET) API for injecting NRT natural events into LLM contexts.",
+      "description": "An MCP server for discovering and transforming NASA Earth science data. Its search tools query the Common Metadata Repository (CMR) for collections, granules, services, tools, variables, and citations, and NASA's Keyword Management System (KMS) for official GCMD vocabulary — enabling an agent to find datasets, confirm spatial and temporal coverage, and identify access methods. Its transformation tools connect to NASA Harmony to subset, reproject, reformat, and aggregate data server-side before download, so agents can deliver analysis-ready data tailored to a user's region, time range, variables, and output format without retrieving full granules. It also supports the Earth Observatory Natural Event Tracker (EONET) API for near-real-time natural event context.",
       "representativeQueries": [
-        "find Landsat 8 surface reflectance collections",
-        "give me information on current wildfires that follow my prediction model",
+        "find Landsat 8 surface reflectance collections over the continental US",
+        "are there active wildfires near my area of interest right now",
         "is there MODIS data covering Iceland for July 2023",
-        "what is the official GCMD keyword for rainfall",
-        "what subsetting or OPeNDAP services are available for the GEDI L2A collection",
-        "which variables are in the SMAP L3 soil moisture product, and what are their fill values",
-        "what tools can visualize MODIS vegetation indices",
-        "what papers cite the GRACE mascon dataset"
+        "what is the official GCMD keyword for sea surface temperature",
+        "which variables are in the SMAP L3 soil moisture product and what are their units",
+        "what Harmony transformation options are available for the GEDI L2A collection",
+        "subset SMAP soil moisture data to a bounding box over California and reformat to GeoTIFF",
+        "submit a Harmony job to reproject GPM IMERG precipitation data to EPSG:4326 and return only the precipitationCal variable",
+        "check the status of my Harmony transformation job",
+        "what papers cite the GRACE-FO mascon dataset"
       ]
     }
   ]
