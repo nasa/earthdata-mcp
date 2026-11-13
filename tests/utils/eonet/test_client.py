@@ -1,14 +1,12 @@
 """Tests for EONET API client."""
 
-import pytest
-
-from unittest.mock import Mock, ANY
+from unittest.mock import Mock
 
 from util.eonet.client import (
     EONET_BASE_URL,
-    EONETError,
     events,
 )
+
 
 def _make_response(*, json_data=None):
     """Build a mock requests.Response with configurable attributes."""
@@ -16,6 +14,7 @@ def _make_response(*, json_data=None):
     response.json.return_value = json_data or {}
     response.raise_for_status.return_value = None
     return response
+
 
 class TestEvents:
     """Test the events function."""
@@ -26,7 +25,7 @@ class TestEvents:
             "title": "EONET Event",
             "description": "Natural event from EONET.",
             "link": f"{EONET_BASE_URL}/events",
-            "events": [{ "id": "exampleEvent" }]
+            "events": [{"id": "exampleEvent"}],
         }
 
         mock_get = Mock(return_value=_make_response(json_data=expected))
@@ -43,31 +42,31 @@ class TestEvents:
             "title": "EONET Event",
             "description": "Natural events from EONET.",
             "link": f"{EONET_BASE_URL}/events",
-            "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
+            "events": [{"id": "exampleEvent1"}, {"id": "exampleEvent2"}],
         }
-    
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
+
         params = {"limit": "2"}
-    
+
         result = events(params, False)
         assert result == expected
 
     def test_returns_no_events(self, monkeypatch):
         """Test that events can return no results successfully."""
         expected = {
-	        "title": "EONET Events",
-	        "description": "Natural events from EONET.",
-	        "link": f"{EONET_BASE_URL}/events",
-	        "events": []
+            "title": "EONET Events",
+            "description": "Natural events from EONET.",
+            "link": f"{EONET_BASE_URL}/events",
+            "events": [],
         }
-    
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
+
         params = {"limit": "1"}
-    
+
         result = events(params, False)
         assert result == expected
 
@@ -77,14 +76,14 @@ class TestEvents:
             "title": "EONET Event",
             "description": "Natural events from EONET.",
             "link": f"{EONET_BASE_URL}/events",
-            "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
+            "events": [{"id": "exampleEvent1"}, {"id": "exampleEvent2"}],
         }
-        
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-        
+
         params = {"limit": "-1"}
-        
+
         result = events(params, False)
         assert result == expected
 
@@ -95,23 +94,17 @@ class TestEvents:
             "features": [
                 {
                     "type": "Feature",
-                    "geometry": {
-                      "type": "Point",
-                      "coordinates": [0.0, 0.0] 
-                    },
-                    "properties": {
-                      "name": "A Cool Place",
-                      "location": "Anytown, USA"
-                    }
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 }
-            ]
+            ],
         }
-    
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
 
         params = {"limit": "1"}
-    
+
         result = events(params, True)
         assert result == expected
 
@@ -122,49 +115,34 @@ class TestEvents:
             "features": [
                 {
                     "type": "Feature",
-                    "geometry": {
-                      "type": "Point",
-                      "coordinates": [0.0, 0.0] 
-                    },
-                    "properties": {
-                      "name": "A Cool Place",
-                      "location": "Anytown, USA"
-                    }
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 },
                 {
                     "type": "Feature",
-                    "geometry": {
-                      "type": "Point",
-                      "coordinates": [1.0, 1.0] 
-                    },
-                    "properties": {
-                      "name": "Another Cool Place",
-                      "location": "Anothertown, USA"
-                    }
-                }
-            ]
+                    "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                    "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
+                },
+            ],
         }
-        
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
+
         params = {"limit": "2"}
-        
+
         result = events(params, True)
         assert result == expected
 
     def test_returns_no_events_geojson(self, monkeypatch):
         """Test that events can return no geojson results successfully."""
-        expected = {
-	        "type": "FeatureCollection",
-	        "features": []
-        }
-        
+        expected = {"type": "FeatureCollection", "features": []}
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-    
+
         params = {"limit": "1"}
-        
+
         result = events(params, True)
         assert result == expected
 
@@ -175,34 +153,22 @@ class TestEvents:
             "features": [
                 {
                     "type": "Feature",
-                    "geometry": {
-                      "type": "Point",
-                      "coordinates": [0.0, 0.0] 
-                    },
-                    "properties": {
-                      "name": "A Cool Place",
-                      "location": "Anytown, USA"
-                    }
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 },
                 {
                     "type": "Feature",
-                    "geometry": {
-                      "type": "Point",
-                      "coordinates": [1.0, 1.0] 
-                    },
-                    "properties": {
-                      "name": "Another Cool Place",
-                      "location": "Anothertown, USA"
-                    }
-                }
-            ]
+                    "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                    "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
+                },
+            ],
         }
-        
+
         mock_get = Mock(return_value=_make_response(json_data=expected))
         monkeypatch.setattr("util.eonet.client.requests.get", mock_get)
-        
+
         params = {"limit": "-1"}
-        
+
         result = events(params, True)
         assert result == expected
 
@@ -212,7 +178,7 @@ class TestEvents:
             "title": "EONET Event",
             "description": "Natural events from EONET.",
             "link": f"{EONET_BASE_URL}/events",
-            "events": [{ "id": "exampleEvent1" }, { "id": "exampleEvent2" }]
+            "events": [{"id": "exampleEvent1"}, {"id": "exampleEvent2"}],
         }
 
         mock_get = Mock(return_value=_make_response(json_data=expected))

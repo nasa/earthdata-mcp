@@ -22,6 +22,8 @@ CATEGORIES_TYPE = Literal[
     "wildfires",
 ]
 
+STATUS_TYPE = Literal["open", "closed", "all"]
+
 
 class GetEventsInput(BaseModel):
     """Input model for get_events."""
@@ -43,17 +45,27 @@ class GetEventsInput(BaseModel):
         ),
     ]
     status: Annotated[
-        str | None,
+        STATUS_TYPE,
         Field(
-            None,
-            description="The status to filter events by (open, closed, all).",
+            "all",
+            description=(
+                "Filter by event status. Defaults to 'all' so both ongoing and ended events "
+                "are returned. Set to 'open' when the user asks only for active/ongoing/current "
+                "events; set to 'closed' for only ended events."
+            ),
         ),
     ]
     limit: Annotated[
         int,
         Field(
             5,
-            description="The maximum number of events to retrieve.",
+            ge=1,
+            le=50,
+            description=(
+                "Maximum number of events to retrieve (1-50). Default 5. EONET applies the "
+                "limit after status filtering, so a stricter 'status' can reduce the final "
+                "count below this value."
+            ),
         ),
     ]
     days: Annotated[

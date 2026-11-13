@@ -8,6 +8,7 @@ from langfuse import observe
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
     CATEGORIES_TYPE,
+    STATUS_TYPE,
     GetEventsInput,
     GetEventsOutput,
 )
@@ -42,10 +43,10 @@ def _build_response(results: dict) -> dict:
 
 
 @observe(name="get_events")
-def get_events( # pylint: disable=too-many-arguments
+def get_events(  # pylint: disable=too-many-arguments
     source: str | None = None,
     category: CATEGORIES_TYPE | None = None,
-    status: str | None = None,
+    status: STATUS_TYPE = "all",
     limit: int = 5,
     days: int | None = None,
     start: str | None = None,
@@ -97,7 +98,9 @@ def get_events( # pylint: disable=too-many-arguments
         raise ToolError(f"get_events {type(e).__name__}: {str(e)}") from e
 
     try:
-        results = events(params.model_dump(), True) # Automatically use GeoJSON endpoint (normal events endpoint still available)
+        results = events(
+            params.model_dump(), True
+        )  # Automatically use GeoJSON endpoint (normal events endpoint still available)
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
         raise ToolError(f"Could not retrieve results from EONET: {str(e)}") from e

@@ -29,7 +29,7 @@ def mock_events_endpoint() -> Generator[MagicMock]:
 TEST_PARAMS = {
     "source": None,
     "category": None,
-    "status": None,
+    "status": "all",
     "limit": 5,
     "days": None,
     "start": None,
@@ -46,7 +46,7 @@ def _reset_test_params():
     TEST_PARAMS = {
         "source": None,
         "category": None,
-        "status": None,
+        "status": "all",
         "limit": 5,
         "days": None,
         "start": None,
@@ -64,17 +64,13 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
 
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [0.0, 0.0]
-            },
-            "properties": {
-              "name": "A Cool Place",
-              "location": "Anytown, USA"
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
             }
-        }],
+        ],
     }
 
     expected = {
@@ -82,17 +78,13 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
         "error_message": None,
         "data": {
             "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0]
-                },
-                "properties": {
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 }
-            }],
+            ],
         },
     }
 
@@ -114,28 +106,18 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
 
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [0.0, 0.0]
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
             },
-            "properties": {
-              "name": "A Cool Place",
-              "location": "Anytown, USA"
-            }
-        },
-        {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [1.0, 1.0]
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
             },
-            "properties": {
-              "name": "Another Cool Place",
-              "location": "Anothertown, USA"
-            }
-        }],
+        ],
     }
 
     expected = {
@@ -143,28 +125,18 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
         "error_message": None,
         "data": {
             "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0]
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 },
-                "properties": {
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            },
-            {
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [1.0, 1.0]
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                    "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
                 },
-                "properties": {
-                  "name": "Another Cool Place",
-                  "location": "Anothertown, USA"
-                }
-            }],
+            ],
         },
     }
 
@@ -207,34 +179,24 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     _reset_test_params()
 
 
-def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns all results if an invalid request is made."""
+def test_get_events_does_not_post_filter_api_response(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events returns whatever features the API returns without post-filtering."""
     tool = _load_tool()
 
     mock_events_endpoint.return_value = {
         "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [0.0, 0.0]
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
             },
-            "properties": {
-              "name": "A Cool Place",
-              "location": "Anytown, USA"
-            }
-        },
-        {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [1.0, 1.0]
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
             },
-            "properties": {
-              "name": "Another Cool Place",
-              "location": "Anothertown, USA"
-            }
-        }],
+        ],
     }
 
     expected = {
@@ -242,32 +204,22 @@ def test_get_events_returns_all_events_on_failed_api_call(mock_events_endpoint: 
         "error_message": None,
         "data": {
             "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0]
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
                 },
-                "properties": {
-                  "name": "A Cool Place",
-                  "location": "Anytown, USA"
-                }
-            },
-            {
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [1.0, 1.0]
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+                    "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
                 },
-                "properties": {
-                  "name": "Another Cool Place",
-                  "location": "Anothertown, USA"
-                }
-            }],
+            ],
         },
     }
 
-    TEST_PARAMS["limit"] = -1
+    TEST_PARAMS["limit"] = 2
 
     result = tool.get_events(**TEST_PARAMS)
 
@@ -297,7 +249,7 @@ def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint:
     """Test that get_events returns an error if it can't reach the EONET API."""
     tool = _load_tool()
 
-    mock_events_endpoint.side_effect=EONETError("Failed to fetch events from EONET")
+    mock_events_endpoint.side_effect = EONETError("Failed to fetch events from EONET")
 
     TEST_PARAMS["limit"] = 1
 
@@ -309,13 +261,17 @@ def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint:
     _reset_test_params()
 
 
-def test_get_events_returns_error_for_malformed_event_results(mock_events_endpoint: MagicMock) -> None:
+def test_get_events_returns_error_for_malformed_event_results(
+    mock_events_endpoint: MagicMock,
+) -> None:
     """Test that get_events returns an error if results are malformed."""
     tool = _load_tool()
 
     mock_events_endpoint.return_value = {}
 
-    mock_events_endpoint.side_effect=EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
+    mock_events_endpoint.side_effect = EONETError(
+        "Unexpected response shape: 'features' and/or 'type' keys missing."
+    )
 
     TEST_PARAMS["limit"] = 1
 
@@ -341,6 +297,58 @@ def test_get_events_returns_error_for_invalid_category() -> None:
     _reset_test_params()
 
 
+def test_get_events_returns_error_for_invalid_status() -> None:
+    """Test that get_events rejects a status value outside open/closed/all."""
+    tool = _load_tool()
+
+    TEST_PARAMS["status"] = "bogus"
+
+    with pytest.raises(ToolError) as e:
+        tool.get_events(**TEST_PARAMS)
+
+    assert "get_events ValidationError" in str(e)
+
+    _reset_test_params()
+
+
+def test_get_events_returns_error_for_out_of_range_limit() -> None:
+    """Test that get_events rejects a limit outside the 1-50 range."""
+    tool = _load_tool()
+
+    TEST_PARAMS["limit"] = 0
+
+    with pytest.raises(ToolError) as e:
+        tool.get_events(**TEST_PARAMS)
+
+    assert "get_events ValidationError" in str(e)
+
+    _reset_test_params()
+
+    TEST_PARAMS["limit"] = 51
+
+    with pytest.raises(ToolError) as e:
+        tool.get_events(**TEST_PARAMS)
+
+    assert "get_events ValidationError" in str(e)
+
+    _reset_test_params()
+
+
+def test_get_events_defaults_status_to_all(mock_events_endpoint: MagicMock) -> None:
+    """Test that get_events forwards status='all' to the EONET client by default."""
+    tool = _load_tool()
+
+    mock_events_endpoint.return_value = {
+        "type": "FeatureCollection",
+        "features": [],
+    }
+
+    tool.get_events()
+
+    sent_params, _ = mock_events_endpoint.call_args.args
+    assert sent_params["status"] == "all"
+
+
 def test_get_events_generic_error_handling(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events can handle unexpected errors."""
     tool = _load_tool()
@@ -349,7 +357,7 @@ def test_get_events_generic_error_handling(mock_events_endpoint: MagicMock) -> N
 
     TEST_PARAMS["limit"] = 1
 
-    mock_events_endpoint.side_effect=EONETError(
+    mock_events_endpoint.side_effect = EONETError(
         f"Non-JSON response for event request with params '{list(TEST_PARAMS)}'"
     )
 
