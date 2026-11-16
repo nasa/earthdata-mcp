@@ -136,7 +136,9 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
         if params.has_granules is not None:
             search_params["has_granules"] = params.has_granules
 
-        temporal = format_temporal_range(params.temporal_start_date, params.temporal_end_date)
+        temporal = format_temporal_range(
+            params.temporal_start_date, params.temporal_end_date
+        )
         if temporal:
             search_params["temporal"] = temporal
 
@@ -159,7 +161,10 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
                 if isinstance(v, list):
                     normalized_cursor[k] = sorted(v)
 
-            if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
+            if (
+                normalized_search != normalized_cursor
+                or spatial_wkt != params.spatial_wkt_geometry
+            ):
                 raise ToolError(
                     "get_collections CursorScopeError: Cursor parameters are query-scoped. "
                     "You cannot change search parameters when paginating."
@@ -205,7 +210,9 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     cursor_payload = {"token": page.search_after, "params": search_params}
     if files:
         cursor_payload["spatial"] = (
-            params.spatial_wkt_geometry if not params.cursor else cursor_value.get("spatial")
+            params.spatial_wkt_geometry
+            if not params.cursor
+            else cursor_value.get("spatial")
         )
     next_cursor = (
         encode_cursor("cmr", cursor_payload)
