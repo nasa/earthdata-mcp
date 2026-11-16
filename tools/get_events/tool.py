@@ -9,6 +9,17 @@ from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
     CATEGORIES_TYPE,
     STATUS_TYPE,
+    Source,
+    Category,
+    Status,
+    Limit,
+    Days,
+    Start,
+    End,
+    MagId,
+    MagMin,
+    MagMax,
+    Bbox,
     GetEventsInput,
     GetEventsOutput,
 )
@@ -44,17 +55,17 @@ def _build_response(results: dict) -> dict:
 
 @observe(name="get_events")
 def get_events(  # pylint: disable=too-many-arguments
-    source: str | None = None,
-    category: CATEGORIES_TYPE | None = None,
-    status: STATUS_TYPE = "all",
-    limit: int = 5,
-    days: int | None = None,
-    start: str | None = None,
-    end: str | None = None,
-    magID: str | None = None,
-    magMin: float | None = None,
-    magMax: float | None = None,
-    bbox: str | None = None,
+    source: Source = None,
+    category: Category = None,
+    status: Status = "all",
+    limit: Limit = 5,
+    days: Days = None,
+    start: Start = None,
+    end: End = None,
+    magID: MagId = None,
+    magMin: MagMin = None,
+    magMax: MagMax = None,
+    bbox: Bbox = None,
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
 

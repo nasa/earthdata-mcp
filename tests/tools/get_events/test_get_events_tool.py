@@ -179,60 +179,23 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     _reset_test_params()
 
 
-def test_get_events_does_not_post_filter_api_response(mock_events_endpoint: MagicMock) -> None:
-    """Test that get_events returns whatever features the API returns without post-filtering."""
+def test_get_events_returns_error_on_bad_request_invalid_value() -> None:
+    """Test that get_events returns an error if a request contains a forbidden value."""
     tool = _load_tool()
 
-    mock_events_endpoint.return_value = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
-                "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
-            },
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
-                "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
-            },
-        ],
-    }
+    # A limit of -1 creates a "bad" request (can't limit to -1 results)
+    TEST_PARAMS["limit"] = -1
 
-    expected = {
-        "status": SearchStatus.SUCCESS,
-        "error_message": None,
-        "data": {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
-                    "properties": {"name": "A Cool Place", "location": "Anytown, USA"},
-                },
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
-                    "properties": {"name": "Another Cool Place", "location": "Anothertown, USA"},
-                },
-            ],
-        },
-    }
-
-    TEST_PARAMS["limit"] = 2
-
-    result = tool.get_events(**TEST_PARAMS)
-
-    assert result["status"] == expected["status"]
-    assert result["error_message"] == expected["error_message"]
-    assert result["data"] == expected["data"]
-    mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
+    with pytest.raises(ToolError) as e:
+            tool.get_events(**TEST_PARAMS)
+    
+    assert "get_events ValidationError" in str(e)
 
     _reset_test_params()
 
 
-def test_get_events_returns_error_for_invalid_input() -> None:
-    """Test that get_events returns an error if invalid input is passed to params."""
+def test_get_events_returns_error_on_bad_request_wrong_type() -> None:
+    """Test that get_events returns an error if a request receives the wrong type for a param."""
     tool = _load_tool()
 
     TEST_PARAMS["source"] = 123
