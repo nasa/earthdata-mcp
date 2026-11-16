@@ -58,9 +58,9 @@ def get_events(  # pylint: disable=too-many-arguments
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
 
-    This tool takes an EONET API endpoint name (events or events/geojson) and a list of parameters,
-    sending a request to the specified endpoint with the given parameters. It returns the results
-    formatted to contain the data itself and labels describing the data.
+    This tool receives the parameters for a request to the events/geojson endpoint of the EONET API.
+    It sends a request to the endpoint with the given parameters and returns GeoJSON results wrapped 
+    with a status and any error messages.
     """
     trace_update(
         tags=["eonet", "eventsapi"],
@@ -100,7 +100,7 @@ def get_events(  # pylint: disable=too-many-arguments
     try:
         results = events(
             params.model_dump(), True
-        )  # Automatically use GeoJSON endpoint (normal events endpoint still available)
+        )
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
         raise ToolError(f"Could not retrieve results from EONET: {str(e)}") from e

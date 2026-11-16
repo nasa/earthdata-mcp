@@ -96,7 +96,7 @@ Searches for NRT natural events using the EONET (Earth Observatory Natural Event
 | ✅ | `magID` | `magID` | Code that indicates the relative unit of strength that will be used to measure the magnitude of an event. |
 | ✅ | `magMin` | `magMin` | The minimum magnitude value (inclusive). |
 | ✅ | `magMax` | `magMax` | The maximum magnitude value (inclsuive). |
-| ✅ | `bbox` | `bbox` | The bounding box to which to restrict event results. |
+| ✅ | `bbox` | `bbox` | The bounding box to which to restrict event results, given as min lon, max lat, max lon, min lat (upper-left corner, then lower-right corner) |
 
 ### Output Fields
 | Status | MCP Response Field | Description |

@@ -13,20 +13,35 @@
     ],
     "examples": {
         "global_search": {
-            "description": "Search for events across all categories",
+            "description": "Search for events across all categories, limiting to 5 results. Note: `None` strings are used to represent python `None` value.",
             "params": {
-                "endpoint": "/events",
-                "params": {}
+                "source": "None",
+                "category": "None",
+                "status": "all",
+                "limit": 5,
+                "days": "None",
+                "start": "None",
+                "end": "None",
+                "magID": "None",
+                "magMin": "None",
+                "magMax": "None",
+                "bbox": "None"
             }
         },
         "targeted_search": {
-            "description": "Search for events within a specific category",
+            "description": "Search for events within the `wildfires` category, limiting to 5 results. Note: `None` strings are used to represent python `None` value.",
             "params": {
-                "endpoint": "/events",
-                "params": {
-                    "category": "wildfires",
-                    "status": "open"
-                }
+                "source": "None",
+                "category": "wildfires",
+                "status": "all",
+                "limit": 5,
+                "days": "None",
+                "start": "None",
+                "end": "None",
+                "magID": "None",
+                "magMin": "None",
+                "magMax": "None",
+                "bbox": "None"
             }
         }
     }
