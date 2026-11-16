@@ -54,3 +54,17 @@ def test_map_card_no_notes_when_empty():
     card = map_card(_spec())
     html = PrefabApp(title="t", view=card).html()
     assert "terra-map" in html
+
+
+def test_map_html_layer_without_js_key_is_skipped():
+    """A layer dict missing 'js' must not generate an addLayer call."""
+    spec = _spec(layers=[{"name": "no-js-key"}])
+    assert "addLayer" not in map_html(spec)
+
+
+def test_map_html_layer_with_js_generates_script():
+    """A layer dict with 'js' must produce an addLayer call in a <script> block."""
+    spec = _spec(layers=[{"js": "new ol.layer.Vector({})", "name": "my-layer"}])
+    html = map_html(spec)
+    assert "addLayer" in html
+    assert "my-layer" in html

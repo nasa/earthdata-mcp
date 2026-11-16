@@ -23,12 +23,17 @@ def test_validate_bounds_lon_out_of_range():
         validate_bounds([-200, 0, 0, 10])
 
 
+def test_validate_bounds_lat_out_of_range():
+    """Latitude outside [-90, 90] should raise ValueError."""
+    with pytest.raises(ValueError, match="latitude"):
+        validate_bounds([0, -100, 1, 10])
+
+
 def test_map_spec_minimal():
-    """Minimal MapSpec should have None collection_id, bounds, and initial_bounds."""
+    """Minimal MapSpec should have None collection_id and bounds."""
     spec = MapSpec(title="Test")
     assert spec.collection_id is None
     assert spec.bounds is None
-    assert spec.initial_bounds() is None
 
 
 def test_map_spec_with_collection_id():
@@ -43,7 +48,7 @@ def test_map_spec_explicit_bounds_validated():
         MapSpec(title="t", bounds=[0, 50, 1, 10])
 
 
-def test_map_spec_initial_bounds():
-    """initial_bounds should return the [W, S, E, N] list when bounds are set."""
+def test_map_spec_bounds_stored_as_floats():
+    """bounds should be stored as [W, S, E, N] floats when set."""
     spec = MapSpec(title="t", bounds=[-10, 0, 10, 20])
-    assert spec.initial_bounds() == [-10.0, 0.0, 10.0, 20.0]
+    assert spec.bounds == [-10.0, 0.0, 10.0, 20.0]
