@@ -7,8 +7,6 @@ from langfuse import observe
 
 from models.tools.cmr_search import SearchStatus
 from models.tools.get_events import (
-    CATEGORIES_TYPE,
-    STATUS_TYPE,
     Source,
     Category,
     Status,
