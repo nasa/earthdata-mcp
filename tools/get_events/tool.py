@@ -60,9 +60,9 @@ def get_events(  # pylint: disable=too-many-arguments
     days: Days = None,
     start: Start = None,
     end: End = None,
-    magID: MagId = None,
-    magMin: MagMin = None,
-    magMax: MagMax = None,
+    mag_id: MagId = None,
+    mag_min: MagMin = None,
+    mag_max: MagMax = None,
     bbox: Bbox = None,
 ) -> dict:
     """Send a request to the EONET API to retrieve event data based on specified parameters.
@@ -81,9 +81,9 @@ def get_events(  # pylint: disable=too-many-arguments
             "days": days,
             "start": start,
             "end": end,
-            "magID": magID,
-            "magMin": magMin,
-            "magMax": magMax,
+            "mag_id": mag_id,
+            "mag_min": mag_min,
+            "mag_max": mag_max,
             "bbox": bbox,
         },
     )
@@ -97,9 +97,9 @@ def get_events(  # pylint: disable=too-many-arguments
             days=days,
             start=start,
             end=end,
-            magID=magID,
-            magMin=magMin,
-            magMax=magMax,
+            mag_id=mag_id,
+            mag_min=mag_min,
+            mag_max=mag_max,
             bbox=bbox,
         )
     except (ValueError, TypeError) as e:

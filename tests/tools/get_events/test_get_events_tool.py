@@ -34,9 +34,9 @@ TEST_PARAMS = {
     "days": None,
     "start": None,
     "end": None,
-    "magID": None,
-    "magMin": None,
-    "magMax": None,
+    "mag_id": None,
+    "mag_min": None,
+    "mag_max": None,
     "bbox": None,
 }
 
@@ -51,9 +51,9 @@ def _reset_test_params():
         "days": None,
         "start": None,
         "end": None,
-        "magID": None,
-        "magMin": None,
-        "magMax": None,
+        "mag_id": None,
+        "mag_min": None,
+        "mag_max": None,
         "bbox": None,
     }
 

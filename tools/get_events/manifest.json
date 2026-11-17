@@ -22,9 +22,9 @@
                 "days": "None",
                 "start": "None",
                 "end": "None",
-                "magID": "None",
-                "magMin": "None",
-                "magMax": "None",
+                "mag_id": "None",
+                "mag_min": "None",
+                "mag_max": "None",
                 "bbox": "None"
             }
         },
@@ -38,9 +38,9 @@
                 "days": "None",
                 "start": "None",
                 "end": "None",
-                "magID": "None",
-                "magMin": "None",
-                "magMax": "None",
+                "mag_id": "None",
+                "mag_min": "None",
+                "mag_max": "None",
                 "bbox": "None"
             }
         }

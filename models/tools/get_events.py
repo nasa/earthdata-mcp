@@ -137,9 +137,9 @@ class GetEventsInput(BaseModel):
     days: Days = None
     start: Start = None
     end: End = None
-    magID: MagId = None
-    magMin: MagMin = None
-    magMax: MagMax = None
+    mag_id: MagId = None
+    mag_min: MagMin = None
+    mag_max: MagMax = None
     bbox: Bbox = None
 
 
