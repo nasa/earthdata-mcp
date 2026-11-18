@@ -95,7 +95,7 @@ def test_get_events_returns_event(mock_events_endpoint: MagicMock) -> None:
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
     assert result["data"] == expected["data"]
-    mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
+    mock_events_endpoint.assert_called_once_with(TEST_PARAMS)
 
     _reset_test_params()
 
@@ -147,7 +147,7 @@ def test_get_events_returns_multiple_events(mock_events_endpoint: MagicMock) -> 
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
     assert result["data"] == expected["data"]
-    mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
+    mock_events_endpoint.assert_called_once_with(TEST_PARAMS)
 
     _reset_test_params()
 
@@ -174,7 +174,7 @@ def test_get_events_returns_no_events(mock_events_endpoint: MagicMock) -> None:
     assert result["status"] == expected["status"]
     assert result["error_message"] == expected["error_message"]
     assert result["data"] == expected["data"]
-    mock_events_endpoint.assert_called_once_with(TEST_PARAMS, True)
+    mock_events_endpoint.assert_called_once_with(TEST_PARAMS)
 
     _reset_test_params()
 
@@ -224,9 +224,7 @@ def test_get_events_returns_error_for_bad_eonet_connection(mock_events_endpoint:
     _reset_test_params()
 
 
-def test_get_events_returns_error_for_malformed_event_results(
-    mock_events_endpoint: MagicMock,
-) -> None:
+def test_get_events_returns_error_for_malformed_event_results(mock_events_endpoint: MagicMock) -> None:
     """Test that get_events returns an error if results are malformed."""
     tool = _load_tool()
 
@@ -308,7 +306,7 @@ def test_get_events_defaults_status_to_all(mock_events_endpoint: MagicMock) -> N
 
     tool.get_events()
 
-    sent_params, _ = mock_events_endpoint.call_args.args
+    sent_params = mock_events_endpoint.call_args.args[0]
     assert sent_params["status"] == "all"
 
 

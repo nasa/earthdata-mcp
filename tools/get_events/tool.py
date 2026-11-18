@@ -107,9 +107,7 @@ def get_events(  # pylint: disable=too-many-arguments
         raise ToolError(f"get_events {type(e).__name__}: {str(e)}") from e
 
     try:
-        results = events(
-            params.model_dump(), True
-        )
+        results = events(params.model_dump())
     except EONETError as e:
         logger.error("EONET API request failed: %s", e)
         raise ToolError(f"Could not retrieve results from EONET: {str(e)}") from e
