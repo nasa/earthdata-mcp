@@ -1,5 +1,6 @@
 """Direct CMR collection search tool."""
 
+import json
 import logging
 
 from fastmcp.exceptions import ToolError
@@ -43,7 +44,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     provider: ProviderParam = None,
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
-    spatial_wkt_geometry: SpatialWktGeometryParam = None,
+    spatial_geometry: SpatialWktGeometryParam | dict = None,
     platform: list[str] | None = None,
     instrument: list[str] | None = None,
     processing_level_id: list[str] | None = None,
@@ -56,7 +57,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
 
     Unfiltered searches are supported and return a broad set of collections sorted by usage.
     When the user's question involves a specific time period or geographic area, always include
-    temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. A keyword-only search
+    temporal_start_date/temporal_end_date and/or spatial_geometry. A keyword-only search
     returns collections whose metadata mentions the terms but whose declared extent may be global
     or multi-decadal — presence in results does not confirm data exists for a specific region or
     period. Use filters here, then confirm actual granule availability with get_granules.
@@ -88,11 +89,12 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
         metadata["temporal_start_date"] = temporal_start_date
     if temporal_end_date:
         metadata["temporal_end_date"] = temporal_end_date
-    if spatial_wkt_geometry:
-        metadata["spatial_wkt_geometry"] = (
-            spatial_wkt_geometry[:200] + "..."
-            if len(spatial_wkt_geometry) > 200
-            else spatial_wkt_geometry
+    if spatial_geometry:
+        spatial_str = json.dumps(spatial_geometry) if type(spatial_geometry) == dict else spatial_geometry
+        metadata["spatial_geometry"] = (
+            spatial_str[:200] + "..."
+            if len(spatial_str) > 200
+            else spatial_str
         )
 
     trace_update(
@@ -108,7 +110,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
             provider=provider,
             temporal_start_date=temporal_start_date,
             temporal_end_date=temporal_end_date,
-            spatial_wkt_geometry=spatial_wkt_geometry,
+            spatial_geometry=spatial_geometry,
             platform=platform or [],
             instrument=instrument or [],
             processing_level_id=processing_level_id or [],
@@ -163,7 +165,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
 
             if (
                 normalized_search != normalized_cursor
-                or spatial_wkt != params.spatial_wkt_geometry
+                or spatial_wkt != params.spatial_geometry
             ):
                 raise ToolError(
                     "get_collections CursorScopeError: Cursor parameters are query-scoped. "
@@ -177,7 +179,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
             # replace current params with original ones used in the cursor
             search_params = cursor_value.get("params", {})
         else:
-            files = build_spatial_files(params.spatial_wkt_geometry)
+            files = build_spatial_files(params.spatial_geometry)
             method = "POST" if files else "GET"
         page = next(
             search_cmr(
@@ -210,7 +212,7 @@ def get_collections(  # pylint: disable=too-many-arguments,too-many-locals
     cursor_payload = {"token": page.search_after, "params": search_params}
     if files:
         cursor_payload["spatial"] = (
-            params.spatial_wkt_geometry
+            params.spatial_geometry
             if not params.cursor
             else cursor_value.get("spatial")
         )

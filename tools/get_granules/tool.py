@@ -1,5 +1,6 @@
 """Direct CMR granule search tool."""
 
+import json
 import logging
 
 from fastmcp.exceptions import ToolError
@@ -41,7 +42,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     collection_concept_id: CollectionConceptIdParam,
     temporal_start_date: TemporalStartDateParam = None,
     temporal_end_date: TemporalEndDateParam = None,
-    spatial_wkt_geometry: SpatialWktGeometryParam = None,
+    spatial_geometry: SpatialWktGeometryParam | dict = None,
     cloud_cover_min: CloudCoverMinParam = None,
     cloud_cover_max: CloudCoverMaxParam = None,
     day_night_flag: DayNightFlagParam = None,
@@ -53,7 +54,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     """Search CMR granules for a single parent collection, returning paginated results.
 
     When checking data availability for a specific time period or geographic area, always
-    provide temporal_start_date/temporal_end_date and/or spatial_wkt_geometry. Without these
+    provide temporal_start_date/temporal_end_date and/or spatial_geometry. Without these
     filters the results reflect the entire collection archive and total_hits will be non-zero
     even when no granules exist for the area or period the user cares about.
 
@@ -81,11 +82,12 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
         metadata["temporal_start_date"] = temporal_start_date
     if temporal_end_date:
         metadata["temporal_end_date"] = temporal_end_date
-    if spatial_wkt_geometry:
-        metadata["spatial_wkt_geometry"] = (
-            spatial_wkt_geometry[:200] + "..."
-            if len(spatial_wkt_geometry) > 200
-            else spatial_wkt_geometry
+    if spatial_geometry:
+        spatial_str = json.dumps(spatial_geometry) if type(spatial_geometry) == dict else spatial_geometry
+        metadata["spatial_geometry"] = (
+            spatial_str[:200] + "..."
+            if len(spatial_str) > 200
+            else spatial_str
         )
     if cloud_cover_min is not None:
         metadata["cloud_cover_min"] = cloud_cover_min
@@ -102,7 +104,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
             collection_concept_id=collection_concept_id,
             temporal_start_date=temporal_start_date,
             temporal_end_date=temporal_end_date,
-            spatial_wkt_geometry=spatial_wkt_geometry,
+            spatial_geometry=spatial_geometry,
             cloud_cover_min=cloud_cover_min,
             cloud_cover_max=cloud_cover_max,
             day_night_flag=day_night_flag,
@@ -146,7 +148,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
                 if isinstance(v, list):
                     normalized_cursor[k] = sorted(v)
 
-            if normalized_search != normalized_cursor or spatial_wkt != params.spatial_wkt_geometry:
+            if normalized_search != normalized_cursor or spatial_wkt != params.spatial_geometry:
                 raise ToolError(
                     "get_granules CursorScopeError: Cursor parameters are query-scoped. "
                     "You cannot change search parameters when paginating."
@@ -157,7 +159,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
                 files = build_spatial_files(spatial_wkt)
                 method = "POST"
         else:
-            files = build_spatial_files(params.spatial_wkt_geometry)
+            files = build_spatial_files(params.spatial_geometry)
             method = "POST" if files else "GET"
         page = next(
             search_cmr(
@@ -190,7 +192,7 @@ def get_granules(  # pylint: disable=too-many-arguments,too-many-locals
     cursor_payload = {"token": page.search_after, "params": search_params}
     if files:
         cursor_payload["spatial"] = (
-            params.spatial_wkt_geometry if not params.cursor else cursor_value.get("spatial")
+            params.spatial_geometry if not params.cursor else cursor_value.get("spatial")
         )
     next_cursor = (
         encode_cursor("cmr", cursor_payload)

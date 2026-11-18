@@ -76,7 +76,7 @@ def test_get_collections_allows_spatial_only_search(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(spatial_wkt_geometry="POINT(-75 40)")
+    output = tool.get_collections(spatial_geometry="POINT(-75 40)")
 
     assert captured["method"] == "POST"
     assert output["status"] == "no_results"
@@ -167,7 +167,7 @@ def test_get_collections_uses_post_for_spatial_search(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT(-75 40)")
+    output = tool.get_collections(keyword="modis", spatial_geometry="POINT(-75 40)")
 
     assert captured["method"] == "POST"
     assert captured["files"] is not None
@@ -256,7 +256,7 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
     tool = _load_tool()
 
     with pytest.raises(ToolError) as exc_info:
-        tool.get_collections(keyword="modis", spatial_wkt_geometry="POINT((1 2))")
+        tool.get_collections(keyword="modis", spatial_geometry="POINT((1 2))")
 
     assert "Invalid WKT geometry" in str(exc_info.value)
 
@@ -642,7 +642,7 @@ def test_get_collections_wkt_error():
     from tools.get_collections.tool import get_collections
 
     with pytest.raises(ToolError) as exc_info:
-        get_collections(spatial_wkt_geometry="INVALID WKT")
+        get_collections(spatial_geometry="INVALID WKT")
 
     assert "Invalid WKT" in str(exc_info.value)
 
@@ -656,7 +656,7 @@ def test_get_collections_cursor_post():
 
     c = encode_cursor("cmr", {"token": "x", "spatial": "POINT(0 0)", "params": {}})
     with patch("tools.get_collections.tool.search_cmr") as mock_search:
-        get_collections(cursor=c, spatial_wkt_geometry="POINT(0 0)")
+        get_collections(cursor=c, spatial_geometry="POINT(0 0)")
         mock_search.assert_called_once()
 
 

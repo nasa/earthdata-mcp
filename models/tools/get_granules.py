@@ -154,7 +154,7 @@ class GetGranulesInput(BaseModel):
     collection_concept_id: CollectionConceptIdParam
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
-    spatial_wkt_geometry: SpatialWktGeometryParam = None
+    spatial_geometry: SpatialWktGeometryParam | dict = None
     cloud_cover_min: CloudCoverMinParam = None
     cloud_cover_max: CloudCoverMaxParam = None
     day_night_flag: DayNightFlagParam = None

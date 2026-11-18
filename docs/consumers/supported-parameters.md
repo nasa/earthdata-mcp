@@ -32,7 +32,7 @@ Searches for datasets (collections) using scientific keywords, instruments, plat
 | ✅ | `provider` | `provider` | Archive center that published the collection, e.g. `PODAAC`, `GES_DISC`. Cloud migration has renamed some providers, and a stale ID returns no results rather than an error. |
 | ✅ | `temporal_start_date` | `temporal` | Start of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
 | ✅ | `temporal_end_date` | `temporal` | End of the temporal window, ISO 8601. Matches collections whose declared range overlaps it. |
-| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches collections whose declared extent intersects it, so a precise shape avoids false positives. |
+| ✅ | `spatial_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches collections whose declared extent intersects it, so a precise shape avoids false positives. **Note: May also be a dictionary if searching using GeoJSON data from `get_events` tool** |
 | ✅ | `platform` | `platform` | Platform short names to filter by, e.g. `Terra`, `Aqua`. Narrows a search to one mission's instruments. |
 | ✅ | `instrument` | `instrument` | Instrument short names to filter by, e.g. `MODIS`, `VIIRS`. Matches the instrument field rather than the whole record, so it is tighter than the same name as a keyword. |
 | ✅ | `processing_level_id` | `processing_level_id` | Processing levels to filter by, e.g. `3`, `3A`. Distinguishes L2 swath from L3 gridded products. |
@@ -116,7 +116,7 @@ Searches for specific data files (granules) within a collection to verify actual
 | ✅ | `collection_concept_id` | `collection_concept_id` | Parent collection to search within, e.g. `C2723758340-GES_DISC`. Required. |
 | ✅ | `temporal_start_date` | `temporal` | Start of the temporal window, ISO 8601. Matches granules whose coverage overlaps it. |
 | ✅ | `temporal_end_date` | `temporal` | End of the temporal window, ISO 8601. Matches granules whose coverage overlaps it. |
-| ✅ | `spatial_wkt_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches granules whose footprint intersects it, so a precise shape avoids false positives. |
+| ✅ | `spatial_geometry` | `polygon, point, bounding_box` | Area of interest as a WKT `POLYGON`, `POINT`, or `LINESTRING`. Matches granules whose footprint intersects it, so a precise shape avoids false positives. **Note: May also be a dictionary if searching using GeoJSON data from `get_events` tool** |
 | ✅ | `cloud_cover_min` | `cloud_cover` | Lower bound on cloud cover, 0 to 100. Optical imagery only; SAR and altimetry do not report it. |
 | ✅ | `cloud_cover_max` | `cloud_cover` | Upper bound on cloud cover, 0 to 100. Use `20` or lower for mostly clear scenes. Optical imagery only. |
 | ✅ | `day_night_flag` | `day_night_flag` | Acquisition lighting, one of `DAY`, `NIGHT`, or `UNSPECIFIED`. |

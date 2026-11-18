@@ -215,7 +215,7 @@ Step 1 — Discover collections:
     keyword="sea surface temperature",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
-    spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
+    spatial_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
   )
   → 8 collections found. Present top candidates with titles, platforms, temporal range.
 
@@ -224,7 +224,7 @@ Step 2 — Verify granules for the top collection:
     collection_concept_id="C1996881146-POCLOUD",
     temporal_start_date="2024-01-01T00:00:00Z",
     temporal_end_date="2024-01-31T23:59:59Z",
-    spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
+    spatial_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
   )
   → 32 granules found. Confirm availability and offer earthaccess download snippet.
 

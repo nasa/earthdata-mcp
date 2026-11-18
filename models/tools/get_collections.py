@@ -209,7 +209,7 @@ class GetCollectionsInput(BaseModel):
     provider: ProviderParam = None
     temporal_start_date: TemporalStartDateParam = None
     temporal_end_date: TemporalEndDateParam = None
-    spatial_wkt_geometry: SpatialWktGeometryParam = None
+    spatial_geometry: SpatialWktGeometryParam | dict = None
     platform: PlatformParam
     instrument: InstrumentParam
     processing_level_id: ProcessingLevelIdParam

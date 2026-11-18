@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from io import BytesIO
-from typing import Any
+from typing import Any, overload
 
 from shapely import make_valid, orient_polygons
 from shapely import wkt as shapely_wkt
@@ -80,6 +80,23 @@ def _coerce_temporal_input(value: datetime | str | None, field_name: str) -> dat
 # CMR shapefile upload limits (https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html)
 _CMR_MAX_POINTS = 5_000
 _CMR_MAX_BYTES = 1_000_000
+
+@overload
+def build_spatial_files(raw_geojson: dict | None) -> dict[str, Any] | None:
+    """Converts raw GeoJSON data to a multipart payload for CMR shapefile search.
+    
+    CMR limits: 1,000,000 bytes, 500 features, 5,000 points.
+    Raises ValueError when the geometry exceeds these limits or if the raw GeoJSON is invalid.
+    """
+    payload = json.dumps(raw_geojson).encode("utf-8")
+    
+    if len(payload) > _CMR_MAX_BYTES:
+        raise ValueError(
+            f"Shapefile payload is {len(payload):,} bytes, exceeding the CMR limit of "
+            f"{_CMR_MAX_BYTES:,} bytes. Simplify the geometry before searching."
+        )
+
+    return {"shapefile": ("shapefile", BytesIO(payload), "application/geo+json")}
 
 
 def build_spatial_files(wkt_geometry: str | None) -> dict[str, Any] | None:

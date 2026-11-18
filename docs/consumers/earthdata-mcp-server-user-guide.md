@@ -178,7 +178,7 @@ get_collections(
   has_granules=true,
   temporal_start_date="2025-07-01T00:00:00Z",
   temporal_end_date="2026-07-09T23:59:59Z",
-  spatial_wkt_geometry="POLYGON((-75 -15, -50 -15, -50 5, -75 5, -75 -15))"
+  spatial_geometry="POLYGON((-75 -15, -50 -15, -50 5, -75 5, -75 -15))"
 )
 ```
 
@@ -204,7 +204,7 @@ get_granules(
   collection_concept_id="C1748066515-LPCLOUD",
   temporal_start_date="2025-07-01T00:00:00Z",
   temporal_end_date="2026-07-09T23:59:59Z",
-  spatial_wkt_geometry="POLYGON((-75 -15, -50 -15, -50 5, -75 5, -75 -15))",
+  spatial_geometry="POLYGON((-75 -15, -50 -15, -50 5, -75 5, -75 -15))",
   sort_key="-start_date"
 )
 ```
@@ -252,7 +252,7 @@ get_collections(
   keyword="sea surface temperature",
   temporal_start_date="2024-01-01T00:00:00Z",
   temporal_end_date="2024-01-31T23:59:59Z",
-  spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17)),
+  spatial_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17)),
   has_granules: true
 )
 ```
@@ -267,7 +267,7 @@ get_granules(
   collection_concept_id="C1996881146-POCLOUD",
   temporal_start_date="2024-01-01T00:00:00Z",
   temporal_end_date="2024-01-31T23:59:59Z",
-  spatial_wkt_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
+  spatial_geometry="POLYGON((-162 17, -153 17, -153 23, -162 23, -162 17))"
 )
 ```
 

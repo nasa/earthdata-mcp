@@ -91,7 +91,7 @@ def test_get_granules_uses_post_for_spatial_search(monkeypatch):
 
     output = tool.get_granules(
         collection_concept_id="C123-PROV",
-        spatial_wkt_geometry="POINT(-75 40)",
+        spatial_geometry="POINT(-75 40)",
     )
 
     assert captured["method"] == "POST"
@@ -178,7 +178,7 @@ def test_get_granules_returns_error_on_invalid_spatial_wkt():
     with pytest.raises(ToolError) as exc_info:
         tool.get_granules(
             collection_concept_id="C123-PROV",
-            spatial_wkt_geometry="POINT((1 2))",
+            spatial_geometry="POINT((1 2))",
         )
 
     assert "Invalid WKT geometry" in str(exc_info.value)
@@ -599,7 +599,7 @@ def test_get_granules_wkt_error():
     from tools.get_granules.tool import get_granules
 
     with pytest.raises(ToolError) as exc_info:
-        get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="INVALID WKT")
+        get_granules(collection_concept_id="C1-PROV", spatial_geometry="INVALID WKT")
 
     assert "Invalid WKT" in str(exc_info.value)
 
@@ -620,5 +620,5 @@ def test_get_granules_cursor_post():
         mock_search.return_value = iter(
             [CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)]
         )
-        get_granules(collection_concept_id="C1-PROV", spatial_wkt_geometry="POINT(0 0)", cursor=c)
+        get_granules(collection_concept_id="C1-PROV", spatial_geometry="POINT(0 0)", cursor=c)
         mock_search.assert_called_once()
