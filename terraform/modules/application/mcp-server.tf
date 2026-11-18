@@ -25,7 +25,7 @@ resource "aws_ecs_cluster" "mcp" {
 # CloudWatch Log Group for MCP server
 resource "aws_cloudwatch_log_group" "mcp_server" {
   name              = "/ecs/${var.environment_name}-earthdata-mcp-server"
-  retention_in_days = 14
+  retention_in_days = 60
 
   tags = var.tags
 }

@@ -61,7 +61,3 @@ class MapSpec(_Spec):
     @classmethod
     def _bounds(cls, v: list[float] | None) -> list[float] | None:
         return validate_bounds(v) if v is not None else None
-
-    def initial_bounds(self) -> list[float] | None:
-        """Return bounds as a plain list, or None if unset."""
-        return list(self.bounds) if self.bounds else None

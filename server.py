@@ -115,7 +115,7 @@ async def serve_ard(_request):
     """Serve ard.json registry entry document with CORS headers."""
     ard_path = os.path.join(os.path.dirname(__file__), "ard.json")
     try:
-        with open(ard_path) as f:
+        with open(ard_path, encoding="utf-8") as f:
             ard_data = json.load(f)
         response = JSONResponse(ard_data)
     except FileNotFoundError:

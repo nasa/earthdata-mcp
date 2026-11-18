@@ -79,15 +79,15 @@ class ToolManifest:
         return self.manifest.get("require_auth", False)
 
     @property
-    def app(self) -> bool | dict[str, Any] | None:
+    def app(self) -> dict[str, Any] | None:
         """MCP Apps (Prefab UI) settings from the manifest, if the tool renders a UI.
 
-        ``"app": true`` or ``"app": {"csp_profile": "map", "csp": {...}}``.
+        ``"app": {"csp_profile": "map", "csp": {...}}``.
         """
         return self.manifest.get("app")
 
 
-def build_app_config(app: bool | dict[str, Any] | None):
+def build_app_config(app: dict[str, Any] | None):
     """Turn a manifest ``app`` entry into a FastMCP PrefabAppConfig (or None).
 
     ``csp_profile`` names a domain set from util.visualization.config ("map", "viz");
@@ -98,10 +98,8 @@ def build_app_config(app: bool | dict[str, Any] | None):
         return None
     from fastmcp.apps.config import PrefabAppConfig, ResourceCSP
 
-    if app is True:
-        return PrefabAppConfig()
     if not isinstance(app, dict):
-        raise ValueError("manifest.json 'app' must be true or an object")
+        raise ValueError("manifest.json 'app' must be an object")
 
     domains: dict[str, list[str]] = {}
     profile = app.get("csp_profile")

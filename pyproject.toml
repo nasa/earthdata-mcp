@@ -1,11 +1,11 @@
 [project]
 name = "earthdata-mcp"
-version = "1.1.0"
+version = "1.2.0"
 description = "Basic FastMCP implementation for the Common Metadata Repository using Python."
 
 readme = "README.md"
 
-requires-python = "==3.13.0"
+requires-python = ">=3.14, <3.15"
 dependencies = [
     "fastmcp>=4",
     "prefab-ui==0.20.2", # map/chart cards; FastMCP sets no upper bound, so pin it here

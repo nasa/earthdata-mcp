@@ -1,0 +1,117 @@
+"""Query EONET for natural events."""
+
+import logging
+
+from fastmcp.exceptions import ToolError
+from langfuse import observe
+
+from models.tools.cmr_search import SearchStatus
+from models.tools.get_events import (
+    Source,
+    Category,
+    Status,
+    Limit,
+    Days,
+    Start,
+    End,
+    MagId,
+    MagMin,
+    MagMax,
+    Bbox,
+    GetEventsInput,
+    GetEventsOutput,
+)
+from util.eonet.client import (
+    EONETError,
+    events,
+)
+from util.langfuse import trace_update
+
+logger = logging.getLogger(__name__)
+
+
+def _build_response(results: dict) -> dict:
+    """Builds the tool response using the fetched EONET data."""
+    try:
+        if ("features" in results) and ("type" in results):
+            if len(results["features"]) == 0:
+                return GetEventsOutput(
+                    status=SearchStatus.NO_RESULTS,
+                    error_message=None,
+                    data={},
+                ).model_dump()
+            return GetEventsOutput(
+                status=SearchStatus.SUCCESS,
+                error_message=None,
+                data=results,
+            ).model_dump()
+        raise EONETError("Unexpected response shape: 'features' and/or 'type' keys missing.")
+    except (ValueError, TypeError, EONETError) as e:
+        logger.error("Results could not be saved: %s", e)
+        raise ToolError(f"Attempting to save malformed results: {str(e)}") from e
+
+
+@observe(name="get_events")
+def get_events(  # pylint: disable=too-many-arguments
+    source: Source = None,
+    category: Category = None,
+    status: Status = "all",
+    limit: Limit = 5,
+    days: Days = None,
+    start: Start = None,
+    end: End = None,
+    magID: MagId = None,
+    magMin: MagMin = None,
+    magMax: MagMax = None,
+    bbox: Bbox = None,
+) -> dict:
+    """Send a request to the EONET API to retrieve event data based on specified parameters.
+
+    This tool receives the parameters for a request to the events/geojson endpoint of the EONET API.
+    It sends a request to the endpoint with the given parameters and returns GeoJSON results wrapped 
+    with a status and any error messages.
+    """
+    trace_update(
+        tags=["eonet", "eventsapi"],
+        metadata={
+            "source": source,
+            "category": category,
+            "status": status,
+            "limit": limit,
+            "days": days,
+            "start": start,
+            "end": end,
+            "magID": magID,
+            "magMin": magMin,
+            "magMax": magMax,
+            "bbox": bbox,
+        },
+    )
+
+    try:
+        params = GetEventsInput(
+            source=source,
+            category=category,
+            status=status,
+            limit=limit,
+            days=days,
+            start=start,
+            end=end,
+            magID=magID,
+            magMin=magMin,
+            magMax=magMax,
+            bbox=bbox,
+        )
+    except (ValueError, TypeError) as e:
+        logger.warning("get_events input validation failed: %s", e)
+        raise ToolError(f"get_events {type(e).__name__}: {str(e)}") from e
+
+    try:
+        results = events(
+            params.model_dump(), True
+        )
+    except EONETError as e:
+        logger.error("EONET API request failed: %s", e)
+        raise ToolError(f"Could not retrieve results from EONET: {str(e)}") from e
+
+    return _build_response(results)
