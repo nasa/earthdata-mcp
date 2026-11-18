@@ -158,6 +158,7 @@ def get_variables(
                 search_params=search_params,
                 page_size=params.limit,
                 search_after=search_after,
+                method="POST",
             ),
             None,
         )
