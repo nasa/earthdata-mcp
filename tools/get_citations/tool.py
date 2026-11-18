@@ -152,6 +152,7 @@ def get_citations(  # pylint: disable=too-many-return-statements
                 search_params=search_params,
                 page_size=params.limit,
                 search_after=search_after,
+                method="POST",
             ),
             None,
         )
