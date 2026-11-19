@@ -1,6 +1,7 @@
 """Tests for util.cmr.search_tools."""
 
 from datetime import UTC, datetime
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,6 +33,12 @@ from util.cmr.search_tools import (
     normalize_tool_item,
     normalize_variable_item,
 )
+
+@pytest.fixture
+def mock_build_spatial_files() -> Generator[MagicMock]:
+    """Mock util.cmr.search_tools.build_spatial_files."""
+    with patch("util.cmr.search_tools.build_spatial_files") as mock_spatial_files:
+        yield mock_spatial_files
 
 
 def test_format_cloud_cover_range():
@@ -84,7 +91,7 @@ def test_normalize_geometry_for_cmr():
     assert res.geom_type == "Polygon"
 
 
-def test_build_spatial_files():
+def test_build_spatial_files(mock_build_spatial_files: MagicMock) -> None:
     """Test function."""
     assert build_spatial_files(None) is None
 
@@ -106,6 +113,47 @@ def test_build_spatial_files():
         pytest.raises(ValueError, match="exceeding the CMR limit of"),
     ):
         build_spatial_files("POINT(0 0)")
+
+    # accepts raw GeoJSON
+    geojson = {
+	    "type": "FeatureCollection",
+	    "features": [
+            {
+	        	"type": "Feature",
+	        	"properties": {
+	        		"id": "EONET_26331",
+	        		"title": "Wildfire Red Hill, Perry, Mississippi",
+	        		"description": None,
+	        		"link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_26331/geojson",
+	        		"closed": None,
+	        		"date": "2026-11-12T00:22:00Z",
+	        		"magnitudeValue": 519.00,
+	        		"magnitudeUnit": "acres",
+	        		"categories": [
+	        			{
+	        				"id": "wildfires",
+	        				"title": "Wildfires"
+	        			}
+	        		],
+	        		"sources": [
+	        			{
+	        				"id": "IRWIN",
+	        				"url": "https://irwin.doi.gov/observer/incidents/2026-MSMNF-000713"
+	        			}
+	        		]
+	        	},
+	        	"geometry": {
+	        		"type": "Point",
+	        		"coordinates": [
+	        			-89.063853,
+	        			31.130069
+	        		]
+	        	}
+	        }
+        ]
+    }
+    build_spatial_files(geojson)
+    assert mock_build_spatial_files.
 
 
 def test_normalize_collection_item():
