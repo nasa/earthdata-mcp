@@ -4,13 +4,14 @@ import json
 import logging
 from datetime import datetime
 from io import BytesIO
-from typing import Any, overload
+from typing import Any
 
 from shapely import make_valid, orient_polygons
 from shapely import wkt as shapely_wkt
+from shapely import to_geojson
 from shapely.errors import GEOSException
 from shapely.geometry import mapping
-
+from shapely.geometry import shape
 from util.cmr.client import search_cmr
 from util.temporal import extract_temporal_extent, parse_iso_datetime
 
@@ -81,23 +82,6 @@ def _coerce_temporal_input(value: datetime | str | None, field_name: str) -> dat
 _CMR_MAX_POINTS = 5_000
 _CMR_MAX_BYTES = 1_000_000
 
-@overload
-def build_spatial_files(raw_geojson: dict | None) -> dict[str, Any] | None:
-    """Converts raw GeoJSON data to a multipart payload for CMR shapefile search.
-    
-    CMR limits: 1,000,000 bytes, 500 features, 5,000 points.
-    Raises ValueError when the geometry exceeds these limits or if the raw GeoJSON is invalid.
-    """
-    payload = json.dumps(raw_geojson).encode("utf-8")
-    
-    if len(payload) > _CMR_MAX_BYTES:
-        raise ValueError(
-            f"Shapefile payload is {len(payload):,} bytes, exceeding the CMR limit of "
-            f"{_CMR_MAX_BYTES:,} bytes. Simplify the geometry before searching."
-        )
-
-    return {"shapefile": ("shapefile", BytesIO(payload), "application/geo+json")}
-
 
 def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
     """Convert WKT or raw GeoJSON into the GeoJSON multipart payload accepted by CMR shapefile search.
@@ -132,10 +116,12 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
 
         payload = json.dumps(geojson).encode("utf-8")
     else:
-        if ("type" in geometry) and ("features" in geometry) and (len(geometry.keys()) == 2):
-            payload = json.dumps(geometry).encode("utf-8")
-        else:
+        try:
+            valid_geojson = shape(geometry)
+        except:
             raise ValueError(f"Attempting to process malformed GeoJSON: {geometry}")
+
+        payload = json.dumps(to_geojson(valid_geojson)).encode("utf-8")
 
     if len(payload) > _CMR_MAX_BYTES:
         raise ValueError(
