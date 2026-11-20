@@ -99,35 +99,40 @@ def build_spatial_files(raw_geojson: dict | None) -> dict[str, Any] | None:
     return {"shapefile": ("shapefile", BytesIO(payload), "application/geo+json")}
 
 
-def build_spatial_files(wkt_geometry: str | None) -> dict[str, Any] | None:
-    """Convert WKT into the GeoJSON multipart payload accepted by CMR shapefile search.
+def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
+    """Convert WKT or raw GeoJSON into the GeoJSON multipart payload accepted by CMR shapefile search.
 
     CMR limits: 1,000,000 bytes, 500 features, 5,000 points.
     Raises ValueError when the geometry exceeds these limits.
     """
-    if not wkt_geometry:
+    payload = None
+    if not geometry:
         return None
 
-    try:
-        geometry = shapely_wkt.loads(wkt_geometry)
-    except GEOSException as exc:
-        raise ValueError(f"Invalid WKT geometry: {exc}") from exc
-    if not geometry.is_valid:
-        geometry = make_valid(geometry)
-    geometry = _normalize_geometry_for_cmr(geometry)
+    if type(geometry) == str:
+        try:
+            shapely_geometry = shapely_wkt.loads(geometry)
+        except GEOSException as exc:
+            raise ValueError(f"Invalid WKT geometry: {exc}") from exc
+        if not shapely_geometry.is_valid:
+            shapely_geometry = make_valid(shapely_geometry)
+        shapely_geometry = _normalize_geometry_for_cmr(shapely_geometry)
 
-    point_count = _count_geometry_points(geometry)
-    if point_count > _CMR_MAX_POINTS:
-        raise ValueError(
-            f"Geometry has {point_count:,} points, exceeding the CMR shapefile limit of "
-            f"{_CMR_MAX_POINTS:,}. Simplify the geometry before searching."
-        )
+        point_count = _count_geometry_points(shapely_geometry)
+        if point_count > _CMR_MAX_POINTS:
+            raise ValueError(
+                f"Geometry has {point_count:,} points, exceeding the CMR shapefile limit of "
+                f"{_CMR_MAX_POINTS:,}. Simplify the geometry before searching."
+            )
 
-    geojson = {
-        "type": "FeatureCollection",
-        "features": [{"type": "Feature", "geometry": mapping(geometry), "properties": {}}],
-    }
-    payload = json.dumps(geojson).encode("utf-8")
+        geojson = {
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "geometry": mapping(shapely_geometry), "properties": {}}],
+        }
+
+        payload = json.dumps(geojson).encode("utf-8")
+    else:
+        payload = json.dumps(geometry).encode("utf-8")
 
     if len(payload) > _CMR_MAX_BYTES:
         raise ValueError(

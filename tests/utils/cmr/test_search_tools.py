@@ -1,11 +1,11 @@
 """Tests for util.cmr.search_tools."""
 
 from datetime import UTC, datetime
-from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 from shapely.geometry import LineString, MultiPoint, Point, Polygon
+from typing import Any
 
 from util.cmr.search_tools import (
     _coerce_temporal_input,
@@ -33,12 +33,6 @@ from util.cmr.search_tools import (
     normalize_tool_item,
     normalize_variable_item,
 )
-
-@pytest.fixture
-def mock_build_spatial_files() -> Generator[MagicMock]:
-    """Mock util.cmr.search_tools.build_spatial_files."""
-    with patch("util.cmr.search_tools.build_spatial_files") as mock_spatial_files:
-        yield mock_spatial_files
 
 
 def test_format_cloud_cover_range():
@@ -91,7 +85,7 @@ def test_normalize_geometry_for_cmr():
     assert res.geom_type == "Polygon"
 
 
-def test_build_spatial_files(mock_build_spatial_files: MagicMock) -> None:
+def test_build_spatial_files() -> None:
     """Test function."""
     assert build_spatial_files(None) is None
 
@@ -115,6 +109,7 @@ def test_build_spatial_files(mock_build_spatial_files: MagicMock) -> None:
         build_spatial_files("POINT(0 0)")
 
     # accepts raw GeoJSON
+    result = None
     geojson = {
 	    "type": "FeatureCollection",
 	    "features": [
@@ -152,9 +147,8 @@ def test_build_spatial_files(mock_build_spatial_files: MagicMock) -> None:
 	        }
         ]
     }
-    build_spatial_files(geojson)
-    assert mock_build_spatial_files.
-
+    result = build_spatial_files(geojson)
+    assert (result is not None) and isinstance(result, dict)
 
 def test_normalize_collection_item():
     """Test function."""

@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 
 from util.eonet.client import (
-    EONET_BASE_URL,
     events,
 )
 
