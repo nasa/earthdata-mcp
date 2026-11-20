@@ -8,6 +8,8 @@ from fastmcp.exceptions import ToolError
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
+from tests.utils.cmr.test_search_tools import TEST_GEOJSON
+
 
 def _load_tool():
     return importlib.import_module("tools.get_collections.tool")
@@ -76,10 +78,12 @@ def test_get_collections_allows_spatial_only_search(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(spatial_geometry="POINT(-75 40)")
+    output_wkt = tool.get_collections(spatial_geometry="POINT(-75 40)")
+    output_geojson = tool.get_collections(spatial_geometry=TEST_GEOJSON)
 
     assert captured["method"] == "POST"
-    assert output["status"] == "no_results"
+    assert output_wkt["status"] == "no_results"
+    assert output_geojson["status"] == "no_results"
 
 
 def test_get_collections_returns_normalized_results(monkeypatch):
@@ -167,11 +171,13 @@ def test_get_collections_uses_post_for_spatial_search(monkeypatch):
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_collections(keyword="modis", spatial_geometry="POINT(-75 40)")
+    output_wkt = tool.get_collections(keyword="modis", spatial_geometry="POINT(-75 40)")
+    output_geojson = tool.get_collections(keyword="modis", spatial_geometry=TEST_GEOJSON)
 
     assert captured["method"] == "POST"
     assert captured["files"] is not None
-    assert output["status"] == "no_results"
+    assert output_wkt["status"] == "no_results"
+    assert output_geojson["status"] == "no_results"
 
 
 def test_get_collections_includes_optional_filter_params(monkeypatch):
@@ -259,6 +265,16 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
         tool.get_collections(keyword="modis", spatial_geometry="POINT((1 2))")
 
     assert "Invalid WKT geometry" in str(exc_info.value)
+
+
+def test_get_collections_returns_error_on_invalid_spatial_geojson():
+    """Invalid GeoJSON should raise a ToolError."""
+    tool = _load_tool()
+
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_collections(keyword="modis", spatial_geometry={"key1": 1, "key2": 2})
+
+    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
 
 
 def test_get_collections_calls_trace_update(monkeypatch):
@@ -647,8 +663,18 @@ def test_get_collections_wkt_error():
     assert "Invalid WKT" in str(exc_info.value)
 
 
-def test_get_collections_cursor_post():
-    """A spatial cursor on page 2 should still trigger exactly one search_cmr call."""
+def test_get_collections_geojson_error():
+    """Malformed GeoJSON should raise a ToolError mentioning the invalid geometry."""
+    from tools.get_collections.tool import get_collections
+
+    with pytest.raises(ToolError) as exc_info:
+        get_collections(spatial_geometry={"key1": 1, "key2": 2})
+
+    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+
+
+def test_get_collections_cursor_post_wkt():
+    """A WKT spatial cursor on page 2 should still trigger exactly one search_cmr call."""
     from unittest.mock import patch
 
     from tools.get_collections.tool import get_collections
@@ -657,6 +683,19 @@ def test_get_collections_cursor_post():
     c = encode_cursor("cmr", {"token": "x", "spatial": "POINT(0 0)", "params": {}})
     with patch("tools.get_collections.tool.search_cmr") as mock_search:
         get_collections(cursor=c, spatial_geometry="POINT(0 0)")
+        mock_search.assert_called_once()
+
+
+def test_get_collections_cursor_post_geojson():
+    """A GeoJSON spatial cursor on page 2 should still trigger exactly one search_cmr call."""
+    from unittest.mock import patch
+
+    from tools.get_collections.tool import get_collections
+    from util.pagination import encode_cursor
+
+    c = encode_cursor("cmr", {"token": "x", "spatial": TEST_GEOJSON, "params": {}})
+    with patch("tools.get_collections.tool.search_cmr") as mock_search:
+        get_collections(cursor=c, spatial_geometry=TEST_GEOJSON)
         mock_search.assert_called_once()
 
 

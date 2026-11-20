@@ -8,6 +8,8 @@ from fastmcp.exceptions import ToolError
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
+from tests.utils.cmr.test_search_tools import TEST_GEOJSON
+
 
 def _load_tool():
     return importlib.import_module("tools.get_granules.tool")
@@ -81,22 +83,32 @@ def test_get_granules_uses_post_for_spatial_search(monkeypatch):
     tool = _load_tool()
     page = CMRSearchResponse(items=[], total_hits=0, took_ms=7, search_after=None, page_size=0)
 
-    captured = {}
+    captured_wkt = {}
+    captured_geojson = {}
 
     def fake_search_cmr(**kwargs):
-        captured.update(kwargs)
+        captured_wkt.update(kwargs)
+        captured_geojson.update(kwargs)
         yield page
 
     monkeypatch.setattr(tool, "search_cmr", fake_search_cmr)
 
-    output = tool.get_granules(
+    output_wkt = tool.get_granules(
         collection_concept_id="C123-PROV",
         spatial_geometry="POINT(-75 40)",
     )
+    assert captured_wkt["method"] == "POST"
+    assert captured_wkt["files"] is not None
+    
+    output_geojson = tool.get_granules(
+        collection_concept_id="C123-PROV",
+        spatial_geometry=TEST_GEOJSON,
+    )
+    assert captured_geojson["method"] == "POST"
+    assert captured_geojson["files"] is not None
 
-    assert captured["method"] == "POST"
-    assert captured["files"] is not None
-    assert output["status"] == "no_results"
+    assert output_wkt["status"] == "no_results"
+    assert output_geojson["status"] == "no_results"
 
 
 def test_get_granules_includes_temporal_filter(monkeypatch):
@@ -182,6 +194,19 @@ def test_get_granules_returns_error_on_invalid_spatial_wkt():
         )
 
     assert "Invalid WKT geometry" in str(exc_info.value)
+
+
+def test_get_granules_returns_error_on_invalid_spatial_geojson():
+    """Invalid GeoJSON should raise a ToolError."""
+    tool = _load_tool()
+
+    with pytest.raises(ToolError) as exc_info:
+        tool.get_granules(
+            collection_concept_id="C123-PROV",
+            spatial_geometry={"key1": 1, "key2": 2},
+        )
+
+    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
 
 
 def test_get_granules_includes_cloud_cover_max_only(monkeypatch):
@@ -604,8 +629,18 @@ def test_get_granules_wkt_error():
     assert "Invalid WKT" in str(exc_info.value)
 
 
-def test_get_granules_cursor_post():
-    """A spatial cursor on page 2 should still trigger exactly one search_cmr call."""
+def test_get_granules_geojson_error():
+    """Malformed GeoJSON should raise a ToolError mentioning the invalid geometry."""
+    from tools.get_granules.tool import get_granules
+
+    with pytest.raises(ToolError) as exc_info:
+        get_granules(collection_concept_id="C1-PROV", spatial_geometry={"key1": 1, "key2": 2})
+
+    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+
+
+def test_get_granules_cursor_post_wkt():
+    """A WKT spatial cursor on page 2 should still trigger exactly one search_cmr call."""
     from unittest.mock import patch
 
     from tools.get_granules.tool import get_granules
@@ -621,4 +656,24 @@ def test_get_granules_cursor_post():
             [CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)]
         )
         get_granules(collection_concept_id="C1-PROV", spatial_geometry="POINT(0 0)", cursor=c)
+        mock_search.assert_called_once()
+
+
+def test_get_granules_cursor_post_geojson():
+    """A GeoJSON spatial cursor on page 2 should still trigger exactly one search_cmr call."""
+    from unittest.mock import patch
+
+    from tools.get_granules.tool import get_granules
+    from util.cmr.client import CMRSearchResponse
+    from util.pagination import encode_cursor
+
+    c = encode_cursor(
+        "cmr",
+        {"token": "x", "spatial": TEST_GEOJSON, "params": {"collection_concept_id": "C1-PROV"}},
+    )
+    with patch("tools.get_granules.tool.search_cmr") as mock_search:
+        mock_search.return_value = iter(
+            [CMRSearchResponse(items=[], total_hits=0, took_ms=5, search_after=None, page_size=0)]
+        )
+        get_granules(collection_concept_id="C1-PROV", spatial_geometry=TEST_GEOJSON, cursor=c)
         mock_search.assert_called_once()

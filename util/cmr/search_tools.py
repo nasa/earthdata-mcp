@@ -103,7 +103,7 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
     """Convert WKT or raw GeoJSON into the GeoJSON multipart payload accepted by CMR shapefile search.
 
     CMR limits: 1,000,000 bytes, 500 features, 5,000 points.
-    Raises ValueError when the geometry exceeds these limits.
+    Raises ValueError when the geometry exceeds these limits or if invalid GeoJSON is passed.
     """
     payload = None
     if not geometry:
@@ -132,7 +132,10 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
 
         payload = json.dumps(geojson).encode("utf-8")
     else:
-        payload = json.dumps(geometry).encode("utf-8")
+        if ("type" in geometry) and ("features" in geometry) and (len(geometry.keys()) == 2):
+            payload = json.dumps(geometry).encode("utf-8")
+        else:
+            raise ValueError(f"Attempting to process malformed GeoJSON: {geometry}")
 
     if len(payload) > _CMR_MAX_BYTES:
         raise ValueError(

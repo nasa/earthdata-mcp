@@ -34,6 +34,44 @@ from util.cmr.search_tools import (
     normalize_variable_item,
 )
 
+TEST_GEOJSON = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "EONET_26331",
+                "title": "Wildfire Red Hill, Perry, Mississippi",
+                "description": None,
+                "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_26331/geojson",
+                "closed": None,
+                "date": "2026-11-12T00:22:00Z",
+                "magnitudeValue": 519.00,
+                "magnitudeUnit": "acres",
+                "categories": [
+                    {
+                        "id": "wildfires",
+                        "title": "Wildfires"
+                    }
+                ],
+                "sources": [
+                    {
+                        "id": "IRWIN",
+                        "url": "https://irwin.doi.gov/observer/incidents/2026-MSMNF-000713"
+                    }
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -89.063853,
+                    31.130069
+                ]
+            }
+        }
+    ]
+}
+
 
 def test_format_cloud_cover_range():
     """Test function."""
@@ -109,45 +147,7 @@ def test_build_spatial_files() -> None:
         build_spatial_files("POINT(0 0)")
 
     # accepts raw GeoJSON
-    result = None
-    geojson = {
-	    "type": "FeatureCollection",
-	    "features": [
-            {
-	        	"type": "Feature",
-	        	"properties": {
-	        		"id": "EONET_26331",
-	        		"title": "Wildfire Red Hill, Perry, Mississippi",
-	        		"description": None,
-	        		"link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_26331/geojson",
-	        		"closed": None,
-	        		"date": "2026-11-12T00:22:00Z",
-	        		"magnitudeValue": 519.00,
-	        		"magnitudeUnit": "acres",
-	        		"categories": [
-	        			{
-	        				"id": "wildfires",
-	        				"title": "Wildfires"
-	        			}
-	        		],
-	        		"sources": [
-	        			{
-	        				"id": "IRWIN",
-	        				"url": "https://irwin.doi.gov/observer/incidents/2026-MSMNF-000713"
-	        			}
-	        		]
-	        	},
-	        	"geometry": {
-	        		"type": "Point",
-	        		"coordinates": [
-	        			-89.063853,
-	        			31.130069
-	        		]
-	        	}
-	        }
-        ]
-    }
-    result = build_spatial_files(geojson)
+    result = build_spatial_files(TEST_GEOJSON)
     assert (result is not None) and isinstance(result, dict)
 
 def test_normalize_collection_item():
