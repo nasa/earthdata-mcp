@@ -123,7 +123,7 @@ When the user asks about natural events on Earth, whether current, recent, or hi
   - Current/ongoing/active events only: set `status="open"`.
   - Only events that have already ended: set `status="closed"`.
   - Recent events (e.g., "this past week") or historical events (e.g., "2018 wildfires", "last summer"): keep the default `"all"` and use `days` or `start`/`end` (YYYY-MM-DD) for the time window.
-- Always set `limit` to 10 unless the user specifies their own; valid range is 1-50. If more results will be returned, tell the user that results may be truncated. If the number of return results is less than `limit`, ALWAYS suggest broadening the status, category, date range, or area
+- Always set `limit` to 10 unless the user specifies their own; valid range is 1-50. If more results will be returned, tell the user that results may be truncated.
 - Each result contains an event's `title`, `link`, `categories`, `sources`, `closed` (null if ongoing), and `geometry` (a list of dated coordinate points; coordinates are [longitude, latitude]).
 - If no events are found, never fabricate results. ALWAYS suggest broadening the status, category, date range, or area
 - EONET results supplement the CORE DISCOVERY WORKFLOW. When the user wants related data for an event, pass the event's coordinates as a `POINT(lon lat)` and a date range spanning the event's first and last dates (padded slightly) as search parameters to that workflow.
