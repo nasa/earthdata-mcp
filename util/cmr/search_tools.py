@@ -8,7 +8,6 @@ from typing import Any
 
 from shapely import make_valid, orient_polygons
 from shapely import wkt as shapely_wkt
-from shapely import to_geojson
 from shapely.errors import GEOSException
 from shapely.geometry import mapping
 from shapely.geometry import shape
@@ -92,8 +91,10 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
     payload = None
     if not geometry:
         return None
-
-    if type(geometry) == str:
+    
+    if type(geometry) == dict:
+        payload = json.dumps(geometry).encode("utf-8")
+    else:
         try:
             shapely_geometry = shapely_wkt.loads(geometry)
         except GEOSException as exc:
@@ -115,20 +116,13 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
         }
 
         payload = json.dumps(geojson).encode("utf-8")
-    else:
-        try:
-            valid_geojson = shape(geometry)
-        except:
-            raise ValueError(f"Attempting to process malformed GeoJSON: {geometry}")
-
-        payload = json.dumps(to_geojson(valid_geojson)).encode("utf-8")
 
     if len(payload) > _CMR_MAX_BYTES:
         raise ValueError(
             f"Shapefile payload is {len(payload):,} bytes, exceeding the CMR limit of "
             f"{_CMR_MAX_BYTES:,} bytes. Simplify the geometry before searching."
         )
-
+    
     return {"shapefile": ("shapefile", BytesIO(payload), "application/geo+json")}
 
 
