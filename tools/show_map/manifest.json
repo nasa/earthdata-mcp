@@ -1,0 +1,7 @@
+{
+  "name": "show_map",
+  "description": "Show a terra-map for a given CMR collection ID. Loads GIBS satellite imagery automatically when available.",
+  "version": "1.0.0",
+  "entry_function": "show_map",
+  "app": { "csp_profile": "map" }
+}
