@@ -23,6 +23,7 @@ dependencies = [
     "deepeval>=4.3.2",
     "httpx>=0.28.1",
     "harmony-py>=1.0",
+    "geojson>=3.3.0",
 ]
 
 [project.optional-dependencies]
