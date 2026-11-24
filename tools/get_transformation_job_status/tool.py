@@ -91,7 +91,7 @@ def get_transformation_job_status(
     page_links = all_links[offset : offset + params.limit]
     next_cursor = (
         encode_cursor(_CURSOR_NAMESPACE, {"offset": offset + params.limit, "job_id": job_id})
-        if offset + params.limit < total_hits
+        if params.limit > 0 and offset + params.limit < total_hits
         else None
     )
 

@@ -112,7 +112,7 @@ def get_keywords(  # pylint: disable=too-many-return-statements
     page_concepts = raw_concepts[offset : offset + params.limit]
     next_cursor = (
         encode_cursor("kms", {"offset": offset + params.limit, "query": query, "scheme": scheme})
-        if offset + params.limit < total_hits
+        if params.limit > 0 and offset + params.limit < total_hits
         else None
     )
 
