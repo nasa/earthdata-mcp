@@ -218,6 +218,21 @@ def test_get_keywords_pagination_exact_multiple(mock_search_kms_pattern: MagicMo
     assert result["next_cursor"] is None
 
 
+def test_get_keywords_limit_set_to_zero(mock_search_kms_pattern: MagicMock) -> None:
+    """Test behavior when limit is set to zero. Make sure next_cursor is set to None."""
+    tool = _load_tool()
+    all_concepts = [_make_concept(i) for i in range(15)]
+    mock_search_kms_pattern.return_value = all_concepts
+
+    result = tool.get_keywords(query="KEYWORD", limit=0)
+
+    assert result["status"] == SearchStatus.SUCCESS
+    assert result["total_hits"] == 15
+    assert len(result["keywords"]) == 0
+    assert result["error_message"] is None
+    assert result["next_cursor"] is None
+
+
 def test_get_keywords_invalid_cursor(mock_search_kms_pattern: MagicMock) -> None:
     """Garbage cursor raises a clean ToolError, not an unhandled exception."""
     tool = _load_tool()

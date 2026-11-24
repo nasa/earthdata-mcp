@@ -190,6 +190,27 @@ def test_get_transformation_job_status_pagination_exact_multiple(
     assert result["next_cursor"] is None
 
 
+def test_get_transformation_job_status_limit_set_to_zero(
+    mock_get_client: MagicMock,
+    mock_get_access_token: MagicMock,
+) -> None:
+    """First page returns limit items, next_cursor is set, total_hits is full count."""
+    tool = _load_tool()
+    all_links = [_make_link(i) for i in range(15)]
+
+    mock_client_instance = MagicMock()
+    mock_get_client.return_value = mock_client_instance
+    mock_client_instance.status.return_value = MOCK_STATUS_RESPONSE
+    mock_client_instance.result_urls.side_effect = lambda job_id: iter(all_links)
+
+    job_id = "test-job-page1"
+    result = tool.get_transformation_job_status(job_id=job_id, limit=0)
+
+    assert result["total_hits"] == 15
+    assert len(result["links"]) == 0
+    assert result["next_cursor"] is None
+
+
 def test_get_transformation_job_status_invalid_cursor(
     mock_get_client: MagicMock,
     mock_get_access_token: MagicMock,
