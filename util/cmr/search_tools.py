@@ -4,13 +4,13 @@ import json
 import logging
 from datetime import datetime
 from io import BytesIO
+from geojson import loads, GeoJSON, FeatureCollection
 from typing import Any
 
 from shapely import make_valid, orient_polygons
 from shapely import wkt as shapely_wkt
 from shapely.errors import GEOSException
 from shapely.geometry import mapping
-from shapely.geometry import shape
 from util.cmr.client import search_cmr
 from util.temporal import extract_temporal_extent, parse_iso_datetime
 
@@ -89,33 +89,54 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
     Raises ValueError when the geometry exceeds these limits or if invalid GeoJSON is passed.
     """
     payload = None
+    shapefile_name = "shapefile"
     if not geometry:
         return None
     
     if type(geometry) == dict:
-        payload = json.dumps(geometry).encode("utf-8")
+        try:
+            geometry_geo_obj = GeoJSON.to_instance(geometry, FeatureCollection, strict=True)
+            if geometry_geo_obj.is_valid:
+                payload = json.dumps(geometry).encode("utf-8")
+                shapefile_name = "geometry.geojson"
+            else:
+                raise ValueError(f"Provided GeoJSON could not be validated: {geometry}")
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Attempted to process malformed GeoJSON: {e}") from e
     else:
         try:
-            shapely_geometry = shapely_wkt.loads(geometry)
-        except GEOSException as exc:
-            raise ValueError(f"Invalid WKT geometry: {exc}") from exc
-        if not shapely_geometry.is_valid:
-            shapely_geometry = make_valid(shapely_geometry)
-        shapely_geometry = _normalize_geometry_for_cmr(shapely_geometry)
+            geometry_str_obj = loads(geometry)
+            try:
+                geo_obj = GeoJSON.to_instance(geometry_str_obj, FeatureCollection, strict=True)
+                if geo_obj.is_valid:
+                    payload = geometry.encode("utf-8")
+                    shapefile_name = "geometry.geojson"
+                else:
+                    raise ValueError(f"Provided GeoJSON could not be validated: {geometry}")
+            except (ValueError, TypeError, AttributeError) as e:
+                raise ValueError(f"Attempted to process malformed GeoJSON: {e}") from e
+        except (ValueError):
+            try:
+                shapely_geometry = shapely_wkt.loads(geometry)
+            except GEOSException as exc:
+                raise ValueError(f"Invalid WKT geometry: {exc}") from exc
+            if not shapely_geometry.is_valid:
+                shapely_geometry = make_valid(shapely_geometry)
+            shapely_geometry = _normalize_geometry_for_cmr(shapely_geometry)
 
-        point_count = _count_geometry_points(shapely_geometry)
-        if point_count > _CMR_MAX_POINTS:
-            raise ValueError(
-                f"Geometry has {point_count:,} points, exceeding the CMR shapefile limit of "
-                f"{_CMR_MAX_POINTS:,}. Simplify the geometry before searching."
-            )
+            point_count = _count_geometry_points(shapely_geometry)
+            if point_count > _CMR_MAX_POINTS:
+                raise ValueError(
+                    f"Geometry has {point_count:,} points, exceeding the CMR shapefile limit of "
+                    f"{_CMR_MAX_POINTS:,}. Simplify the geometry before searching."
+                )
 
-        geojson = {
-            "type": "FeatureCollection",
-            "features": [{"type": "Feature", "geometry": mapping(shapely_geometry), "properties": {}}],
-        }
+            geojson = {
+                "type": "FeatureCollection",
+                "features": [{"type": "Feature", "geometry": mapping(shapely_geometry), "properties": {}}],
+            }
 
-        payload = json.dumps(geojson).encode("utf-8")
+            payload = json.dumps(geojson).encode("utf-8")
 
     if len(payload) > _CMR_MAX_BYTES:
         raise ValueError(
@@ -123,7 +144,7 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
             f"{_CMR_MAX_BYTES:,} bytes. Simplify the geometry before searching."
         )
     
-    return {"shapefile": ("shapefile", BytesIO(payload), "application/geo+json")}
+    return {"shapefile": (f"{shapefile_name}", BytesIO(payload), "application/geo+json")}
 
 
 def _count_geometry_points(geometry: Any) -> int:
