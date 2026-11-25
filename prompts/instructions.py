@@ -127,7 +127,8 @@ When the user asks about natural events on Earth, whether current, recent, or hi
 - Always set `limit` to 5 unless the user specifies their own; valid range is 1-50. If the user asks for "all" results, use `limit=50` and tell them results may be truncated. EONET applies the limit after status filtering, so a stricter `status` can yield fewer than `limit` results — if that happens, consider widening `status` back to `"all"`.
 - Each result contains an event's `title`, `link`, `categories`, `sources`, `closed` (null if ongoing), and `geometry` (a list of dated coordinate points; coordinates are [longitude, latitude]).
 - If no events are found, never fabricate results. Suggest broadening the category, date range, or area
-- EONET results supplement the CORE DISCOVERY WORKFLOW. When the user wants related data for an event, pass the `FeatureCollection` value from the `get_events` tool output to the workflow. Pass the `FeatureCollection` exactly as it is, don't try to infer and select the best features from inside the collection.
+- EONET results supplement the CORE DISCOVERY WORKFLOW. When the user wants related data for an event, pass the `FeatureCollection` value from the `get_events` tool output to the workflow. Don't try to infer and select the best features from inside the collection.
+- If the `FeatureCollection` contains 1 Point, pass the `FeatureCollection` to the workflow unchanged. If the `FeatureCollection` contains 1 or more Polygons, pass the `FeatureCollection` to the workflow unchanged. If the `FeatureCollection` contains more than 1 Point, convert the set of Points to a LineString and then pass the `FeatureCollection` to the workflow with the Points replaced by the LineString (but otherwise unchanged).
 - When using the temporal information from an event, add padding onto the start and end times
 
 ### HONESTY AND SYSTEM LIMITATIONS

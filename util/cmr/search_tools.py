@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from io import BytesIO
-from geojson import loads, GeoJSON, FeatureCollection
+from geojson import loads, dumps, GeoJSON, FeatureCollection
 from typing import Any
 
 from shapely import make_valid, orient_polygons
@@ -97,17 +97,17 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
         try:
             geometry_geo_obj = GeoJSON.to_instance(geometry, FeatureCollection, strict=True)
             if geometry_geo_obj.is_valid:
-                payload = json.dumps(geometry).encode("utf-8")
+                payload = dumps(geometry).encode("utf-8")
                 shapefile_name = "geometry.geojson"
             else:
                 raise ValueError(f"Provided GeoJSON could not be validated: {geometry}")
-        except (ValueError, AttributeError) as e:
+        except (ValueError, TypeError, AttributeError) as e:
             raise ValueError(f"Attempted to process malformed GeoJSON: {e}") from e
     else:
         try:
-            geometry_str_obj = loads(geometry)
+            geometry_str_json = loads(geometry)
             try:
-                geo_obj = GeoJSON.to_instance(geometry_str_obj, FeatureCollection, strict=True)
+                geo_obj = GeoJSON.to_instance(geometry_str_json, FeatureCollection, strict=True)
                 if geo_obj.is_valid:
                     payload = geometry.encode("utf-8")
                     shapefile_name = "geometry.geojson"
@@ -115,7 +115,8 @@ def build_spatial_files(geometry: str | dict | None) -> dict[str, Any] | None:
                     raise ValueError(f"Provided GeoJSON could not be validated: {geometry}")
             except (ValueError, TypeError, AttributeError) as e:
                 raise ValueError(f"Attempted to process malformed GeoJSON: {e}") from e
-        except (ValueError):
+        except (json.JSONDecodeError):
+            logger.debug("Geometry was not valid JSON. Attempting to parse WKT instead")
             try:
                 shapely_geometry = shapely_wkt.loads(geometry)
             except GEOSException as exc:
