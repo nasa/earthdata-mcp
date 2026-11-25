@@ -206,7 +206,7 @@ def test_get_granules_returns_error_on_invalid_spatial_geojson():
             spatial_geometry={"key1": 1, "key2": 2},
         )
 
-    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+    assert "Attempted to process malformed GeoJSON" in str(exc_info.value)
 
 
 def test_get_granules_includes_cloud_cover_max_only(monkeypatch):
@@ -636,7 +636,7 @@ def test_get_granules_geojson_error():
     with pytest.raises(ToolError) as exc_info:
         get_granules(collection_concept_id="C1-PROV", spatial_geometry={"key1": 1, "key2": 2})
 
-    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+    assert "Attempted to process malformed GeoJSON" in str(exc_info.value)
 
 
 def test_get_granules_cursor_post_wkt():

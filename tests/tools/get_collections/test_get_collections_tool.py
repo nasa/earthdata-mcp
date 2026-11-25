@@ -1,5 +1,7 @@
 """Tests for the get_collections MCP tool."""
 
+import json
+
 import importlib
 from unittest.mock import patch
 
@@ -8,7 +10,7 @@ from fastmcp.exceptions import ToolError
 
 from util.cmr.client import CMRError, CMRSearchResponse
 
-from tests.utils.cmr.test_search_tools import TEST_GEOJSON
+from tests.utils.cmr.test_search_tools import TEST_GEOJSON, BAD_GEOJSON
 
 
 def _load_tool():
@@ -268,13 +270,46 @@ def test_get_collections_returns_error_on_invalid_spatial_wkt():
 
 
 def test_get_collections_returns_error_on_invalid_spatial_geojson():
-    """Invalid GeoJSON should raise a ToolError."""
+    """Invalid GeoJSON objects and strings should raise a ToolError."""
+    tool = _load_tool()
+
+    with pytest.raises(ToolError) as exc_info_geojson_obj:
+        tool.get_collections(keyword="modis", spatial_geometry={"key1": 1, "key2": 2})
+
+    assert "Attempted to process malformed GeoJSON" in str(exc_info_geojson_obj.value)
+
+    with pytest.raises(ToolError) as exc_info_geojson_str:
+        tool.get_collections(keyword="modis", spatial_geometry='{"key1": 1, "key2": 2}')
+    
+    assert "Attempted to process malformed GeoJSON" in str(exc_info_geojson_str.value)
+
+
+def test_get_collections_returns_error_on_failed_geojson_validation():
+    """GeoJSON that can't be validated should raise a ToolError."""
+    tool = _load_tool()
+
+    with pytest.raises(ToolError) as exc_info_geojson_obj:
+        tool.get_collections(keyword="modis", spatial_geometry=BAD_GEOJSON)
+
+    assert "Provided GeoJSON could not be validated" in str(exc_info_geojson_obj.value)
+
+    with pytest.raises(ToolError) as exc_info_geojson_str:
+        tool.get_collections(keyword="modis", spatial_geometry=json.dumps(BAD_GEOJSON))
+    
+    assert "Provided GeoJSON could not be validated" in str(exc_info_geojson_str.value)
+
+
+def test_get_collections_logs_switch_to_wkt_on_bad_geojson():
+    """
+    Strings that are invlaid GeoJSON and invalid JSON strings should trigger alert that 
+    spatial info will be processed as WKT instead.
+    """
     tool = _load_tool()
 
     with pytest.raises(ToolError) as exc_info:
-        tool.get_collections(keyword="modis", spatial_geometry={"key1": 1, "key2": 2})
+        tool.get_collections(keyword="modis", spatial_geometry="POINT((1 2))")
 
-    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+    assert "Invalid WKT geometry" in str(exc_info.value)
 
 
 def test_get_collections_calls_trace_update(monkeypatch):
@@ -664,13 +699,18 @@ def test_get_collections_wkt_error():
 
 
 def test_get_collections_geojson_error():
-    """Malformed GeoJSON should raise a ToolError mentioning the invalid geometry."""
+    """Malformed GeoJSON objects and strings should raise a ToolError mentioning the invalid geometry."""
     from tools.get_collections.tool import get_collections
 
-    with pytest.raises(ToolError) as exc_info:
+    with pytest.raises(ToolError) as exc_info_geojson_obj:
         get_collections(spatial_geometry={"key1": 1, "key2": 2})
 
-    assert "Attempting to process malformed GeoJSON" in str(exc_info.value)
+    assert "Attempted to process malformed GeoJSON" in str(exc_info_geojson_obj.value)
+
+    with pytest.raises(ToolError) as exc_info_geojson_str:
+        get_collections(spatial_geometry='{"key1": 1, "key2": 2}')
+    
+    assert "Attempted to process malformed GeoJSON" in str(exc_info_geojson_str.value)
 
 
 def test_get_collections_cursor_post_wkt():

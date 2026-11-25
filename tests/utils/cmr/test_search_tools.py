@@ -39,34 +39,25 @@ TEST_GEOJSON = {
     "features": [
         {
             "type": "Feature",
-            "properties": {
-                "id": "EONET_26331",
-                "title": "Wildfire Red Hill, Perry, Mississippi",
-                "description": None,
-                "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_26331/geojson",
-                "closed": None,
-                "date": "2026-11-12T00:22:00Z",
-                "magnitudeValue": 519.00,
-                "magnitudeUnit": "acres",
-                "categories": [
-                    {
-                        "id": "wildfires",
-                        "title": "Wildfires"
-                    }
-                ],
-                "sources": [
-                    {
-                        "id": "IRWIN",
-                        "url": "https://irwin.doi.gov/observer/incidents/2026-MSMNF-000713"
-                    }
-                ]
-            },
+            "properties": {},
             "geometry": {
                 "type": "Point",
                 "coordinates": [
                     -89.063853,
                     31.130069
                 ]
+            }
+        }
+    ]
+}
+
+BAD_GEOJSON = {
+    "type": "FeatureCollection",
+    "geo_things": [
+        {
+            "properties": {},
+            "geometry": {
+                "type": "Point"
             }
         }
     ]
