@@ -127,13 +127,22 @@ uv run python evals/regression_test.py run
 
 # Publish then run in one shot
 uv run python evals/regression_test.py publish-and-run
+
+# Limit any command to one dataset (default: all)
+uv run python evals/regression_test.py run --dataset mocked
 ```
+
+There are two datasets, each run as its own Langfuse experiment; the command exits nonzero if either has a gating failure:
+
+- **live** (`mcp_regression_dataset.json`): every call goes to the running MCP server.
+- **mocked** (`mcp_mock_dataset.json`): for tools that need authorization. `tools/list` still hits the live server, but `tools/call` is answered from each item's `metadata.mock_tool_responses`, a map of tool name to the tool's payload. Use a list of payloads to give each successive call to that tool its own response. A call to a tool with no mock (or past the end of its list) returns an error result.
 
 **Key files**
 
 | File | Purpose |
 |---|---|
 | `evals/mcp_regression_dataset.json` | Golden test cases (questions + expected tool calls / sequences) |
+| `evals/mcp_mock_dataset.json` | Test cases with mocked `tools/call` responses |
 | `evals/evaluators.py` | Langfuse evaluator functions (tool coverage, argument quality, sequence, abstention, hallucination) |
 | `evals/sandbox_agent.py` | Bedrock + MCP agentic loop; results are `cache`-backed so evaluators reuse the same run |
 

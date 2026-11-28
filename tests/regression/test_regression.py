@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from evals.regression_test import run_experiment
+from evals.regression_test import run_all_experiments
 
 
 @pytest.mark.skipif(
@@ -12,6 +12,6 @@ from evals.regression_test import run_experiment
     reason="Set RUN_MCP_REGRESSION=1 to run the live Langfuse/MCP regression suite",
 )
 def test_mcp_regression_experiment_passes():
-    """Run the hosted golden set and fail CI when any gating evaluator fails."""
-    result, passed = run_experiment()
-    assert passed, f"Regression failures: {result}"
+    """Run the hosted live and mocked golden sets and fail CI when any gating evaluator fails."""
+    results, passed = run_all_experiments()
+    assert passed, f"Regression failures: {results}"

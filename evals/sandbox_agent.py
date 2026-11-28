@@ -51,10 +51,95 @@ def _read_mcp_response(response: httpx.Response) -> dict:
                 data = json.loads(line[6:])
                 if "result" in data or "error" in data:
                     return data
-        raise RuntimeError(
-            f"SSE stream closed without a result event. Body: {response.text[:500]}"
-        )
+        raise RuntimeError(f"SSE stream closed without a result event. Body: {response.text[:500]}")
     return response.json()
+
+
+DEFAULT_LIVE_MCP_URL = "http://127.0.0.1:5001/mcp/v1"
+MOCK_MCP_URL = "mock://earthdata-mcp"
+MOCK_RESPONSES_KEY = "mock_tool_responses"
+
+
+def _live_mcp_url() -> str:
+    return os.getenv("MCP_SERVER_URL", DEFAULT_LIVE_MCP_URL)
+
+
+def _resolve_mcp_target(metadata: dict[str, Any] | None) -> tuple[str, str]:
+    """Return (url, mock_responses_json) for a dataset item.
+
+    Items whose metadata defines `mock_tool_responses` run in mock mode: the url
+    is the `mock://` sentinel and the responses are serialized so they become part
+    of the `_bedrock_agent_task` cache key. The task and every evaluator must call
+    this with the item's metadata so they all hit the same cache entry.
+    """
+    if isinstance(metadata, dict) and MOCK_RESPONSES_KEY in metadata:
+        return MOCK_MCP_URL, json.dumps(metadata[MOCK_RESPONSES_KEY], sort_keys=True)
+    return _live_mcp_url(), ""
+
+
+class _MockToolsCallTransport(httpx.BaseTransport):
+    """Pass everything through to the live server except `tools/call`.
+
+    `initialize`, `notifications/initialized` and `tools/list` are forwarded to the
+    live MCP server so the model sees the real tool schemas. `tools/call` is answered
+    from `mock_responses`, which maps tool name to either one payload (returned for
+    every call) or a list of payloads (the nth call gets the nth entry).
+    """
+
+    def __init__(self, mock_responses: dict[str, Any], live_url: str):
+        self._mock_responses = mock_responses
+        self._live_url = live_url
+        self._live = httpx.HTTPTransport()
+        self._call_counts: dict[str, int] = {}
+
+    def close(self) -> None:
+        self._live.close()
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if body.get("method") != "tools/call":
+            return self._forward(request)
+
+        params = body.get("params") or {}
+        name = params.get("name", "")
+        count = self._call_counts.get(name, 0)
+        self._call_counts[name] = count + 1
+
+        result = self._mock_result(name, count)
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": body.get("id"), "result": result})
+
+    def _forward(self, request: httpx.Request) -> httpx.Response:
+        headers = {
+            k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")
+        }
+        live_request = httpx.Request(
+            request.method, self._live_url, headers=headers, content=request.content
+        )
+        response = self._live.handle_request(live_request)
+        response.read()
+        return response
+
+    def _mock_result(self, name: str, call_index: int) -> dict[str, Any]:
+        if name not in self._mock_responses:
+            return _mock_error(f"No mock response defined for tool '{name}'")
+
+        configured = self._mock_responses[name]
+        if isinstance(configured, list):
+            if call_index >= len(configured):
+                return _mock_error(
+                    f"Mock responses for tool '{name}' exhausted: call "
+                    f"{call_index + 1} but only {len(configured)} defined"
+                )
+            payload = configured[call_index]
+        else:
+            payload = configured
+
+        text = payload if isinstance(payload, str) else json.dumps(payload)
+        return {"content": [{"type": "text", "text": text}], "isError": False}
+
+
+def _mock_error(message: str) -> dict[str, Any]:
+    return {"content": [{"type": "text", "text": message}], "isError": True}
 
 
 def _make_call_tool_result(content: list[dict], is_error: bool) -> CallToolResult:
@@ -69,8 +154,20 @@ def _make_call_tool_result(content: list[dict], is_error: bool) -> CallToolResul
 
 @cache
 @observe(as_type="generation")
-def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
-    """Synchronous agentic loop: Bedrock picks tools, httpx calls the MCP server."""
+def _bedrock_agent_task(
+    question: str, url: str, model_id: str, mock_responses_json: str = ""
+) -> _AgentResult:
+    """Synchronous agentic loop: Bedrock picks tools, httpx calls the MCP server.
+
+    When `url` is the `mock://` sentinel, `tools/call` is answered from
+    `mock_responses_json` and everything else goes to the live server.
+    """
+    is_mock = url == MOCK_MCP_URL
+    client_kwargs: dict[str, Any] = {}
+    if is_mock:
+        client_kwargs["transport"] = _MockToolsCallTransport(
+            json.loads(mock_responses_json or "{}"), _live_mcp_url()
+        )
     max_turns = int(os.getenv("BEDROCK_MAX_TURNS", str(DEFAULT_BEDROCK_MAX_TURNS)))
     region = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
 
@@ -79,7 +176,7 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
         "Accept": "application/json, text/event-stream",
     }
 
-    with httpx.Client(timeout=60) as http:
+    with httpx.Client(timeout=60, **client_kwargs) as http:
         init_resp = http.post(
             url,
             headers=req_headers,
@@ -139,11 +236,7 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
         for _ in range(max_turns):
             response = bedrock.converse(
                 modelId=model_id,
-                **(
-                    {"system": [{"text": server_instructions}]}
-                    if server_instructions
-                    else {}
-                ),
+                **({"system": [{"text": server_instructions}]} if server_instructions else {}),
                 messages=messages,
                 toolConfig=bedrock_tool_config,
             )
@@ -210,20 +303,15 @@ def _bedrock_agent_task(question: str, url: str, model_id: str) -> _AgentResult:
             messages.append({"role": "user", "content": tool_results})
 
         final_output: Any = invocations[-1].output if invocations else ""
-        last_assistant = next(
-            (m for m in reversed(messages) if m.get("role") == "assistant"), None
-        )
+        last_assistant = next((m for m in reversed(messages) if m.get("role") == "assistant"), None)
         if last_assistant:
-            texts = [
-                b.get("text", "")
-                for b in last_assistant.get("content", [])
-                if "text" in b
-            ]
+            texts = [b.get("text", "") for b in last_assistant.get("content", []) if "text" in b]
             if texts:
                 final_output = " ".join(texts)
 
         get_client().update_current_generation(
             model=model_id,
+            metadata={"mcp_mode": "mock" if is_mock else "live"},
             usage_details={"input": total_input_tokens, "output": total_output_tokens},
         )
 

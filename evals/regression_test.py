@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -10,13 +11,40 @@ from dotenv import load_dotenv
 from langfuse import get_client
 
 from evals.evaluators import ALL_EVALUATORS, DEFAULT_MODEL_ID
-from evals.sandbox_agent import _bedrock_agent_task
+from evals.sandbox_agent import MOCK_RESPONSES_KEY, _bedrock_agent_task, _resolve_mcp_target
 
 load_dotenv()
 
 DEFAULT_DATASET_NAME = "mcp-regression-golden-set"
 DEFAULT_DATASET_FILE = Path(__file__).with_name("mcp_regression_dataset.json")
 DEFAULT_EXPERIMENT_NAME = "MCP Pre-Deploy Core Regression Suite"
+
+
+@dataclass(frozen=True)
+class DatasetSpec:
+    """One dataset/experiment pair. Mocked specs answer `tools/call` from item metadata."""
+
+    key: str
+    dataset_name: str
+    dataset_file: Path
+    experiment_name: str
+    mocked: bool = False
+
+
+LIVE_SPEC = DatasetSpec(
+    key="live",
+    dataset_name=DEFAULT_DATASET_NAME,
+    dataset_file=DEFAULT_DATASET_FILE,
+    experiment_name=DEFAULT_EXPERIMENT_NAME,
+)
+MOCKED_SPEC = DatasetSpec(
+    key="mocked",
+    dataset_name="mcp-regression-mocked",
+    dataset_file=Path(__file__).with_name("mcp_mock_dataset.json"),
+    experiment_name="MCP Pre-Deploy Mocked Regression Suite",
+    mocked=True,
+)
+DATASET_SPECS = (LIVE_SPEC, MOCKED_SPEC)
 
 # Evaluators that report observability signals rather than pass/fail gates.
 # Their scores should never cause the regression suite to fail.
@@ -42,10 +70,10 @@ def my_mcp_agent_task(*, item, **kwargs):
         item.metadata = {}
 
     question = item.input.get("question", "") if isinstance(item.input, dict) else str(item.input)
-    url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:5001/mcp/v1")
+    url, mock_responses_json = _resolve_mcp_target(item.metadata)
     model_id = os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID)
 
-    agent_result = _bedrock_agent_task(question, url, model_id)
+    agent_result = _bedrock_agent_task(question, url, model_id, mock_responses_json)
 
     item.metadata["model_used"] = model_id
     item.metadata["input_tokens"] = agent_result.input_tokens
@@ -71,6 +99,7 @@ def publish_dataset(
     *,
     dataset_name: str = DEFAULT_DATASET_NAME,
     dataset_file: Path = DEFAULT_DATASET_FILE,
+    require_mocks: bool = False,
 ) -> Any:
     """Create or update the versioned regression cases in Langfuse."""
     langfuse = get_client()
@@ -87,6 +116,15 @@ def publish_dataset(
     for item in definition["items"]:
         if not isinstance(item, dict) or not item.get("id"):
             raise ValueError("Every dataset item must define a stable 'id'")
+        if require_mocks and not isinstance(
+            (item.get("metadata") or {}).get(MOCK_RESPONSES_KEY), dict
+        ):
+            raise ValueError(
+                f"Item '{item['id']}' in {dataset_file} must define a "
+                f"'metadata.{MOCK_RESPONSES_KEY}' object"
+            )
+
+    for item in definition["items"]:
         langfuse.create_dataset_item(
             dataset_name=dataset_name,
             id=item["id"],
@@ -159,6 +197,27 @@ def run_experiment(
     return result, passed
 
 
+def run_all_experiments(
+    specs: tuple[DatasetSpec, ...] = DATASET_SPECS, *, model_id: str = ""
+) -> tuple[list[tuple[DatasetSpec, Any]], bool]:
+    """Run each dataset as its own experiment; overall pass requires every one to pass."""
+    outcomes = []
+    for spec in specs:
+        print(f"\n{BOLD}=== {spec.key} dataset: {spec.dataset_name} ==={RESET}")
+        result, passed = run_experiment(
+            dataset_name=spec.dataset_name,
+            experiment_name=spec.experiment_name,
+            model_id=model_id,
+        )
+        outcomes.append((spec, result, passed))
+
+    print(f"\n{BOLD}Summary{RESET}")
+    for spec, _, passed in outcomes:
+        print(f"  {spec.key}: {'PASSED' if passed else f'{RED}FAILED{RESET}'}")
+
+    return [(spec, result) for spec, result, _ in outcomes], all(p for _, _, p in outcomes)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Earthdata MCP Langfuse regression suite")
     parser.add_argument(
@@ -166,9 +225,12 @@ def main() -> int:
         choices=("publish", "run", "publish-and-run"),
         help="Publish golden cases, run the Langfuse dataset, or do both",
     )
-    parser.add_argument("--dataset-name", default=DEFAULT_DATASET_NAME)
-    parser.add_argument("--dataset-file", type=Path, default=DEFAULT_DATASET_FILE)
-    parser.add_argument("--experiment-name", default=DEFAULT_EXPERIMENT_NAME)
+    parser.add_argument(
+        "--dataset",
+        choices=("all", *(spec.key for spec in DATASET_SPECS)),
+        default="all",
+        help="Which dataset(s) to publish/run (default: all)",
+    )
     parser.add_argument(
         "--model-id",
         default="",
@@ -176,14 +238,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    specs = tuple(spec for spec in DATASET_SPECS if args.dataset in ("all", spec.key))
+
     if args.command in ("publish", "publish-and-run"):
-        publish_dataset(dataset_name=args.dataset_name, dataset_file=args.dataset_file)
+        for spec in specs:
+            publish_dataset(
+                dataset_name=spec.dataset_name,
+                dataset_file=spec.dataset_file,
+                require_mocks=spec.mocked,
+            )
     if args.command in ("run", "publish-and-run"):
-        _, passed = run_experiment(
-            dataset_name=args.dataset_name,
-            experiment_name=args.experiment_name,
-            model_id=args.model_id,
-        )
+        _, passed = run_all_experiments(specs, model_id=args.model_id)
         return 0 if passed else 1
 
     return 0
