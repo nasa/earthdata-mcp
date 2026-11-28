@@ -182,7 +182,15 @@ def run_experiment(
         max_concurrency=int(os.getenv("REGRESSION_MAX_CONCURRENCY", "3")),
     )
     # Print all results
-    print(result.format(include_item_results=True).replace("\\n", "\n"))
+    result_string = result.format(include_item_results=True).replace("\\n", "\n")
+    print(result_string)
+
+    # Check if the all of the tests failed to run (e.g. for AWS credentials issue)
+    if result_string == "No experiment results to display.":
+        result = {"Error": "No tests were able to run"}
+        passed = False
+        print(f"\n{RED}{BOLD}‼️ No tests were able to run! Check logs for errors and environment for correct AWS credentials.{RESET}")
+        return result, passed
 
     # Print failed gating evaluators by dataset item
     passed, failures = _summarize_experiment(result)
