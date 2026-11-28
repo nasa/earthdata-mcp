@@ -18,13 +18,13 @@ Prerequisites: MCP server running locally (`uv run server.py http`), `.env` file
 
 ```bash
 # Push the golden dataset to Langfuse (run once, or after editing the dataset file)
-uv run python evals/regression_test.py publish
+uv run python -m evals.regression_test publish
 
 # Run experiments and print scores
-uv run python evals/regression_test.py run
+uv run python -m evals.regression_test run
 
 # Publish then run in one shot
-uv run python evals/regression_test.py publish-and-run
+uv run python -m evals.regression_test publish-and-run
 ```
 
 **CI gate** — set `RUN_MCP_REGRESSION=1` to include the test in `pytest`:
